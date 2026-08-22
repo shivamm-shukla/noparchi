@@ -1,0 +1,110 @@
+// Prisma Schema for NoParchi - Smart QR & WhatsApp Commerce App
+// Target: PostgreSQL / Supabase with strict multi-tenant isolation
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum VehicleType {
+  TWO_WHEELER
+  FOUR_WHEELER
+  HEAVY_VEHICLE
+  GENERAL_ENTRY
+}
+
+model Merchant {
+  id             String        @id @default(uuid())
+  businessName   String
+  location       String
+  upiId          String
+  configSettings Json          @default("{\"twoWheelerRate\": 20, \"fourWheelerRate\": 50, \"flatRate\": 30, \"currency\": \"INR\", \"enableWhatsApp\": true}")
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  users          User[]
+  transactions   Transaction[]
+
+  @@map("merchants")
+}
+
+model User {
+  id                 String             @id @default(uuid())
+  merchantId         String
+  merchant           Merchant           @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  isOwner            Boolean            @default(false)
+  phone              String             @unique
+  name               String
+  passcode           String             // Hashed or 4-6 digit staff PIN
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  permission         StaffPermission?
+  scannedValidations TicketValidation[] @relation("ScannedByUser")
+
+  @@index([merchantId])
+  @@map("users")
+}
+
+model StaffPermission {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  can_view_ledger    Boolean  @default(false)
+  can_verify_tickets Boolean  @default(true)
+  can_edit_settings  Boolean  @default(false)
+  can_issue_refund   Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("staff_permissions")
+}
+
+model Transaction {
+  id             String            @id @default(uuid())
+  merchantId     String
+  merchant       Merchant          @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  amount         Float
+  vehicleNumber  String?
+  vehicleType    VehicleType       @default(FOUR_WHEELER)
+  status         TransactionStatus @default(PENDING)
+  paymentRef     String?           @unique // Unique UPI/Gateway transaction reference
+  customerPhone  String?           // For WhatsApp digital pass delivery
+  ticketCode     String            @unique // Unique QR code payload token
+  qrPayload      String?           // Full encrypted or structured QR payload
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  validation     TicketValidation?
+
+  @@index([merchantId, createdAt])
+  @@index([ticketCode])
+  @@map("transactions")
+}
+
+model TicketValidation {
+  id              String      @id @default(uuid())
+  // Crucial: Unique constraint on transactionId enforces single-validation concurrency safety
+  transactionId   String      @unique
+  transaction     Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  scannedByUserId String
+  scannedByUser   User        @relation("ScannedByUser", fields: [scannedByUserId], references: [id], onDelete: Restrict)
+  timestamp       DateTime    @default(now())
+  exitGate        String?     @default("Main Exit")
+  notes           String?
+
+  @@index([scannedByUserId])
+  @@index([timestamp])
+  @@map("ticket_validations")
+}

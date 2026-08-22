@@ -8,10 +8,20 @@
     }
   },
   "include": [
-    "**/*.ts",
-    "**/*.tsx",
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "components/**/*.ts",
+    "components/**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "constants/**/*.ts",
+    "constants/**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
     "nativewind-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "supabase/functions"
   ]
 }
