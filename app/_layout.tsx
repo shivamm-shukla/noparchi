@@ -3,10 +3,9 @@ import { View, Text, ActivityIndicator } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { useThemeColors } from '../src/context/ThemeContext';
 import { AuthProvider, useAuth } from '../src/context/AuthContext';
 import { AppProvider } from '../src/context/AppContext';
-import { ThemeProvider, useTheme } from '../src/context/ThemeContext';
+import { ThemeProvider, useTheme, useThemeColors } from '../src/context/ThemeContext';
 import { PreviewBanner } from '../components/ui/PreviewBanner';
 import '../global.css';
 
@@ -86,26 +85,47 @@ function ConfigurationNeeded({ missing }: { missing: string[] }) {
   );
 }
 
+/**
+ * Everything that needs the resolved palette lives here rather than in
+ * RootLayout, because RootLayout is what renders ThemeProvider - a hook call up
+ * there runs outside the provider it is about to create.
+ */
+function ThemedShell() {
+  const { colors, resolved } = useTheme();
+
+  return (
+    <>
+      {/* The bar's own glyphs need the opposite of the surface behind them. */}
+      <StatusBar
+        style={resolved === 'dark' ? 'light' : 'dark'}
+        backgroundColor={colors['surface']}
+      />
+      <PreviewBanner />
+      <RouteGuard>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colors['bg'] },
+          }}
+        >
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="(auth)" />
+        </Stack>
+      </RouteGuard>
+    </>
+  );
+}
+
 export default function RootLayout() {
-  const colors = useThemeColors();
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <AppProvider>
-          <StatusBar style="light" backgroundColor={colors['surface']} />
-          <RouteGuard>
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                contentStyle: { backgroundColor: colors['bg'] },
-              }}
-            >
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="(auth)" />
-            </Stack>
-          </RouteGuard>
-        </AppProvider>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <AppProvider>
+            <ThemedShell />
+          </AppProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }
