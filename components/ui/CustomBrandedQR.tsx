@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Platform } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { Download, Copy, CheckCircle2, Sparkles, AlertTriangle } from 'lucide-react-native';
-import theme from '../../src/config/theme';
+import { useThemeColors } from '../../src/context/ThemeContext';
 import { Card } from './Card';
 import { Button } from './Button';
 import { checkoutUrl } from '../../src/utils/links';
@@ -35,6 +35,7 @@ export const CustomBrandedQR: React.FC<CustomBrandedQRProps> = ({
   size = 200,
   showDetails = true,
 }) => {
+  const colors = useThemeColors();
   const [copied, setCopied] = useState(false);
   const url = checkoutUrl(merchant.id);
 
@@ -78,11 +79,11 @@ export const CustomBrandedQR: React.FC<CustomBrandedQRProps> = ({
   if (!url) {
     return (
       <Card className="w-full items-center p-6">
-        <AlertTriangle size={28} color={theme.semantic.warning} />
-        <Text className="text-sm font-bold text-slate-100 mt-3 text-center">
+        <AlertTriangle size={28} color={colors['warning']} />
+        <Text className="text-sm font-bold text-brand-text mt-3 text-center">
           Gate QR not ready
         </Text>
-        <Text className="text-xs text-slate-400 text-center mt-2 leading-4">
+        <Text className="text-xs text-brand-text-muted text-center mt-2 leading-4">
           Set EXPO_PUBLIC_WEB_URL to the address customers will visit, so the QR points
           somewhere their phone can actually open.
         </Text>
@@ -94,23 +95,23 @@ export const CustomBrandedQR: React.FC<CustomBrandedQRProps> = ({
     <Card className="w-full max-w-sm mx-auto items-center p-6">
       <View className="items-center mb-4">
         <View className="flex-row items-center gap-1.5 mb-1">
-          <Sparkles size={14} color={theme.semantic.accent} />
-          <Text className="text-[11px] font-bold text-emerald-400 uppercase tracking-widest">
+          <Sparkles size={14} color={colors['accent']} />
+          <Text className="text-[11px] font-bold text-brand-accent uppercase tracking-widest">
             Scan to enter
           </Text>
         </View>
-        <Text className="text-lg font-extrabold text-slate-100 text-center">
+        <Text className="text-lg font-extrabold text-brand-text text-center">
           {merchant.businessName}
         </Text>
-        <Text className="text-xs text-slate-400 text-center">{merchant.location}</Text>
+        <Text className="text-xs text-brand-text-muted text-center">{merchant.location}</Text>
       </View>
 
-      <View className="noparchi-gate-qr p-4 bg-white rounded-3xl items-center justify-center relative border-4 border-emerald-500/20">
+      <View className="noparchi-gate-qr p-4 bg-brand-paper rounded-3xl items-center justify-center relative border-4 border-brand-accent/20">
         <QRCode
           value={url}
           size={size}
-          color={theme.semantic.onPaper}
-          backgroundColor={theme.semantic.paper}
+          color={colors['on-paper']}
+          backgroundColor={colors['paper']}
           // Higher correction so the centre badge cannot make the code unreadable.
           ecl="H"
         />
@@ -121,30 +122,30 @@ export const CustomBrandedQR: React.FC<CustomBrandedQRProps> = ({
             height: size * 0.22,
             borderRadius: (size * 0.22) / 2,
           }}
-          className="bg-slate-950 border-2 border-emerald-400 items-center justify-center"
+          className="bg-brand-bg border-2 border-brand-accent items-center justify-center"
         >
-          <Text className="text-emerald-400 font-extrabold text-xs">{initials || 'NP'}</Text>
+          <Text className="text-brand-accent font-extrabold text-xs">{initials || 'NP'}</Text>
         </View>
       </View>
 
       {showDetails && (
-        <View className="w-full mt-5 pt-4 border-t border-slate-800 items-center">
-          <Text className="text-xs text-slate-300 font-medium text-center mb-3">
+        <View className="w-full mt-5 pt-4 border-t border-brand-border items-center">
+          <Text className="text-xs text-brand-text-subtle font-medium text-center mb-3">
             Any phone camera. No app to install.
           </Text>
 
           <TouchableOpacity
             onPress={copyLink}
             activeOpacity={0.7}
-            className="flex-row items-center gap-2 bg-slate-800/90 border border-slate-700/80 px-3 py-1.5 rounded-xl mb-4 max-w-full"
+            className="flex-row items-center gap-2 bg-brand-surface-raised/90 border border-brand-border-strong/80 px-3 py-1.5 rounded-xl mb-4 max-w-full"
           >
-            <Text numberOfLines={1} className="text-[11px] font-mono text-emerald-400 flex-shrink">
+            <Text numberOfLines={1} className="text-[11px] font-mono text-brand-accent flex-shrink">
               {url}
             </Text>
             {copied ? (
-              <CheckCircle2 size={12} color={theme.semantic.accent} />
+              <CheckCircle2 size={12} color={colors['accent']} />
             ) : (
-              <Copy size={12} color={theme.semantic.textMuted} />
+              <Copy size={12} color={colors['text-muted']} />
             )}
           </TouchableOpacity>
 
@@ -153,12 +154,12 @@ export const CustomBrandedQR: React.FC<CustomBrandedQRProps> = ({
               {ticketTypes.slice(0, 4).map((type) => (
                 <View
                   key={type.id}
-                  className="px-2.5 py-1.5 rounded-xl bg-slate-950/60 border border-slate-800"
+                  className="px-2.5 py-1.5 rounded-xl bg-brand-bg/60 border border-brand-border"
                 >
-                  <Text className="text-[10px] text-slate-400 uppercase font-semibold">
+                  <Text className="text-[10px] text-brand-text-muted uppercase font-semibold">
                     {type.label}
                   </Text>
-                  <Text className="text-xs font-bold text-slate-200 text-center">
+                  <Text className="text-xs font-bold text-brand-text text-center">
                     {formatCurrency(type.amount)}
                   </Text>
                 </View>
@@ -172,7 +173,7 @@ export const CustomBrandedQR: React.FC<CustomBrandedQRProps> = ({
               variant="secondary"
               size="sm"
               fullWidth
-              icon={<Download size={14} color={theme.semantic.text} />}
+              icon={<Download size={14} color={colors['text']} />}
               onPress={downloadQr}
             />
           )}

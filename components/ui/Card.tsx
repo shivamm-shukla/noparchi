@@ -16,17 +16,17 @@ export const Card: React.FC<CardProps> = ({
   const getVariantStyles = () => {
     switch (variant) {
       case 'elevated':
-        return 'bg-slate-900 border border-slate-800 shadow-lg shadow-black/40';
+        return 'bg-brand-surface border border-brand-border shadow-lg shadow-black/40';
       case 'glass':
         // No backdrop-blur: it is a web-only filter that renders as a plain
         // translucent panel on Android and iOS, so the variant would look
         // different on the platforms the merchant actually uses.
-        return 'bg-slate-900/80 border border-slate-800/80';
+        return 'bg-brand-surface/80 border border-brand-border/80';
       case 'emerald':
-        return 'bg-emerald-950/30 border border-emerald-500/20';
+        return 'bg-brand-accent/30 border border-brand-accent/20';
       case 'default':
       default:
-        return 'bg-slate-900 border border-slate-800/90';
+        return 'bg-brand-surface border border-brand-border/90';
     }
   };
 

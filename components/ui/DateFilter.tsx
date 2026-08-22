@@ -32,13 +32,13 @@ export const DateFilter: React.FC<DateFilterProps> = ({ selected, onSelect }) =>
               activeOpacity={0.7}
               className={`px-3.5 py-1.5 rounded-full border ${
                 isActive
-                  ? 'bg-emerald-500 border-emerald-400'
-                  : 'bg-slate-900 border-slate-800 active:bg-slate-800'
+                  ? 'bg-brand-accent border-brand-accent'
+                  : 'bg-brand-surface border-brand-border active:bg-brand-surface-raised'
               }`}
             >
               <Text
                 className={`text-xs font-semibold ${
-                  isActive ? 'text-slate-950 font-bold' : 'text-slate-400'
+                  isActive ? 'text-brand-on-accent font-bold' : 'text-brand-text-muted'
                 }`}
               >
                 {item.label}

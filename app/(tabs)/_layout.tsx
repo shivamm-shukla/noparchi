@@ -2,21 +2,22 @@ import React from 'react';
 import { Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { LayoutDashboard, BookOpen, ScanLine, Settings } from 'lucide-react-native';
-import theme from '../../src/config/theme';
+import { useThemeColors } from '../../src/context/ThemeContext';
 import { useAuth } from '../../src/context/AuthContext';
 
 export default function TabLayout() {
+  const colors = useThemeColors();
   const { can } = useAuth();
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: theme.semantic.accent,
-        tabBarInactiveTintColor: theme.semantic.textFaint,
+        tabBarActiveTintColor: colors['accent'],
+        tabBarInactiveTintColor: colors['text-faint'],
         tabBarStyle: {
-          backgroundColor: theme.semantic.surface,
-          borderTopColor: theme.semantic.border,
+          backgroundColor: colors['surface'],
+          borderTopColor: colors['border'],
           borderTopWidth: 1,
           height: Platform.OS === 'ios' ? 88 : 64,
           paddingBottom: Platform.OS === 'ios' ? 28 : 10,

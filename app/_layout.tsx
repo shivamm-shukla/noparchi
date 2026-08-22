@@ -3,9 +3,10 @@ import { View, Text, ActivityIndicator } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import theme from '../src/config/theme';
+import { useThemeColors } from '../src/context/ThemeContext';
 import { AuthProvider, useAuth } from '../src/context/AuthContext';
 import { AppProvider } from '../src/context/AppContext';
+import { ThemeProvider, useTheme } from '../src/context/ThemeContext';
 import '../global.css';
 
 /**
@@ -19,6 +20,7 @@ import '../global.css';
 const PUBLIC_SEGMENTS = ['pay', 'ticket'];
 
 function RouteGuard({ children }: { children: React.ReactNode }) {
+  const colors = useThemeColors();
   const { status, missingEnvKeys } = useAuth();
   const segments = useSegments();
   const router = useRouter();
@@ -44,8 +46,8 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
 
   if (status === 'loading' && !isPublicRoute) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-950">
-        <ActivityIndicator size="large" color={theme.semantic.accent} />
+      <View className="flex-1 items-center justify-center bg-brand-bg">
+        <ActivityIndicator size="large" color={colors['accent']} />
       </View>
     );
   }
@@ -62,18 +64,18 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
  */
 function ConfigurationNeeded({ missing }: { missing: string[] }) {
   return (
-    <View className="flex-1 items-center justify-center bg-slate-950 p-6">
-      <View className="w-full max-w-md rounded-3xl border border-amber-500/30 bg-slate-900 p-6">
-        <Text className="text-xl font-extrabold text-slate-100 mb-2">Finish the setup</Text>
-        <Text className="text-sm text-slate-400 leading-5 mb-4">
+    <View className="flex-1 items-center justify-center bg-brand-bg p-6">
+      <View className="w-full max-w-md rounded-3xl border border-brand-warning/30 bg-brand-surface p-6">
+        <Text className="text-xl font-extrabold text-brand-text mb-2">Finish the setup</Text>
+        <Text className="text-sm text-brand-text-muted leading-5 mb-4">
           NoParchi needs a Supabase project before it can store anything. Copy{' '}
-          <Text className="font-mono text-slate-200">.env.example</Text> to{' '}
-          <Text className="font-mono text-slate-200">.env</Text>, fill it in, and restart the
+          <Text className="font-mono text-brand-text">.env.example</Text> to{' '}
+          <Text className="font-mono text-brand-text">.env</Text>, fill it in, and restart the
           dev server.
         </Text>
-        <View className="rounded-2xl bg-slate-950 border border-slate-800 p-3.5">
+        <View className="rounded-2xl bg-brand-bg border border-brand-border p-3.5">
           {missing.map((key) => (
-            <Text key={key} className="text-xs font-mono text-amber-300 leading-5">
+            <Text key={key} className="text-xs font-mono text-brand-warning leading-5">
               {key}
             </Text>
           ))}
@@ -84,16 +86,17 @@ function ConfigurationNeeded({ missing }: { missing: string[] }) {
 }
 
 export default function RootLayout() {
+  const colors = useThemeColors();
   return (
     <SafeAreaProvider>
       <AuthProvider>
         <AppProvider>
-          <StatusBar style="light" backgroundColor={theme.semantic.surface} />
+          <StatusBar style="light" backgroundColor={colors['surface']} />
           <RouteGuard>
             <Stack
               screenOptions={{
                 headerShown: false,
-                contentStyle: { backgroundColor: theme.semantic.bg },
+                contentStyle: { backgroundColor: colors['bg'] },
               }}
             >
               <Stack.Screen name="(tabs)" />

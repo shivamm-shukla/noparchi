@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView } from 'react-native';
 import { PlusCircle, X, AlertCircle } from 'lucide-react-native';
-import theme from '../../src/config/theme';
+import { useThemeColors } from '../../src/context/ThemeContext';
 import { Button } from './Button';
 import { useApp } from '../../src/context/AppContext';
 import { transactionService } from '../../src/services/transactionService';
@@ -28,6 +28,7 @@ interface NewTicketModalProps {
  * a tampered client cannot issue a hundred-rupee pass for one rupee.
  */
 export const NewTicketModal: React.FC<NewTicketModalProps> = ({ visible, onClose, onIssued }) => {
+  const colors = useThemeColors();
   const { ticketTypes, refresh } = useApp();
   const types = useMemo(() => activeTicketTypes(ticketTypes), [ticketTypes]);
 
@@ -72,40 +73,40 @@ export const NewTicketModal: React.FC<NewTicketModalProps> = ({ visible, onClose
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View className="flex-1 bg-black/80 items-center justify-center p-4">
-        <View className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-5 sm:p-6">
-          <View className="flex-row items-center justify-between pb-4 border-b border-slate-800">
+      <View className="flex-1 bg-brand-scrim items-center justify-center p-4">
+        <View className="bg-brand-surface border border-brand-border rounded-3xl w-full max-w-lg p-5 sm:p-6">
+          <View className="flex-row items-center justify-between pb-4 border-b border-brand-border">
             <View className="flex-row items-center gap-3">
-              <View className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 items-center justify-center">
-                <PlusCircle size={20} color={theme.semantic.accent} />
+              <View className="w-10 h-10 rounded-xl bg-brand-accent/10 border border-brand-accent/30 items-center justify-center">
+                <PlusCircle size={20} color={colors['accent']} />
               </View>
               <View>
-                <Text className="text-lg font-bold text-slate-100">Issue a pass</Text>
-                <Text className="text-xs text-slate-400">For a customer paying at the gate</Text>
+                <Text className="text-lg font-bold text-brand-text">Issue a pass</Text>
+                <Text className="text-xs text-brand-text-muted">For a customer paying at the gate</Text>
               </View>
             </View>
             <TouchableOpacity
               onPress={onClose}
-              className="w-8 h-8 rounded-full bg-slate-800 items-center justify-center"
+              className="w-8 h-8 rounded-full bg-brand-surface-raised items-center justify-center"
             >
-              <X size={16} color={theme.semantic.textMuted} />
+              <X size={16} color={colors['text-muted']} />
             </TouchableOpacity>
           </View>
 
           <ScrollView className="max-h-96 my-4">
             {types.length === 0 ? (
               <View className="items-center py-8">
-                <AlertCircle size={28} color={theme.semantic.warning} />
-                <Text className="text-sm font-bold text-slate-100 mt-3 text-center">
+                <AlertCircle size={28} color={colors['warning']} />
+                <Text className="text-sm font-bold text-brand-text mt-3 text-center">
                   No pass types yet
                 </Text>
-                <Text className="text-xs text-slate-400 text-center mt-1.5 leading-4">
+                <Text className="text-xs text-brand-text-muted text-center mt-1.5 leading-4">
                   Add one in Settings → Pass types before issuing passes.
                 </Text>
               </View>
             ) : (
               <>
-                <Text className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2.5">
+                <Text className="text-xs font-bold text-brand-text-subtle uppercase tracking-wider mb-2.5">
                   Pass type
                 </Text>
                 <View className="flex-row flex-wrap gap-2.5 mb-5">
@@ -119,50 +120,50 @@ export const NewTicketModal: React.FC<NewTicketModalProps> = ({ visible, onClose
                         activeOpacity={0.7}
                         className={`flex-1 min-w-[140px] p-3.5 rounded-2xl border ${
                           isSelected
-                            ? 'bg-emerald-500/10 border-emerald-500/60'
-                            : 'bg-slate-950/60 border-slate-800'
+                            ? 'bg-brand-accent/10 border-brand-accent/60'
+                            : 'bg-brand-bg/60 border-brand-border'
                         }`}
                       >
                         <View className="flex-row items-center justify-between mb-2">
                           <Icon
                             size={18}
-                            color={isSelected ? theme.semantic.accent : theme.semantic.textMuted}
+                            color={isSelected ? colors['accent'] : colors['text-muted']}
                           />
-                          <Text className="text-sm font-extrabold text-slate-100">
+                          <Text className="text-sm font-extrabold text-brand-text">
                             {formatCurrency(type.amount)}
                           </Text>
                         </View>
-                        <Text className="text-xs font-bold text-slate-200">{type.label}</Text>
+                        <Text className="text-xs font-bold text-brand-text">{type.label}</Text>
                       </TouchableOpacity>
                     );
                   })}
                 </View>
 
-                <Text className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                <Text className="text-xs font-bold text-brand-text-subtle uppercase tracking-wider mb-2">
                   Vehicle number (optional)
                 </Text>
-                <View className="bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 mb-4">
+                <View className="bg-brand-bg border border-brand-border rounded-2xl px-4 py-3 mb-4">
                   <TextInput
                     value={vehicleNumber}
                     onChangeText={setVehicleNumber}
                     placeholder="DL 01 AB 1234"
-                    placeholderTextColor={theme.semantic.textFaint}
+                    placeholderTextColor={colors['text-faint']}
                     autoCapitalize="characters"
-                    className="text-slate-100 text-base font-bold uppercase tracking-wider"
+                    className="text-brand-text text-base font-bold uppercase tracking-wider"
                   />
                 </View>
 
-                <Text className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                <Text className="text-xs font-bold text-brand-text-subtle uppercase tracking-wider mb-2">
                   WhatsApp number (optional)
                 </Text>
-                <View className="bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3">
+                <View className="bg-brand-bg border border-brand-border rounded-2xl px-4 py-3">
                   <TextInput
                     value={customerPhone}
                     onChangeText={setCustomerPhone}
                     placeholder="98765 43210"
-                    placeholderTextColor={theme.semantic.textFaint}
+                    placeholderTextColor={colors['text-faint']}
                     keyboardType="phone-pad"
-                    className="text-slate-100 text-sm font-semibold"
+                    className="text-brand-text text-sm font-semibold"
                   />
                 </View>
               </>
@@ -170,9 +171,9 @@ export const NewTicketModal: React.FC<NewTicketModalProps> = ({ visible, onClose
           </ScrollView>
 
           {error && (
-            <View className="flex-row items-start gap-2 mb-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30">
-              <AlertCircle size={14} color={theme.semantic.danger} />
-              <Text className="text-xs text-rose-300 flex-1 leading-4">{error}</Text>
+            <View className="flex-row items-start gap-2 mb-3 p-3 rounded-xl bg-brand-danger/10 border border-brand-danger/30">
+              <AlertCircle size={14} color={colors['danger']} />
+              <Text className="text-xs text-brand-danger flex-1 leading-4">{error}</Text>
             </View>
           )}
 

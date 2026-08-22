@@ -11,8 +11,11 @@ import {
   UserMinus,
   CreditCard,
   MessageSquare,
+  Sun,
+  Moon,
+  SunMoon,
 } from 'lucide-react-native';
-import theme from '../../src/config/theme';
+import { useThemeColors, useTheme, type ThemePreference } from '../../src/context/ThemeContext';
 import { useAuth } from '../../src/context/AuthContext';
 import { useApp } from '../../src/context/AppContext';
 import { Header } from '../../components/ui/Header';
@@ -40,6 +43,7 @@ import { formatCurrency } from '../../src/utils/formatters';
 import type { StaffMember } from '../../src/types';
 
 export default function SettingsScreen() {
+  const colors = useThemeColors();
   const { merchant, user, can, refresh: refreshAuth } = useAuth();
   const { ticketTypes, staff, refresh } = useApp();
 
@@ -55,7 +59,7 @@ export default function SettingsScreen() {
   if (!merchant || !user) return null;
 
   return (
-    <View className="flex-1 bg-slate-950">
+    <View className="flex-1 bg-brand-bg">
       <Header title="Settings" subtitle={merchant.businessName} />
 
       <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 48 }}>
@@ -64,19 +68,19 @@ export default function SettingsScreen() {
             <Card
               className={
                 notice.kind === 'ok'
-                  ? 'border-emerald-500/40 bg-emerald-500/5'
-                  : 'border-rose-500/40 bg-rose-500/5'
+                  ? 'border-brand-accent/40 bg-brand-accent/5'
+                  : 'border-brand-danger/40 bg-brand-danger/5'
               }
             >
               <View className="flex-row items-center gap-2">
                 {notice.kind === 'ok' ? (
-                  <CheckCircle2 size={15} color={theme.semantic.accent} />
+                  <CheckCircle2 size={15} color={colors['accent']} />
                 ) : (
-                  <AlertCircle size={15} color={theme.semantic.danger} />
+                  <AlertCircle size={15} color={colors['danger']} />
                 )}
                 <Text
                   className={`text-xs flex-1 leading-4 ${
-                    notice.kind === 'ok' ? 'text-emerald-300' : 'text-rose-300'
+                    notice.kind === 'ok' ? 'text-brand-accent' : 'text-brand-danger'
                   }`}
                 >
                   {notice.text}
@@ -117,6 +121,8 @@ export default function SettingsScreen() {
             onError={(m) => flash('error', m)}
           />
 
+          <AppearanceSection />
+
           <StaffSection
             staff={staff}
             canManage={canManageStaff}
@@ -135,24 +141,92 @@ export default function SettingsScreen() {
 
 // -----------------------------------------------------------------------------
 
+/**
+ * Light, dark, or follow the device.
+ *
+ * Worth having rather than picking one: a gate device sits in daylight all day,
+ * where the dark theme washes out, while an owner checking takings at night
+ * wants the opposite. The choice is per device and remembered, because the
+ * phone at the gate and the phone in the owner's pocket are different problems.
+ */
+const APPEARANCE_OPTIONS: {
+  value: ThemePreference;
+  label: string;
+  Icon: typeof Sun;
+}[] = [
+  { value: 'system', label: 'Automatic', Icon: SunMoon },
+  { value: 'light', label: 'Light', Icon: Sun },
+  { value: 'dark', label: 'Dark', Icon: Moon },
+];
+
+const AppearanceSection: React.FC = () => {
+  const colors = useThemeColors();
+  const { preference, setPreference } = useTheme();
+
+  return (
+    <Card>
+      <SectionHeader
+        icon={<SunMoon size={18} color={colors['accent']} />}
+        title="Appearance"
+        subtitle="Light for daylight at the gate, dark for indoors"
+      />
+
+      <View className="flex-row gap-2.5">
+        {APPEARANCE_OPTIONS.map((option) => {
+          const active = preference === option.value;
+          return (
+            <TouchableOpacity
+              key={option.value}
+              onPress={() => setPreference(option.value)}
+              activeOpacity={0.7}
+              className={`flex-1 items-center gap-2 p-3.5 rounded-2xl border ${
+                active
+                  ? 'bg-brand-accent/10 border-brand-accent/60'
+                  : 'bg-brand-bg/60 border-brand-border'
+              }`}
+            >
+              <option.Icon
+                size={20}
+                color={active ? colors['accent'] : colors['text-muted']}
+              />
+              <Text
+                className={`text-xs font-bold ${
+                  active ? 'text-brand-accent' : 'text-brand-text-muted'
+                }`}
+              >
+                {option.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      <Text className="text-[11px] text-brand-text-faint mt-3 leading-4">
+        Automatic follows your phone's own setting. This choice is saved on this device
+        only.
+      </Text>
+    </Card>
+  );
+};
+
 const SectionHeader: React.FC<{ icon: React.ReactNode; title: string; subtitle: string }> = ({
   icon,
   title,
   subtitle,
 }) => (
-  <View className="flex-row items-center gap-3 mb-4 pb-3 border-b border-slate-800">
-    <View className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 items-center justify-center">
+  <View className="flex-row items-center gap-3 mb-4 pb-3 border-b border-brand-border">
+    <View className="w-9 h-9 rounded-xl bg-brand-surface-raised border border-brand-border-strong items-center justify-center">
       {icon}
     </View>
     <View className="flex-1">
-      <Text className="text-base font-bold text-slate-100">{title}</Text>
-      <Text className="text-xs text-slate-400">{subtitle}</Text>
+      <Text className="text-base font-bold text-brand-text">{title}</Text>
+      <Text className="text-xs text-brand-text-muted">{subtitle}</Text>
     </View>
   </View>
 );
 
 const ReadOnlyNote: React.FC = () => (
-  <Text className="text-[11px] text-slate-500 leading-4">
+  <Text className="text-[11px] text-brand-text-faint leading-4">
     You can see this but not change it. Ask the owner for the matching permission.
   </Text>
 );
@@ -165,6 +239,7 @@ const BusinessSection: React.FC<{
   onSaved: () => void;
   onError: (message: string) => void;
 }> = ({ merchant, canEdit, onSaved, onError }) => {
+  const colors = useThemeColors();
   const [businessName, setBusinessName] = useState(merchant.businessName);
   const [location, setLocation] = useState(merchant.location);
   const [upiId, setUpiId] = useState(merchant.upiId);
@@ -188,7 +263,7 @@ const BusinessSection: React.FC<{
   return (
     <Card>
       <SectionHeader
-        icon={<Building2 size={18} color={theme.semantic.accent} />}
+        icon={<Building2 size={18} color={colors['accent']} />}
         title="Business"
         subtitle="What customers see at checkout"
       />
@@ -198,8 +273,8 @@ const BusinessSection: React.FC<{
           value={businessName}
           onChangeText={setBusinessName}
           editable={canEdit}
-          placeholderTextColor={theme.semantic.textFaint}
-          className="text-slate-100 text-base"
+          placeholderTextColor={colors['text-faint']}
+          className="text-brand-text text-base"
         />
       </Field>
 
@@ -208,8 +283,8 @@ const BusinessSection: React.FC<{
           value={location}
           onChangeText={setLocation}
           editable={canEdit}
-          placeholderTextColor={theme.semantic.textFaint}
-          className="text-slate-100 text-base"
+          placeholderTextColor={colors['text-faint']}
+          className="text-brand-text text-base"
         />
       </Field>
 
@@ -219,8 +294,8 @@ const BusinessSection: React.FC<{
           onChangeText={setUpiId}
           editable={canEdit}
           autoCapitalize="none"
-          placeholderTextColor={theme.semantic.textFaint}
-          className="text-slate-100 text-base"
+          placeholderTextColor={colors['text-faint']}
+          className="text-brand-text text-base"
         />
       </Field>
 
@@ -241,6 +316,7 @@ const ProvidersSection: React.FC<{
   onSaved: () => void;
   onError: (message: string) => void;
 }> = ({ merchant, canEdit, onSaved, onError }) => {
+  const colors = useThemeColors();
   const [payment, setPayment] = useState(merchant.paymentProvider);
   const [messaging, setMessaging] = useState(merchant.messagingProvider);
   const [busy, setBusy] = useState(false);
@@ -263,12 +339,12 @@ const ProvidersSection: React.FC<{
   return (
     <Card>
       <SectionHeader
-        icon={<CreditCard size={18} color={theme.semantic.accent} />}
+        icon={<CreditCard size={18} color={colors['accent']} />}
         title="Payments & delivery"
         subtitle="Swappable — switching one does not affect the rest of the app"
       />
 
-      <Text className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+      <Text className="text-xs font-bold text-brand-text-subtle uppercase tracking-wider mb-2">
         How customers pay
       </Text>
       <View className="gap-2.5 mb-5">
@@ -285,8 +361,8 @@ const ProvidersSection: React.FC<{
       </View>
 
       <View className="flex-row items-center gap-1.5 mb-2">
-        <MessageSquare size={12} color={theme.semantic.textMuted} />
-        <Text className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+        <MessageSquare size={12} color={colors['text-muted']} />
+        <Text className="text-xs font-bold text-brand-text-subtle uppercase tracking-wider">
           How passes reach customers
         </Text>
       </View>
@@ -318,21 +394,24 @@ const ChoiceRow: React.FC<{
   label: string;
   note: string;
   onPress: () => void;
-}> = ({ selected, disabled, label, note, onPress }) => (
+}> = ({ selected, disabled, label, note, onPress }) => {
+  const colors = useThemeColors();
+  return (
   <TouchableOpacity
     onPress={disabled ? undefined : onPress}
     activeOpacity={disabled ? 1 : 0.7}
     className={`p-3.5 rounded-2xl border ${
-      selected ? 'bg-emerald-500/10 border-emerald-500/50' : 'bg-slate-950/60 border-slate-800'
+      selected ? 'bg-brand-accent/10 border-brand-accent/50' : 'bg-brand-bg/60 border-brand-border'
     } ${disabled ? 'opacity-60' : ''}`}
   >
     <View className="flex-row items-center justify-between mb-1">
-      <Text className="text-sm font-bold text-slate-100">{label}</Text>
-      {selected && <CheckCircle2 size={15} color={theme.semantic.accent} />}
+      <Text className="text-sm font-bold text-brand-text">{label}</Text>
+      {selected && <CheckCircle2 size={15} color={colors['accent']} />}
     </View>
-    <Text className="text-[11px] text-slate-400 leading-4">{note}</Text>
+    <Text className="text-[11px] text-brand-text-muted leading-4">{note}</Text>
   </TouchableOpacity>
-);
+  );
+};
 
 // -----------------------------------------------------------------------------
 
@@ -344,6 +423,7 @@ const TicketTypesSection: React.FC<{
   onChanged: () => void;
   onError: (message: string) => void;
 }> = ({ merchantId, currency, types, canEdit, onChanged, onError }) => {
+  const colors = useThemeColors();
   const [adding, setAdding] = useState(false);
   const [code, setCode] = useState('');
   const [label, setLabel] = useState('');
@@ -407,7 +487,7 @@ const TicketTypesSection: React.FC<{
   return (
     <Card>
       <SectionHeader
-        icon={<Tag size={18} color={theme.semantic.accent} />}
+        icon={<Tag size={18} color={colors['accent']} />}
         title="Pass types & prices"
         subtitle="Add a new type any time — no update needed"
       />
@@ -418,12 +498,12 @@ const TicketTypesSection: React.FC<{
           return (
             <View
               key={type.id}
-              className="flex-row items-center gap-3 p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800"
+              className="flex-row items-center gap-3 p-3.5 rounded-2xl bg-brand-bg/60 border border-brand-border"
             >
-              <Icon size={18} color={type.isActive ? theme.semantic.accent : theme.semantic.textFaint} />
+              <Icon size={18} color={type.isActive ? colors['accent'] : colors['text-faint']} />
               <View className="flex-1 min-w-0">
-                <Text className="text-sm font-bold text-slate-100">{type.label}</Text>
-                <Text className="text-[11px] text-slate-500">
+                <Text className="text-sm font-bold text-brand-text">{type.label}</Text>
+                <Text className="text-[11px] text-brand-text-faint">
                   {formatDuration(type.validForMinutes)}
                   {(() => {
                     const terms = extensionTerms(type);
@@ -433,15 +513,15 @@ const TicketTypesSection: React.FC<{
                   })()}
                 </Text>
               </View>
-              <Text className="text-sm font-extrabold text-emerald-400">
+              <Text className="text-sm font-extrabold text-brand-accent">
                 {formatCurrency(type.amount, currency)}
               </Text>
               {canEdit && (
                 <Switch
                   value={type.isActive}
                   onValueChange={(value) => toggleActive(type.id, value)}
-                  trackColor={{ false: theme.semantic.surfaceRaised, true: theme.semantic.accentDeep }}
-                  thumbColor={type.isActive ? theme.semantic.accentSoft : theme.semantic.textMuted}
+                  trackColor={{ false: colors['surface-raised'], true: colors['accent-deep'] }}
+                  thumbColor={type.isActive ? colors['accent-soft'] : colors['text-muted']}
                 />
               )}
             </View>
@@ -453,14 +533,14 @@ const TicketTypesSection: React.FC<{
         Retiring rather than deleting: transactions reference the type, and a
         pass sold last month must keep reporting under the type it was sold as.
       */}
-      <Text className="text-[11px] text-slate-500 mt-3 leading-4">
+      <Text className="text-[11px] text-brand-text-faint mt-3 leading-4">
         Switching a type off hides it from checkout. Past passes keep their original type
         and price.
       </Text>
 
       {canEdit &&
         (adding ? (
-          <View className="mt-4 pt-4 border-t border-slate-800">
+          <View className="mt-4 pt-4 border-t border-brand-border">
             <Field label="Name">
               <TextInput
                 value={label}
@@ -469,8 +549,8 @@ const TicketTypesSection: React.FC<{
                   if (!code) setCode(text.toUpperCase().replace(/[^A-Z0-9]+/g, '_').slice(0, 32));
                 }}
                 placeholder="Cycle / VIP Pass / Night Rate"
-                placeholderTextColor={theme.semantic.textFaint}
-                className="text-slate-100 text-base"
+                placeholderTextColor={colors['text-faint']}
+                className="text-brand-text text-base"
               />
             </Field>
             <Field label="Code" hint="Used internally. Letters, numbers and underscore.">
@@ -478,9 +558,9 @@ const TicketTypesSection: React.FC<{
                 value={code}
                 onChangeText={(text) => setCode(text.toUpperCase())}
                 placeholder="VIP_PASS"
-                placeholderTextColor={theme.semantic.textFaint}
+                placeholderTextColor={colors['text-faint']}
                 autoCapitalize="characters"
-                className="text-slate-100 text-base font-mono"
+                className="text-brand-text text-base font-mono"
               />
             </Field>
             <Field label="Price">
@@ -488,13 +568,13 @@ const TicketTypesSection: React.FC<{
                 value={amount}
                 onChangeText={setAmount}
                 placeholder="50"
-                placeholderTextColor={theme.semantic.textFaint}
+                placeholderTextColor={colors['text-faint']}
                 keyboardType="number-pad"
-                className="text-slate-100 text-base"
+                className="text-brand-text text-base"
               />
             </Field>
 
-            <Text className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+            <Text className="text-xs font-bold text-brand-text-subtle uppercase tracking-wider mb-2">
               Valid for
             </Text>
             <View className="flex-row flex-wrap gap-2 mb-2">
@@ -513,13 +593,13 @@ const TicketTypesSection: React.FC<{
                   activeOpacity={0.7}
                   className={`px-3 py-1.5 rounded-xl border ${
                     validMinutes === preset.minutes
-                      ? 'bg-emerald-500 border-emerald-400'
-                      : 'bg-slate-950 border-slate-800'
+                      ? 'bg-brand-accent border-brand-accent'
+                      : 'bg-brand-bg border-brand-border'
                   }`}
                 >
                   <Text
                     className={`text-xs font-bold ${
-                      validMinutes === preset.minutes ? 'text-slate-900' : 'text-slate-400'
+                      validMinutes === preset.minutes ? 'text-brand-on-accent' : 'text-brand-text-muted'
                     }`}
                   >
                     {preset.label}
@@ -527,23 +607,23 @@ const TicketTypesSection: React.FC<{
                 </TouchableOpacity>
               ))}
             </View>
-            <Text className="text-[11px] text-slate-500 mb-4 leading-4">
+            <Text className="text-[11px] text-brand-text-faint mb-4 leading-4">
               The clock starts when the pass is paid for, not when it is created.
             </Text>
 
             {validMinutes !== null && (
               <>
-                <Text className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                <Text className="text-xs font-bold text-brand-text-subtle uppercase tracking-wider mb-2">
                   Extension
                 </Text>
-                <View className="bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 mb-2">
+                <View className="bg-brand-bg border border-brand-border rounded-2xl px-4 py-3 mb-2">
                   <TextInput
                     value={extAmount}
                     onChangeText={setExtAmount}
                     placeholder={`Leave blank for the same price (${amount || '0'})`}
-                    placeholderTextColor={theme.semantic.textFaint}
+                    placeholderTextColor={colors['text-faint']}
                     keyboardType="number-pad"
-                    className="text-slate-100 text-base"
+                    className="text-brand-text text-base"
                   />
                 </View>
                 <View className="flex-row flex-wrap gap-2 mb-2">
@@ -556,13 +636,13 @@ const TicketTypesSection: React.FC<{
                       activeOpacity={0.7}
                       className={`px-3 py-1.5 rounded-xl border ${
                         extMinutes === preset.minutes
-                          ? 'bg-emerald-500 border-emerald-400'
-                          : 'bg-slate-950 border-slate-800'
+                          ? 'bg-brand-accent border-brand-accent'
+                          : 'bg-brand-bg border-brand-border'
                       }`}
                     >
                       <Text
                         className={`text-xs font-bold ${
-                          extMinutes === preset.minutes ? 'text-slate-900' : 'text-slate-400'
+                          extMinutes === preset.minutes ? 'text-brand-on-accent' : 'text-brand-text-muted'
                         }`}
                       >
                         {preset.label}
@@ -570,7 +650,7 @@ const TicketTypesSection: React.FC<{
                     </TouchableOpacity>
                   ))}
                 </View>
-                <Text className="text-[11px] text-slate-500 mb-4 leading-4">
+                <Text className="text-[11px] text-brand-text-faint mb-4 leading-4">
                   Leave both blank to charge the same price for the same length again. Overstay
                   is billed in whole extensions, so extending in advance is never more expensive
                   than being late.
@@ -589,7 +669,7 @@ const TicketTypesSection: React.FC<{
             variant="secondary"
             fullWidth
             className="mt-4"
-            icon={<Plus size={15} color={theme.semantic.text} />}
+            icon={<Plus size={15} color={colors['text']} />}
             onPress={() => setAdding(true)}
           />
         ))}
@@ -606,6 +686,7 @@ const StaffSection: React.FC<{
   onChanged: (message: string) => void;
   onError: (message: string) => void;
 }> = ({ staff, canManage, currentUserId, onChanged, onError }) => {
+  const colors = useThemeColors();
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -638,7 +719,7 @@ const StaffSection: React.FC<{
   return (
     <Card>
       <SectionHeader
-        icon={<Users2 size={18} color={theme.semantic.accent} />}
+        icon={<Users2 size={18} color={colors['accent']} />}
         title="Gatekeepers"
         subtitle="Who works here, and what each of them can do"
       />
@@ -658,14 +739,14 @@ const StaffSection: React.FC<{
 
       {canManage &&
         (adding ? (
-          <View className="mt-4 pt-4 border-t border-slate-800">
+          <View className="mt-4 pt-4 border-t border-brand-border">
             <Field label="Name">
               <TextInput
                 value={name}
                 onChangeText={setName}
                 placeholder="Amit Kumar"
-                placeholderTextColor={theme.semantic.textFaint}
-                className="text-slate-100 text-base"
+                placeholderTextColor={colors['text-faint']}
+                className="text-brand-text text-base"
               />
             </Field>
             <Field label="Phone" hint="They sign in with this number and their PIN.">
@@ -673,9 +754,9 @@ const StaffSection: React.FC<{
                 value={phone}
                 onChangeText={setPhone}
                 placeholder="98111 22233"
-                placeholderTextColor={theme.semantic.textFaint}
+                placeholderTextColor={colors['text-faint']}
                 keyboardType="phone-pad"
-                className="text-slate-100 text-base"
+                className="text-brand-text text-base"
               />
             </Field>
             <Field label="PIN" hint="4 to 8 digits. You can change it any time.">
@@ -683,10 +764,10 @@ const StaffSection: React.FC<{
                 value={pin}
                 onChangeText={setPin}
                 placeholder="0000"
-                placeholderTextColor={theme.semantic.textFaint}
+                placeholderTextColor={colors['text-faint']}
                 keyboardType="number-pad"
                 maxLength={8}
-                className="text-slate-100 text-xl font-bold tracking-[0.3em]"
+                className="text-brand-text text-xl font-bold tracking-[0.3em]"
               />
             </Field>
             <View className="flex-row gap-2">
@@ -700,7 +781,7 @@ const StaffSection: React.FC<{
             variant="secondary"
             fullWidth
             className="mt-4"
-            icon={<Plus size={15} color={theme.semantic.text} />}
+            icon={<Plus size={15} color={colors['text']} />}
             onPress={() => setAdding(true)}
           />
         ))}
@@ -715,6 +796,7 @@ const StaffRow: React.FC<{
   onChanged: (message: string) => void;
   onError: (message: string) => void;
 }> = ({ member, canManage, isSelf, onChanged, onError }) => {
+  const colors = useThemeColors();
   const [permissions, setPermissions] = useState<PermissionSet>(member.permissions);
   const [expanded, setExpanded] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -757,7 +839,7 @@ const StaffRow: React.FC<{
   };
 
   return (
-    <View className="rounded-2xl bg-slate-950/60 border border-slate-800 p-3.5">
+    <View className="rounded-2xl bg-brand-bg/60 border border-brand-border p-3.5">
       <TouchableOpacity
         onPress={() => setExpanded((v) => !v)}
         activeOpacity={0.8}
@@ -765,7 +847,7 @@ const StaffRow: React.FC<{
       >
         <View className="flex-1 min-w-0">
           <View className="flex-row items-center gap-2 flex-wrap">
-            <Text className="text-sm font-bold text-slate-100">{member.name}</Text>
+            <Text className="text-sm font-bold text-brand-text">{member.name}</Text>
             <Badge
               label={member.isOwner ? 'Owner' : member.isActive ? 'Gatekeeper' : 'Removed'}
               variant={member.isOwner ? 'emerald' : member.isActive ? 'info' : 'neutral'}
@@ -773,17 +855,17 @@ const StaffRow: React.FC<{
             />
             {isSelf && <Badge label="You" variant="neutral" size="sm" />}
           </View>
-          <Text className="text-[11px] text-slate-400 mt-0.5">{member.phone}</Text>
+          <Text className="text-[11px] text-brand-text-muted mt-0.5">{member.phone}</Text>
         </View>
-        <Text className="text-[11px] font-bold text-emerald-400">
+        <Text className="text-[11px] font-bold text-brand-accent">
           {expanded ? 'Hide' : 'Access'}
         </Text>
       </TouchableOpacity>
 
       {expanded && (
-        <View className="mt-3 pt-3 border-t border-slate-800">
+        <View className="mt-3 pt-3 border-t border-brand-border">
           {member.isOwner ? (
-            <Text className="text-[11px] text-slate-500 leading-4">
+            <Text className="text-[11px] text-brand-text-faint leading-4">
               The owner always has every permission, including any added later.
             </Text>
           ) : (
@@ -797,10 +879,10 @@ const StaffRow: React.FC<{
                 {PERMISSION_KEYS.map((key) => (
                   <View key={key} className="flex-row items-start justify-between gap-3">
                     <View className="flex-1">
-                      <Text className="text-xs font-bold text-slate-200">
+                      <Text className="text-xs font-bold text-brand-text">
                         {PERMISSION_REGISTRY[key].label}
                       </Text>
-                      <Text className="text-[11px] text-slate-500 leading-4">
+                      <Text className="text-[11px] text-brand-text-faint leading-4">
                         {PERMISSION_REGISTRY[key].description}
                       </Text>
                     </View>
@@ -809,28 +891,28 @@ const StaffRow: React.FC<{
                       onValueChange={(value) => toggle(key, value)}
                       disabled={!canManage}
                       trackColor={{
-                        false: theme.semantic.surfaceRaised,
-                        true: theme.semantic.accentDeep,
+                        false: colors['surface-raised'],
+                        true: colors['accent-deep'],
                       }}
-                      thumbColor={permissions[key] ? theme.semantic.accentSoft : theme.semantic.textMuted}
+                      thumbColor={permissions[key] ? colors['accent-soft'] : colors['text-muted']}
                     />
                   </View>
                 ))}
               </View>
 
               {canManage && (
-                <View className="mt-4 pt-3 border-t border-slate-800 gap-2">
+                <View className="mt-4 pt-3 border-t border-brand-border gap-2">
                   {resetting ? (
                     <>
-                      <View className="bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5">
+                      <View className="bg-brand-bg border border-brand-border rounded-xl px-3.5 py-2.5">
                         <TextInput
                           value={newPin}
                           onChangeText={setNewPin}
                           placeholder="New PIN"
-                          placeholderTextColor={theme.semantic.textFaint}
+                          placeholderTextColor={colors['text-faint']}
                           keyboardType="number-pad"
                           maxLength={8}
-                          className="text-slate-100 text-base font-bold tracking-[0.3em]"
+                          className="text-brand-text text-base font-bold tracking-[0.3em]"
                         />
                       </View>
                       <View className="flex-row gap-2">
@@ -857,7 +939,7 @@ const StaffRow: React.FC<{
                         variant="secondary"
                         size="sm"
                         className="flex-1"
-                        icon={<KeyRound size={13} color={theme.semantic.text} />}
+                        icon={<KeyRound size={13} color={colors['text']} />}
                         onPress={() => setResetting(true)}
                       />
                       {member.isActive && (
@@ -866,7 +948,7 @@ const StaffRow: React.FC<{
                           variant="danger"
                           size="sm"
                           className="flex-1"
-                          icon={<UserMinus size={13} color={theme.palette.white} />}
+                          icon={<UserMinus size={13} color={colors['on-danger']} />}
                           onPress={deactivate}
                         />
                       )}

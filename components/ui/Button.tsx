@@ -1,6 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, ActivityIndicator, View } from 'react-native';
-import theme from '../../src/config/theme';
+import { useThemeColors } from '../../src/context/ThemeContext';
 
 interface ButtonProps {
   title: string;
@@ -25,37 +25,38 @@ export const Button: React.FC<ButtonProps> = ({
   className = '',
   fullWidth = false,
 }) => {
+  const colors = useThemeColors();
   const getVariantStyles = () => {
     switch (variant) {
       case 'primary':
-        return 'bg-emerald-500 active:bg-emerald-600 border-emerald-400/30';
+        return 'bg-brand-accent active:bg-brand-accent-deep border-brand-accent/30';
       case 'secondary':
-        return 'bg-slate-800 active:bg-slate-700 border-slate-700';
+        return 'bg-brand-surface-raised active:bg-brand-surface-raised border-brand-border-strong';
       case 'outline':
-        return 'bg-transparent border-slate-700 active:bg-slate-800/50';
+        return 'bg-transparent border-brand-border-strong active:bg-brand-surface-raised/50';
       case 'danger':
-        return 'bg-rose-600 active:bg-rose-700 border-rose-500/30';
+        return 'bg-brand-danger active:bg-brand-danger border-brand-danger/30';
       case 'ghost':
-        return 'bg-transparent active:bg-slate-800/30 border-transparent';
+        return 'bg-transparent active:bg-brand-surface-raised/30 border-transparent';
       default:
-        return 'bg-emerald-500';
+        return 'bg-brand-accent';
     }
   };
 
   const getTextStyles = () => {
     switch (variant) {
       case 'primary':
-        return 'text-slate-950 font-bold';
+        return 'text-brand-on-accent font-bold';
       case 'secondary':
-        return 'text-slate-100 font-semibold';
+        return 'text-brand-text font-semibold';
       case 'outline':
-        return 'text-slate-200 font-semibold';
+        return 'text-brand-text font-semibold';
       case 'danger':
         return 'text-white font-bold';
       case 'ghost':
-        return 'text-slate-300 font-medium';
+        return 'text-brand-text-subtle font-medium';
       default:
-        return 'text-slate-950 font-bold';
+        return 'text-brand-on-accent font-bold';
     }
   };
 
@@ -83,7 +84,7 @@ export const Button: React.FC<ButtonProps> = ({
       {loading ? (
         <ActivityIndicator
           size="small"
-          color={variant === 'primary' ? theme.semantic.onAccent : theme.semantic.accent}
+          color={variant === 'primary' ? colors['on-accent'] : colors['accent']}
         />
       ) : (
         <View className="flex-row items-center justify-center gap-2">

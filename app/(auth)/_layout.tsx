@@ -1,13 +1,14 @@
 import React from 'react';
 import { Stack } from 'expo-router';
-import theme from '../../src/config/theme';
+import { useThemeColors } from '../../src/context/ThemeContext';
 
 export default function AuthLayout() {
+  const colors = useThemeColors();
   return (
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: theme.semantic.bg },
+        contentStyle: { backgroundColor: colors['bg'] },
       }}
     />
   );

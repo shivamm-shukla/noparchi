@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, RefreshControl } from 'react-native';
 import { Search, BookOpen, ShieldCheck, Car, MessageSquare, CheckCircle2, AlertTriangle, TimerReset, Clock } from 'lucide-react-native';
-import theme from '../../src/config/theme';
+import { useThemeColors } from '../../src/context/ThemeContext';
 import { useAuth } from '../../src/context/AuthContext';
 import { useApp } from '../../src/context/AppContext';
 import { Header } from '../../components/ui/Header';
@@ -17,6 +17,7 @@ import { formatDuration } from '../../src/config/pricing';
 import type { Transaction } from '../../src/types';
 
 export default function LedgerScreen() {
+  const colors = useThemeColors();
   const { merchant, can } = useAuth();
   const { transactions, range, setRange, isRefreshing, refresh, applyOptimistic } = useApp();
 
@@ -96,7 +97,7 @@ export default function LedgerScreen() {
   if (!merchant) return null;
 
   return (
-    <View className="flex-1 bg-slate-950">
+    <View className="flex-1 bg-brand-bg">
       <Header title="Ledger" subtitle="Every pass, every rupee" />
 
       <RoleGate permission="can_view_ledger" title="Ledger is off for your account">
@@ -107,22 +108,22 @@ export default function LedgerScreen() {
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={() => refresh({ silent: true })}
-              tintColor={theme.semantic.accent}
-              colors={[theme.semantic.accent]}
+              tintColor={colors['accent']}
+              colors={[colors['accent']]}
             />
           }
         >
           <View className="max-w-5xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-5">
             <DateFilter selected={range} onSelect={setRange} />
 
-            <View className="flex-row items-center gap-2 bg-slate-900 border border-slate-800 rounded-2xl px-4 py-2.5 my-4">
-              <Search size={16} color={theme.semantic.textMuted} />
+            <View className="flex-row items-center gap-2 bg-brand-surface border border-brand-border rounded-2xl px-4 py-2.5 my-4">
+              <Search size={16} color={colors['text-muted']} />
               <TextInput
                 value={query}
                 onChangeText={setQuery}
                 placeholder="Search code, vehicle or payment reference"
-                placeholderTextColor={theme.semantic.textFaint}
-                className="flex-1 text-slate-100 text-sm"
+                placeholderTextColor={colors['text-faint']}
+                className="flex-1 text-brand-text text-sm"
               />
             </View>
 
@@ -133,18 +134,18 @@ export default function LedgerScreen() {
             </View>
 
             {error && (
-              <Card className="mb-4 border-rose-500/40 bg-rose-500/5">
-                <Text className="text-xs text-rose-300 leading-4">{error}</Text>
+              <Card className="mb-4 border-brand-danger/40 bg-brand-danger/5">
+                <Text className="text-xs text-brand-danger leading-4">{error}</Text>
               </Card>
             )}
 
             {filtered.length === 0 ? (
               <Card className="items-center py-12">
-                <BookOpen size={34} color={theme.semantic.textFaint} />
-                <Text className="text-sm font-semibold text-slate-400 mt-3">
+                <BookOpen size={34} color={colors['text-faint']} />
+                <Text className="text-sm font-semibold text-brand-text-muted mt-3">
                   Nothing in this period
                 </Text>
-                <Text className="text-xs text-slate-500 mt-1 text-center">
+                <Text className="text-xs text-brand-text-faint mt-1 text-center">
                   Try a wider date range.
                 </Text>
               </Card>
@@ -188,18 +189,18 @@ const SummaryTile: React.FC<{ label: string; value: string; accent?: boolean; wa
   <View
     className={`flex-1 min-w-[130px] rounded-2xl border p-3.5 ${
       accent
-        ? 'bg-emerald-500/10 border-emerald-500/30'
+        ? 'bg-brand-accent/10 border-brand-accent/30'
         : warn
-          ? 'bg-amber-500/10 border-amber-500/30'
-          : 'bg-slate-900 border-slate-800'
+          ? 'bg-brand-warning/10 border-brand-warning/30'
+          : 'bg-brand-surface border-brand-border'
     }`}
   >
-    <Text className="text-[11px] text-slate-400 uppercase font-semibold tracking-wider">
+    <Text className="text-[11px] text-brand-text-muted uppercase font-semibold tracking-wider">
       {label}
     </Text>
     <Text
       className={`text-xl font-extrabold mt-1 ${
-        accent ? 'text-emerald-400' : warn ? 'text-amber-300' : 'text-slate-100'
+        accent ? 'text-brand-accent' : warn ? 'text-brand-warning' : 'text-brand-text'
       }`}
     >
       {value}
@@ -226,6 +227,7 @@ const LedgerRow: React.FC<{
   onConfirmExtension,
   onDeliver,
 }) => {
+  const colors = useThemeColors();
   const exited = Boolean(transaction.validation);
   const pending = transaction.status === 'pending';
   const expired =
@@ -242,24 +244,24 @@ const LedgerRow: React.FC<{
           <View
             className={`w-9 h-9 rounded-xl items-center justify-center shrink-0 border ${
               pending
-                ? 'bg-amber-500/10 border-amber-500/30'
+                ? 'bg-brand-warning/10 border-brand-warning/30'
                 : exited
-                  ? 'bg-emerald-500/10 border-emerald-500/30'
-                  : 'bg-sky-500/10 border-sky-500/30'
+                  ? 'bg-brand-accent/10 border-brand-accent/30'
+                  : 'bg-brand-info/10 border-brand-info/30'
             }`}
           >
             {pending ? (
-              <AlertTriangle size={17} color={theme.semantic.warning} />
+              <AlertTriangle size={17} color={colors['warning']} />
             ) : exited ? (
-              <ShieldCheck size={17} color={theme.semantic.accent} />
+              <ShieldCheck size={17} color={colors['accent']} />
             ) : (
-              <Car size={17} color={theme.semantic.info} />
+              <Car size={17} color={colors['info']} />
             )}
           </View>
 
           <View className="flex-1 min-w-0">
             <View className="flex-row items-center flex-wrap gap-2">
-              <Text className="text-sm font-bold text-slate-100 uppercase">
+              <Text className="text-sm font-bold text-brand-text uppercase">
                 {transaction.vehicleNumber || transaction.ticketTypeLabel}
               </Text>
               <Badge
@@ -271,10 +273,10 @@ const LedgerRow: React.FC<{
                 <Badge label={`+${transaction.extensionCount}`} variant="neutral" size="sm" />
               )}
             </View>
-            <Text className="text-[11px] font-mono text-slate-400 mt-0.5">
+            <Text className="text-[11px] font-mono text-brand-text-muted mt-0.5">
               {transaction.ticketCode}
             </Text>
-            <Text className="text-[11px] text-slate-500 mt-0.5">
+            <Text className="text-[11px] text-brand-text-faint mt-0.5">
               {formatDateTime(transaction.createdAt)}
               {transaction.validation
                 ? ` · exited ${formatDateTime(transaction.validation.scannedAt)}`
@@ -283,7 +285,7 @@ const LedgerRow: React.FC<{
                   : ''}
             </Text>
             {transaction.overstayAmount > 0 && (
-              <Text className="text-[11px] text-amber-400 mt-0.5">
+              <Text className="text-[11px] text-brand-warning mt-0.5">
                 Overstay collected: {formatCurrency(transaction.overstayAmount, currency)}
               </Text>
             )}
@@ -291,28 +293,28 @@ const LedgerRow: React.FC<{
         </View>
 
         <View className="items-end shrink-0 gap-2">
-          <Text className="text-base font-extrabold text-emerald-400">
+          <Text className="text-base font-extrabold text-brand-accent">
             {formatCurrency(transaction.amount, currency)}
           </Text>
           <TouchableOpacity
             onPress={onDeliver}
             accessibilityLabel="Send pass on WhatsApp"
-            className="p-1.5 rounded-lg bg-slate-800 active:bg-slate-700"
+            className="p-1.5 rounded-lg bg-brand-surface-raised active:bg-brand-surface-raised"
           >
-            <MessageSquare size={14} color={theme.semantic.accentSoft} />
+            <MessageSquare size={14} color={colors['accent-soft']} />
           </TouchableOpacity>
         </View>
       </View>
 
       {pending && canConfirm && (
-        <View className="mt-3 pt-3 border-t border-slate-800">
+        <View className="mt-3 pt-3 border-t border-brand-border">
           <Button
             title="Payment received — make pass valid"
             variant="secondary"
             size="sm"
             fullWidth
             loading={confirming}
-            icon={<CheckCircle2 size={14} color={theme.semantic.accent} />}
+            icon={<CheckCircle2 size={14} color={colors['accent']} />}
             onPress={onConfirm}
           />
         </View>
@@ -321,10 +323,10 @@ const LedgerRow: React.FC<{
       {/* The customer asked for more time and paid; a person still has to say
           the money arrived before the clock moves. */}
       {extension && canConfirm && (
-        <View className="mt-3 pt-3 border-t border-slate-800">
+        <View className="mt-3 pt-3 border-t border-brand-border">
           <View className="flex-row items-center gap-1.5 mb-2">
-            <Clock size={12} color={theme.semantic.warning} />
-            <Text className="text-[11px] text-amber-300 font-semibold">
+            <Clock size={12} color={colors['warning']} />
+            <Text className="text-[11px] text-brand-warning font-semibold">
               Extension requested · {formatCurrency(extension.amount, currency)} for{' '}
               {formatDuration(extension.minutes)}
             </Text>
@@ -335,7 +337,7 @@ const LedgerRow: React.FC<{
             size="sm"
             fullWidth
             loading={extending}
-            icon={<TimerReset size={14} color={theme.semantic.accent} />}
+            icon={<TimerReset size={14} color={colors['accent']} />}
             onPress={onConfirmExtension}
           />
         </View>

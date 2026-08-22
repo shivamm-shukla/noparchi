@@ -2,7 +2,7 @@ import React, { useCallback, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Platform, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { ScanLine, WifiOff, Camera as CameraIcon } from 'lucide-react-native';
-import theme from '../../src/config/theme';
+import { useThemeColors } from '../../src/context/ThemeContext';
 import { useAuth } from '../../src/context/AuthContext';
 import { useApp } from '../../src/context/AppContext';
 import { Header } from '../../components/ui/Header';
@@ -21,6 +21,7 @@ import type { ScanResult } from '../../src/types';
 const DEFAULT_GATES = ['Main Exit', 'Gate 2', 'Gate 3'];
 
 export default function ScannerScreen() {
+  const colors = useThemeColors();
   const { merchant } = useAuth();
   const { refresh } = useApp();
   const [permission, requestPermission] = useCameraPermissions();
@@ -107,31 +108,31 @@ export default function ScannerScreen() {
   const cameraAvailable = Platform.OS !== 'web' && permission?.granted;
 
   return (
-    <View className="flex-1 bg-slate-950">
+    <View className="flex-1 bg-brand-bg">
       <Header title="Exit scanner" subtitle={`Gate: ${exitGate}`} />
 
       <RoleGate permission="can_verify_tickets" title="Scanner is off for your account">
         <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
           <View className="max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-5">
             <Card className="p-0 overflow-hidden mb-6">
-              <View className="p-4 bg-slate-950 flex-row items-center justify-between border-b border-slate-800">
+              <View className="p-4 bg-brand-bg flex-row items-center justify-between border-b border-brand-border">
                 <View className="flex-row items-center gap-2">
-                  <View className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                  <Text className="text-sm font-bold text-slate-100">Scanner</Text>
+                  <View className="w-2.5 h-2.5 rounded-full bg-brand-accent" />
+                  <Text className="text-sm font-bold text-brand-text">Scanner</Text>
                 </View>
 
-                <View className="flex-row gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
+                <View className="flex-row gap-1 bg-brand-surface p-1 rounded-xl border border-brand-border">
                   {DEFAULT_GATES.map((gate) => (
                     <TouchableOpacity
                       key={gate}
                       onPress={() => setExitGate(gate)}
                       className={`px-2.5 py-1 rounded-lg ${
-                        exitGate === gate ? 'bg-emerald-500' : 'bg-transparent'
+                        exitGate === gate ? 'bg-brand-accent' : 'bg-transparent'
                       }`}
                     >
                       <Text
                         className={`text-[11px] font-bold ${
-                          exitGate === gate ? 'text-slate-900' : 'text-slate-400'
+                          exitGate === gate ? 'text-brand-on-accent' : 'text-brand-text-muted'
                         }`}
                       >
                         {gate}
@@ -141,7 +142,7 @@ export default function ScannerScreen() {
                 </View>
               </View>
 
-              <View className="h-72 sm:h-96 w-full bg-slate-950 items-center justify-center relative overflow-hidden">
+              <View className="h-72 sm:h-96 w-full bg-brand-bg items-center justify-center relative overflow-hidden">
                 {cameraAvailable ? (
                   <>
                     <CameraView
@@ -151,20 +152,20 @@ export default function ScannerScreen() {
                     />
                     <View
                       pointerEvents="none"
-                      className="absolute w-56 h-56 border-2 border-emerald-500/50 rounded-3xl"
+                      className="absolute w-56 h-56 border-2 border-brand-accent/50 rounded-3xl"
                     />
                   </>
                 ) : (
                   <View className="items-center justify-center p-6">
-                    <View className="w-20 h-20 rounded-3xl bg-slate-900 border border-slate-700 items-center justify-center mb-3">
-                      <ScanLine size={40} color={theme.semantic.accent} />
+                    <View className="w-20 h-20 rounded-3xl bg-brand-surface border border-brand-border-strong items-center justify-center mb-3">
+                      <ScanLine size={40} color={colors['accent']} />
                     </View>
-                    <Text className="text-base font-bold text-slate-200 text-center mb-1">
+                    <Text className="text-base font-bold text-brand-text text-center mb-1">
                       {Platform.OS === 'web'
                         ? 'Type the pass code below'
                         : 'Camera permission needed'}
                     </Text>
-                    <Text className="text-xs text-slate-400 text-center max-w-xs mb-4 leading-4">
+                    <Text className="text-xs text-brand-text-muted text-center max-w-xs mb-4 leading-4">
                       {Platform.OS === 'web'
                         ? 'Camera scanning runs on the installed Android and iOS app. On a laptop, enter the code printed under the customer’s QR.'
                         : 'Allow camera access to scan customer passes at the gate.'}
@@ -175,7 +176,7 @@ export default function ScannerScreen() {
                         title="Allow camera"
                         size="sm"
                         variant="primary"
-                        icon={<CameraIcon size={14} color={theme.semantic.onAccent} />}
+                        icon={<CameraIcon size={14} color={colors['on-accent']} />}
                         onPress={requestPermission}
                       />
                     )}
@@ -183,8 +184,8 @@ export default function ScannerScreen() {
                 )}
               </View>
 
-              <View className="p-4 bg-slate-900 border-t border-slate-800">
-                <Text className="text-xs font-semibold text-slate-300 mb-2">
+              <View className="p-4 bg-brand-surface border-t border-brand-border">
+                <Text className="text-xs font-semibold text-brand-text-subtle mb-2">
                   Enter pass code
                 </Text>
                 <View className="flex-row gap-2">
@@ -192,11 +193,11 @@ export default function ScannerScreen() {
                     value={manualCode}
                     onChangeText={setManualCode}
                     placeholder="NP-XXXX-YYYY"
-                    placeholderTextColor={theme.semantic.textFaint}
+                    placeholderTextColor={colors['text-faint']}
                     autoCapitalize="characters"
                     autoCorrect={false}
                     onSubmitEditing={submitManual}
-                    className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-slate-100 text-sm font-mono"
+                    className="flex-1 bg-brand-bg border border-brand-border rounded-xl px-3.5 py-2.5 text-brand-text text-sm font-mono"
                   />
                   <Button
                     title="Verify"
@@ -208,14 +209,14 @@ export default function ScannerScreen() {
               </View>
             </Card>
 
-            <Card className="border-slate-800">
+            <Card className="border-brand-border">
               <View className="flex-row items-start gap-3">
-                <WifiOff size={16} color={theme.semantic.textMuted} />
+                <WifiOff size={16} color={colors['text-muted']} />
                 <View className="flex-1">
-                  <Text className="text-sm font-bold text-slate-200 mb-1">
+                  <Text className="text-sm font-bold text-brand-text mb-1">
                     Works without signal
                   </Text>
-                  <Text className="text-xs text-slate-400 leading-4">
+                  <Text className="text-xs text-brand-text-muted leading-4">
                     Paid passes are cached on this device. If the network drops, scanning
                     keeps working and every clearance is written to storage immediately, so a
                     used pass stays used even if the app restarts. Scans upload automatically

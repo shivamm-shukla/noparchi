@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, ScrollView } from 'react-native';
 import { Building2, AlertCircle } from 'lucide-react-native';
-import theme from '../../src/config/theme';
+import { useThemeColors } from '../../src/context/ThemeContext';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Field } from '../../components/ui/Field';
@@ -17,6 +17,7 @@ import { useAuth } from '../../src/context/AuthContext';
  * here twice is harmless.
  */
 export default function SetupBusinessScreen() {
+  const colors = useThemeColors();
   const { refresh, signOut } = useAuth();
   const [businessName, setBusinessName] = useState('');
   const [ownerName, setOwnerName] = useState('');
@@ -45,17 +46,17 @@ export default function SetupBusinessScreen() {
 
   return (
     <ScrollView
-      className="flex-1 bg-slate-950"
+      className="flex-1 bg-brand-bg"
       contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}
     >
       <View className="w-full max-w-md mx-auto">
         <View className="flex-row items-center gap-2 mb-6">
-          <View className="w-11 h-11 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 items-center justify-center">
-            <Building2 size={22} color={theme.semantic.accent} />
+          <View className="w-11 h-11 rounded-2xl bg-brand-accent/10 border border-brand-accent/30 items-center justify-center">
+            <Building2 size={22} color={colors['accent']} />
           </View>
           <View className="flex-1">
-            <Text className="text-2xl font-extrabold text-slate-100">One last step</Text>
-            <Text className="text-xs text-slate-400">Tell us about your business.</Text>
+            <Text className="text-2xl font-extrabold text-brand-text">One last step</Text>
+            <Text className="text-xs text-brand-text-muted">Tell us about your business.</Text>
           </View>
         </View>
 
@@ -65,8 +66,8 @@ export default function SetupBusinessScreen() {
               value={businessName}
               onChangeText={setBusinessName}
               placeholder="Metro Hub Parking"
-              placeholderTextColor={theme.semantic.textFaint}
-              className="text-slate-100 text-base"
+              placeholderTextColor={colors['text-faint']}
+              className="text-brand-text text-base"
             />
           </Field>
 
@@ -75,8 +76,8 @@ export default function SetupBusinessScreen() {
               value={ownerName}
               onChangeText={setOwnerName}
               placeholder="Rajesh Sharma"
-              placeholderTextColor={theme.semantic.textFaint}
-              className="text-slate-100 text-base"
+              placeholderTextColor={colors['text-faint']}
+              className="text-brand-text text-base"
             />
           </Field>
 
@@ -85,9 +86,9 @@ export default function SetupBusinessScreen() {
               value={phone}
               onChangeText={setPhone}
               placeholder="98765 43210"
-              placeholderTextColor={theme.semantic.textFaint}
+              placeholderTextColor={colors['text-faint']}
               keyboardType="phone-pad"
-              className="text-slate-100 text-base"
+              className="text-brand-text text-base"
             />
           </Field>
 
@@ -96,8 +97,8 @@ export default function SetupBusinessScreen() {
               value={location}
               onChangeText={setLocation}
               placeholder="Connaught Place, New Delhi"
-              placeholderTextColor={theme.semantic.textFaint}
-              className="text-slate-100 text-base"
+              placeholderTextColor={colors['text-faint']}
+              className="text-brand-text text-base"
             />
           </Field>
 
@@ -106,16 +107,16 @@ export default function SetupBusinessScreen() {
               value={upiId}
               onChangeText={setUpiId}
               placeholder="yourbusiness@icici"
-              placeholderTextColor={theme.semantic.textFaint}
+              placeholderTextColor={colors['text-faint']}
               autoCapitalize="none"
-              className="text-slate-100 text-base"
+              className="text-brand-text text-base"
             />
           </Field>
 
           {error && (
-            <View className="flex-row items-start gap-2 mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30">
-              <AlertCircle size={14} color={theme.semantic.danger} />
-              <Text className="text-xs text-rose-300 flex-1 leading-4">{error}</Text>
+            <View className="flex-row items-start gap-2 mb-4 p-3 rounded-xl bg-brand-danger/10 border border-brand-danger/30">
+              <AlertCircle size={14} color={colors['danger']} />
+              <Text className="text-xs text-brand-danger flex-1 leading-4">{error}</Text>
             </View>
           )}
 

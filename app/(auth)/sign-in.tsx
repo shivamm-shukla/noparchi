@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { Link } from 'expo-router';
 import { Sparkles, AlertCircle, Mail, KeyRound, Smartphone } from 'lucide-react-native';
-import theme from '../../src/config/theme';
+import { useThemeColors } from '../../src/context/ThemeContext';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Field } from '../../components/ui/Field';
@@ -23,6 +23,7 @@ type Mode = 'owner' | 'staff';
  * in app state - as the previous build's did - protects nothing.
  */
 export default function SignInScreen() {
+  const colors = useThemeColors();
   const [mode, setMode] = useState<Mode>('owner');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,29 +65,29 @@ export default function SignInScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1 bg-slate-950"
+      className="flex-1 bg-brand-bg"
     >
       <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}>
         <View className="w-full max-w-md mx-auto">
           <View className="items-center mb-8">
-            <View className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 items-center justify-center mb-3">
-              <Sparkles size={28} color={theme.semantic.accent} />
+            <View className="w-14 h-14 rounded-2xl bg-brand-accent/10 border border-brand-accent/30 items-center justify-center mb-3">
+              <Sparkles size={28} color={colors['accent']} />
             </View>
-            <Text className="text-3xl font-extrabold text-slate-100">NoParchi</Text>
-            <Text className="text-sm text-slate-400 mt-1">No paper. No stolen cash.</Text>
+            <Text className="text-3xl font-extrabold text-brand-text">NoParchi</Text>
+            <Text className="text-sm text-brand-text-muted mt-1">No paper. No stolen cash.</Text>
           </View>
 
           <Card className="p-5 sm:p-6">
-            <View className="flex-row bg-slate-950 border border-slate-800 rounded-2xl p-1 mb-5">
+            <View className="flex-row bg-brand-bg border border-brand-border rounded-2xl p-1 mb-5">
               <ModeTab
                 label="Owner"
-                icon={<Mail size={14} color={mode === 'owner' ? theme.semantic.onAccent : theme.semantic.textMuted} />}
+                icon={<Mail size={14} color={mode === 'owner' ? colors['on-accent'] : colors['text-muted']} />}
                 active={mode === 'owner'}
                 onPress={() => { setMode('owner'); setError(null); }}
               />
               <ModeTab
                 label="Gatekeeper"
-                icon={<Smartphone size={14} color={mode === 'staff' ? theme.semantic.onAccent : theme.semantic.textMuted} />}
+                icon={<Smartphone size={14} color={mode === 'staff' ? colors['on-accent'] : colors['text-muted']} />}
                 active={mode === 'staff'}
                 onPress={() => { setMode('staff'); setError(null); }}
               />
@@ -99,11 +100,11 @@ export default function SignInScreen() {
                     value={email}
                     onChangeText={setEmail}
                     placeholder="you@business.com"
-                    placeholderTextColor={theme.semantic.textFaint}
+                    placeholderTextColor={colors['text-faint']}
                     autoCapitalize="none"
                     keyboardType="email-address"
                     textContentType="emailAddress"
-                    className="text-slate-100 text-base"
+                    className="text-brand-text text-base"
                   />
                 </Field>
 
@@ -112,11 +113,11 @@ export default function SignInScreen() {
                     value={password}
                     onChangeText={setPassword}
                     placeholder="••••••••"
-                    placeholderTextColor={theme.semantic.textFaint}
+                    placeholderTextColor={colors['text-faint']}
                     secureTextEntry
                     textContentType="password"
                     onSubmitEditing={submitOwner}
-                    className="text-slate-100 text-base"
+                    className="text-brand-text text-base"
                   />
                 </Field>
 
@@ -130,18 +131,18 @@ export default function SignInScreen() {
                 />
 
                 <View className="flex-row items-center justify-center gap-1.5 mt-4">
-                  <Text className="text-xs text-slate-400">New here?</Text>
+                  <Text className="text-xs text-brand-text-muted">New here?</Text>
                   <Link href="/(auth)/sign-up" asChild>
                     <TouchableOpacity>
-                      <Text className="text-xs font-bold text-emerald-400">Create a business</Text>
+                      <Text className="text-xs font-bold text-brand-accent">Create a business</Text>
                     </TouchableOpacity>
                   </Link>
                 </View>
               </>
             ) : choices ? (
               <>
-                <Text className="text-sm font-bold text-slate-100 mb-1">Which business?</Text>
-                <Text className="text-xs text-slate-400 mb-4 leading-4">
+                <Text className="text-sm font-bold text-brand-text mb-1">Which business?</Text>
+                <Text className="text-xs text-brand-text-muted mb-4 leading-4">
                   That number works at more than one place.
                 </Text>
                 <View className="gap-2.5">
@@ -150,10 +151,10 @@ export default function SignInScreen() {
                       key={choice.userId}
                       onPress={() => submitStaff(choice.userId)}
                       activeOpacity={0.7}
-                      className="p-4 rounded-2xl bg-slate-950 border border-slate-800 active:border-emerald-500/50"
+                      className="p-4 rounded-2xl bg-brand-bg border border-brand-border active:border-brand-accent/50"
                     >
-                      <Text className="text-sm font-bold text-slate-100">{choice.businessName}</Text>
-                      <Text className="text-xs text-slate-400 mt-0.5">{choice.name}</Text>
+                      <Text className="text-sm font-bold text-brand-text">{choice.businessName}</Text>
+                      <Text className="text-xs text-brand-text-muted mt-0.5">{choice.name}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -165,9 +166,9 @@ export default function SignInScreen() {
                     value={phone}
                     onChangeText={setPhone}
                     placeholder="98765 43210"
-                    placeholderTextColor={theme.semantic.textFaint}
+                    placeholderTextColor={colors['text-faint']}
                     keyboardType="phone-pad"
-                    className="text-slate-100 text-base"
+                    className="text-brand-text text-base"
                   />
                 </Field>
 
@@ -176,12 +177,12 @@ export default function SignInScreen() {
                     value={pin}
                     onChangeText={setPin}
                     placeholder="••••"
-                    placeholderTextColor={theme.semantic.textFaint}
+                    placeholderTextColor={colors['text-faint']}
                     keyboardType="number-pad"
                     secureTextEntry
                     maxLength={8}
                     onSubmitEditing={() => submitStaff()}
-                    className="text-slate-100 text-2xl font-bold tracking-[0.4em]"
+                    className="text-brand-text text-2xl font-bold tracking-[0.4em]"
                   />
                 </Field>
 
@@ -191,11 +192,11 @@ export default function SignInScreen() {
                   size="lg"
                   fullWidth
                   loading={busy}
-                  icon={<KeyRound size={16} color={theme.semantic.onAccent} />}
+                  icon={<KeyRound size={16} color={colors['on-accent']} />}
                   onPress={() => submitStaff()}
                 />
 
-                <Text className="text-[11px] text-slate-500 text-center mt-4 leading-4">
+                <Text className="text-[11px] text-brand-text-faint text-center mt-4 leading-4">
                   Your PIN is set by the business owner. Five wrong tries locks the account
                   for fifteen minutes.
                 </Text>
@@ -203,9 +204,9 @@ export default function SignInScreen() {
             )}
 
             {error && (
-              <View className="flex-row items-start gap-2 mt-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30">
-                <AlertCircle size={14} color={theme.semantic.danger} />
-                <Text className="text-xs text-rose-300 flex-1 leading-4">{error}</Text>
+              <View className="flex-row items-start gap-2 mt-4 p-3 rounded-xl bg-brand-danger/10 border border-brand-danger/30">
+                <AlertCircle size={14} color={colors['danger']} />
+                <Text className="text-xs text-brand-danger flex-1 leading-4">{error}</Text>
               </View>
             )}
           </Card>
@@ -225,11 +226,11 @@ const ModeTab: React.FC<{
     onPress={onPress}
     activeOpacity={0.8}
     className={`flex-1 flex-row items-center justify-center gap-1.5 py-2.5 rounded-xl ${
-      active ? 'bg-emerald-500' : 'bg-transparent'
+      active ? 'bg-brand-accent' : 'bg-transparent'
     }`}
   >
     {icon}
-    <Text className={`text-xs font-bold ${active ? 'text-slate-900' : 'text-slate-400'}`}>
+    <Text className={`text-xs font-bold ${active ? 'text-brand-on-accent' : 'text-brand-text-muted'}`}>
       {label}
     </Text>
   </TouchableOpacity>

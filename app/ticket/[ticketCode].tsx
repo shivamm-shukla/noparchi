@@ -13,7 +13,7 @@ import {
   TimerReset,
   IndianRupee,
 } from 'lucide-react-native';
-import theme from '../../src/config/theme';
+import { useThemeColors } from '../../src/context/ThemeContext';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
@@ -33,6 +33,7 @@ import type { PublicTicket } from '../../src/types';
  * wanting one decision, not a receipt to read.
  */
 export default function TicketScreen() {
+  const colors = useThemeColors();
   const { ticketCode } = useLocalSearchParams<{ ticketCode: string }>();
   const [ticket, setTicket] = useState<PublicTicket | null>(null);
   const [loading, setLoading] = useState(true);
@@ -124,21 +125,21 @@ export default function TicketScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 bg-slate-950 items-center justify-center">
-        <ActivityIndicator size="large" color={theme.semantic.accent} />
+      <View className="flex-1 bg-brand-bg items-center justify-center">
+        <ActivityIndicator size="large" color={colors['accent']} />
       </View>
     );
   }
 
   if (!ticket) {
     return (
-      <View className="flex-1 bg-slate-950 items-center justify-center p-6">
+      <View className="flex-1 bg-brand-bg items-center justify-center p-6">
         <Card className="w-full max-w-md items-center p-6">
-          <AlertCircle size={28} color={theme.semantic.warning} />
-          <Text className="text-base font-bold text-slate-100 mt-3 text-center">
+          <AlertCircle size={28} color={colors['warning']} />
+          <Text className="text-base font-bold text-brand-text mt-3 text-center">
             {error ?? 'Pass not found.'}
           </Text>
-          <Text className="text-xs text-slate-400 mt-2 text-center leading-4">
+          <Text className="text-xs text-brand-text-muted mt-2 text-center leading-4">
             Check the code, or ask the staff at the counter.
           </Text>
         </Card>
@@ -146,13 +147,13 @@ export default function TicketScreen() {
     );
   }
 
-  const state = passState(ticket, remaining);
+  const state = passState(ticket, remaining, colors);
 
   return (
-    <View className="flex-1 bg-slate-950">
-      <View className="bg-slate-900 border-b border-slate-800 px-4 py-4">
+    <View className="flex-1 bg-brand-bg">
+      <View className="bg-brand-surface border-b border-brand-border px-4 py-4">
         <View className="max-w-lg mx-auto w-full flex-row items-center justify-between">
-          <Text className="text-sm font-bold text-slate-100">Your pass</Text>
+          <Text className="text-sm font-bold text-brand-text">Your pass</Text>
           <Badge label={state.badge} variant={state.badgeVariant} size="sm" />
         </View>
       </View>
@@ -181,33 +182,33 @@ export default function TicketScreen() {
               <state.Icon size={30} color={state.color} />
             </View>
 
-            <Text className="text-xl font-extrabold text-slate-100 text-center">
+            <Text className="text-xl font-extrabold text-brand-text text-center">
               {ticket.merchant.businessName}
             </Text>
-            <Text className="text-xs text-slate-400 text-center mb-1">
+            <Text className="text-xs text-brand-text-muted text-center mb-1">
               {ticket.merchant.location}
             </Text>
             <Text className={`text-sm font-bold text-center mb-4 ${state.textClass}`}>
               {state.headline}
             </Text>
 
-            <View className="p-4 bg-white rounded-3xl items-center mb-4 border-4 border-emerald-500/20">
+            <View className="p-4 bg-brand-paper rounded-3xl items-center mb-4 border-4 border-brand-accent/20">
               <QRCode
                 value={passUrl(ticket.ticketCode) ?? ticket.ticketCode}
                 size={180}
-                color={theme.semantic.onPaper}
-                backgroundColor={theme.semantic.paper}
+                color={colors['on-paper']}
+                backgroundColor={colors['paper']}
               />
-              <Text className="text-slate-950 font-mono font-extrabold text-sm mt-2 tracking-wider">
+              <Text className="text-brand-on-accent font-mono font-extrabold text-sm mt-2 tracking-wider">
                 {ticket.ticketCode}
               </Text>
             </View>
 
-            <Text className="text-xs text-slate-400 text-center mb-5 leading-4">
+            <Text className="text-xs text-brand-text-muted text-center mb-5 leading-4">
               {state.instruction}
             </Text>
 
-            <View className="w-full rounded-2xl bg-slate-950/80 border border-slate-800 p-4 gap-3">
+            <View className="w-full rounded-2xl bg-brand-bg/80 border border-brand-border p-4 gap-3">
               <Row label="Pass type" value={ticket.typeLabel} />
               {ticket.vehicleNumber ? <Row label="Vehicle" value={ticket.vehicleNumber} /> : null}
               <Row label="Amount" value={formatCurrency(ticket.amount)} highlight />
@@ -220,7 +221,7 @@ export default function TicketScreen() {
               <Row
                 label="Issued"
                 value={formatDateTime(ticket.issuedAt)}
-                icon={<Clock size={13} color={theme.semantic.textMuted} />}
+                icon={<Clock size={13} color={colors['text-muted']} />}
               />
               {ticket.expiresAt ? (
                 <Row label="Valid until" value={formatDateTime(ticket.expiresAt)} />
@@ -233,29 +234,29 @@ export default function TicketScreen() {
                 title="Share"
                 variant="secondary"
                 className="flex-1"
-                icon={<Share2 size={15} color={theme.semantic.text} />}
+                icon={<Share2 size={15} color={colors['text']} />}
                 onPress={share}
               />
               <Button
                 title="Refresh"
                 variant="outline"
                 className="flex-1"
-                icon={<RefreshCw size={15} color={theme.semantic.textMuted} />}
+                icon={<RefreshCw size={15} color={colors['text-muted']} />}
                 onPress={load}
               />
             </View>
           </Card>
 
           {error && (
-            <View className="flex-row items-start gap-2 mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30">
-              <AlertCircle size={14} color={theme.semantic.danger} />
-              <Text className="text-xs text-rose-300 flex-1 leading-4">{error}</Text>
+            <View className="flex-row items-start gap-2 mb-4 p-3 rounded-xl bg-brand-danger/10 border border-brand-danger/30">
+              <AlertCircle size={14} color={colors['danger']} />
+              <Text className="text-xs text-brand-danger flex-1 leading-4">{error}</Text>
             </View>
           )}
 
           <View className="flex-row items-center justify-center gap-2">
-            <ShieldCheck size={14} color={theme.semantic.accent} />
-            <Text className="text-xs text-slate-500 text-center">Powered by NoParchi</Text>
+            <ShieldCheck size={14} color={colors['accent']} />
+            <Text className="text-xs text-brand-text-faint text-center">Powered by NoParchi</Text>
           </View>
         </View>
       </ScrollView>
@@ -313,6 +314,7 @@ const CountdownCard: React.FC<{
   payUrl: string | null;
   onExtend: () => void;
 }> = ({ ticket, remaining, extending, payUrl, onExtend }) => {
+  const colors = useThemeColors();
   if (!remaining) return null;
 
   const pending = ticket.pendingExtension;
@@ -321,29 +323,29 @@ const CountdownCard: React.FC<{
   const urgent = !remaining.expired && remaining.totalMs < 30 * 60 * 1000;
 
   const tone = remaining.expired
-    ? { border: 'border-rose-500/50', bg: 'bg-rose-500/10', text: 'text-rose-300' }
+    ? { border: 'border-brand-danger/50', bg: 'bg-brand-danger/10', text: 'text-brand-danger' }
     : urgent
-      ? { border: 'border-amber-500/50', bg: 'bg-amber-500/10', text: 'text-amber-300' }
-      : { border: 'border-emerald-500/40', bg: 'bg-emerald-500/5', text: 'text-emerald-300' };
+      ? { border: 'border-brand-warning/50', bg: 'bg-brand-warning/10', text: 'text-brand-warning' }
+      : { border: 'border-brand-accent/40', bg: 'bg-brand-accent/5', text: 'text-brand-accent' };
 
   return (
     <Card className={`${tone.border} ${tone.bg} p-5 mb-5 items-center`}>
-      <Text className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+      <Text className="text-[11px] font-bold uppercase tracking-widest text-brand-text-muted">
         {remaining.expired ? 'Time over by' : 'Time left'}
       </Text>
       <Text className={`text-5xl font-extrabold tracking-tight mt-1 ${tone.text}`}>
         {remaining.label}
       </Text>
-      <Text className="text-[11px] text-slate-400 mt-1">
+      <Text className="text-[11px] text-brand-text-muted mt-1">
         {remaining.expired ? 'Expired' : 'Valid until'} {formatDateTime(ticket.expiresAt!)}
       </Text>
 
       {/* An expired pass owes money at the gate. Say the number plainly here so
           it is not a surprise handed over by a gatekeeper. */}
       {remaining.expired && ticket.overstayDue > 0 && (
-        <View className="flex-row items-center gap-1.5 mt-3 px-3 py-2 rounded-xl bg-rose-500/15 border border-rose-500/40">
-          <IndianRupee size={14} color={theme.semantic.danger} />
-          <Text className="text-xs font-bold text-rose-200">
+        <View className="flex-row items-center gap-1.5 mt-3 px-3 py-2 rounded-xl bg-brand-danger/15 border border-brand-danger/40">
+          <IndianRupee size={14} color={colors['danger']} />
+          <Text className="text-xs font-bold text-brand-danger">
             {formatCurrency(ticket.overstayDue)} due at the exit
           </Text>
         </View>
@@ -351,28 +353,28 @@ const CountdownCard: React.FC<{
 
       {pending ? (
         <View className="w-full mt-5 items-center">
-          <Text className="text-xs font-bold text-slate-200 text-center mb-1">
+          <Text className="text-xs font-bold text-brand-text text-center mb-1">
             Pay {formatCurrency(pending.amount)} for {formatDuration(pending.minutes)} more
           </Text>
-          <Text className="text-[11px] text-slate-400 text-center mb-4 leading-4">
+          <Text className="text-[11px] text-brand-text-muted text-center mb-4 leading-4">
             Your extra time starts once the staff confirm the payment. This page updates on its
             own.
           </Text>
 
           {payUrl && (
-            <View className="p-3 bg-white rounded-2xl mb-3">
+            <View className="p-3 bg-brand-paper rounded-2xl mb-3">
               <QRCode
                 value={payUrl}
                 size={150}
-                color={theme.semantic.onPaper}
-                backgroundColor={theme.semantic.paper}
+                color={colors['on-paper']}
+                backgroundColor={colors['paper']}
               />
             </View>
           )}
 
-          <View className="flex-row items-center gap-2 px-3 py-2 rounded-xl bg-slate-950/70 border border-slate-800">
-            <Clock size={12} color={theme.semantic.warning} />
-            <Text className="text-[11px] font-semibold text-slate-300">
+          <View className="flex-row items-center gap-2 px-3 py-2 rounded-xl bg-brand-bg/70 border border-brand-border">
+            <Clock size={12} color={colors['warning']} />
+            <Text className="text-[11px] font-semibold text-brand-text-subtle">
               Waiting for payment confirmation
             </Text>
           </View>
@@ -389,11 +391,11 @@ const CountdownCard: React.FC<{
             size="lg"
             fullWidth
             loading={extending}
-            icon={<TimerReset size={17} color={theme.semantic.onAccent} />}
+            icon={<TimerReset size={17} color={colors['on-accent']} />}
             onPress={onExtend}
           />
           {!remaining.expired && (
-            <Text className="text-[11px] text-slate-500 text-center mt-2 leading-4">
+            <Text className="text-[11px] text-brand-text-faint text-center mt-2 leading-4">
               Extending now costs the same as the overstay would — never more.
             </Text>
           )}
@@ -403,7 +405,11 @@ const CountdownCard: React.FC<{
   );
 };
 
-function passState(ticket: PublicTicket, remaining: Remaining | null) {
+function passState(
+  ticket: PublicTicket,
+  remaining: Remaining | null,
+  colors: Record<string, string>
+) {
   if (ticket.isUsed) {
     return {
       badge: 'Exited',
@@ -411,9 +417,9 @@ function passState(ticket: PublicTicket, remaining: Remaining | null) {
       headline: 'Already used',
       instruction: 'This pass has been scanned at the exit and cannot be used again.',
       Icon: XCircle,
-      color: theme.semantic.textMuted,
-      ringClass: 'bg-slate-800 border-slate-700',
-      textClass: 'text-slate-400',
+      color: colors['text-muted'],
+      ringClass: 'bg-brand-surface-raised border-brand-border-strong',
+      textClass: 'text-brand-text-muted',
     };
   }
   if (ticket.status === 'paid' && remaining?.expired) {
@@ -426,9 +432,9 @@ function passState(ticket: PublicTicket, remaining: Remaining | null) {
           ? 'Extend above, or pay the overstay to the gatekeeper on your way out.'
           : 'Extend above, or show this at the exit.',
       Icon: Clock,
-      color: theme.semantic.warning,
-      ringClass: 'bg-amber-500/10 border-amber-500/30',
-      textClass: 'text-amber-400',
+      color: colors['warning'],
+      ringClass: 'bg-brand-warning/10 border-brand-warning/30',
+      textClass: 'text-brand-warning',
     };
   }
   if (ticket.status === 'paid') {
@@ -438,9 +444,9 @@ function passState(ticket: PublicTicket, remaining: Remaining | null) {
       headline: 'Ready to use',
       instruction: 'Show this QR code to the gatekeeper on your way out.',
       Icon: CheckCircle2,
-      color: theme.semantic.accent,
-      ringClass: 'bg-emerald-500/10 border-emerald-500/30',
-      textClass: 'text-emerald-400',
+      color: colors['accent'],
+      ringClass: 'bg-brand-accent/10 border-brand-accent/30',
+      textClass: 'text-brand-accent',
     };
   }
   if (ticket.status === 'pending') {
@@ -451,9 +457,9 @@ function passState(ticket: PublicTicket, remaining: Remaining | null) {
       instruction:
         'Show this code to the staff once you have paid. They will activate it, and this page will update on its own.',
       Icon: Clock,
-      color: theme.semantic.warning,
-      ringClass: 'bg-amber-500/10 border-amber-500/30',
-      textClass: 'text-amber-400',
+      color: colors['warning'],
+      ringClass: 'bg-brand-warning/10 border-brand-warning/30',
+      textClass: 'text-brand-warning',
     };
   }
   return {
@@ -462,9 +468,9 @@ function passState(ticket: PublicTicket, remaining: Remaining | null) {
     headline: 'This pass is not valid',
     instruction: 'Please speak to the staff at the counter.',
     Icon: XCircle,
-    color: theme.semantic.danger,
-    ringClass: 'bg-rose-500/10 border-rose-500/30',
-    textClass: 'text-rose-400',
+    color: colors['danger'],
+    ringClass: 'bg-brand-danger/10 border-brand-danger/30',
+    textClass: 'text-brand-danger',
   };
 }
 
@@ -477,11 +483,11 @@ const Row: React.FC<{
   <View className="flex-row items-center justify-between gap-3">
     <View className="flex-row items-center gap-1.5">
       {icon}
-      <Text className="text-xs text-slate-400">{label}</Text>
+      <Text className="text-xs text-brand-text-muted">{label}</Text>
     </View>
     <Text
       numberOfLines={1}
-      className={`text-sm font-bold ${highlight ? 'text-emerald-400' : 'text-slate-100'}`}
+      className={`text-sm font-bold ${highlight ? 'text-brand-accent' : 'text-brand-text'}`}
     >
       {value}
     </Text>

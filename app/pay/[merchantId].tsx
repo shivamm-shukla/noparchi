@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator 
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import QRCode from 'react-native-qrcode-svg';
 import { ShieldCheck, Sparkles, AlertCircle, Smartphone, CheckCircle2 } from 'lucide-react-native';
-import theme from '../../src/config/theme';
+import { useThemeColors } from '../../src/context/ThemeContext';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
@@ -25,6 +25,7 @@ import { formatCurrency } from '../../src/utils/formatters';
  * the customer gets here is a pass code to show, not a cleared entry.
  */
 export default function CheckoutScreen() {
+  const colors = useThemeColors();
   const { merchantId } = useLocalSearchParams<{ merchantId: string }>();
   const router = useRouter();
 
@@ -108,21 +109,21 @@ export default function CheckoutScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 bg-slate-950 items-center justify-center">
-        <ActivityIndicator size="large" color={theme.semantic.accent} />
+      <View className="flex-1 bg-brand-bg items-center justify-center">
+        <ActivityIndicator size="large" color={colors['accent']} />
       </View>
     );
   }
 
   if (!info) {
     return (
-      <View className="flex-1 bg-slate-950 items-center justify-center p-6">
+      <View className="flex-1 bg-brand-bg items-center justify-center p-6">
         <Card className="w-full max-w-md items-center p-6">
-          <AlertCircle size={28} color={theme.semantic.warning} />
-          <Text className="text-base font-bold text-slate-100 mt-3 text-center">
+          <AlertCircle size={28} color={colors['warning']} />
+          <Text className="text-base font-bold text-brand-text mt-3 text-center">
             {error ?? 'This gate QR is not active.'}
           </Text>
-          <Text className="text-xs text-slate-400 mt-2 text-center leading-4">
+          <Text className="text-xs text-brand-text-muted mt-2 text-center leading-4">
             Ask the staff at the counter for help.
           </Text>
         </Card>
@@ -133,18 +134,18 @@ export default function CheckoutScreen() {
   const { merchant, ticketTypes } = info;
 
   return (
-    <View className="flex-1 bg-slate-950">
-      <View className="bg-slate-900 border-b border-slate-800 px-4 py-4">
+    <View className="flex-1 bg-brand-bg">
+      <View className="bg-brand-surface border-b border-brand-border px-4 py-4">
         <View className="max-w-lg mx-auto w-full flex-row items-center justify-between">
           <View className="flex-row items-center gap-2.5 flex-1 min-w-0">
-            <View className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 items-center justify-center">
-              <Sparkles size={18} color={theme.semantic.accent} />
+            <View className="w-9 h-9 rounded-xl bg-brand-accent/10 border border-brand-accent/30 items-center justify-center">
+              <Sparkles size={18} color={colors['accent']} />
             </View>
             <View className="flex-1 min-w-0">
-              <Text numberOfLines={1} className="text-base font-extrabold text-slate-100">
+              <Text numberOfLines={1} className="text-base font-extrabold text-brand-text">
                 {merchant.businessName}
               </Text>
-              <Text numberOfLines={1} className="text-xs text-slate-400">
+              <Text numberOfLines={1} className="text-xs text-brand-text-muted">
                 {merchant.location}
               </Text>
             </View>
@@ -166,18 +167,18 @@ export default function CheckoutScreen() {
           ) : (
             <>
               <Card className="mb-5 items-center p-5">
-                <Text className="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-1">
+                <Text className="text-xs font-bold text-brand-accent uppercase tracking-widest mb-1">
                   Entry pass
                 </Text>
-                <Text className="text-2xl font-extrabold text-slate-100 text-center">
+                <Text className="text-2xl font-extrabold text-brand-text text-center">
                   Pay and get your pass
                 </Text>
-                <Text className="text-xs text-slate-400 text-center mt-1 leading-4">
+                <Text className="text-xs text-brand-text-muted text-center mt-1 leading-4">
                   Show it at the exit. Nothing to install, nothing to print.
                 </Text>
               </Card>
 
-              <Text className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2.5">
+              <Text className="text-xs font-bold text-brand-text-subtle uppercase tracking-wider mb-2.5">
                 1. Choose your pass
               </Text>
               <View className="flex-row flex-wrap gap-2.5 mb-5">
@@ -191,63 +192,63 @@ export default function CheckoutScreen() {
                       activeOpacity={0.7}
                       className={`flex-1 min-w-[45%] p-3.5 rounded-2xl border ${
                         isSelected
-                          ? 'bg-emerald-500/10 border-emerald-500/60'
-                          : 'bg-slate-900 border-slate-800'
+                          ? 'bg-brand-accent/10 border-brand-accent/60'
+                          : 'bg-brand-surface border-brand-border'
                       }`}
                     >
                       <View className="flex-row items-center justify-between mb-2">
                         <Icon
                           size={20}
-                          color={isSelected ? theme.semantic.accent : theme.semantic.textMuted}
+                          color={isSelected ? colors['accent'] : colors['text-muted']}
                         />
-                        <Text className="text-base font-extrabold text-slate-100">
+                        <Text className="text-base font-extrabold text-brand-text">
                           {formatCurrency(type.amount, merchant.currency)}
                         </Text>
                       </View>
-                      <Text className="text-xs font-bold text-slate-200">{type.label}</Text>
+                      <Text className="text-xs font-bold text-brand-text">{type.label}</Text>
                     </TouchableOpacity>
                   );
                 })}
               </View>
 
-              <Text className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+              <Text className="text-xs font-bold text-brand-text-subtle uppercase tracking-wider mb-2">
                 2. Vehicle number (optional)
               </Text>
-              <View className="bg-slate-900 border border-slate-800 rounded-2xl px-4 py-3 mb-5">
+              <View className="bg-brand-surface border border-brand-border rounded-2xl px-4 py-3 mb-5">
                 <TextInput
                   value={vehicleNumber}
                   onChangeText={setVehicleNumber}
                   placeholder="DL 01 AB 1234"
-                  placeholderTextColor={theme.semantic.textFaint}
+                  placeholderTextColor={colors['text-faint']}
                   autoCapitalize="characters"
-                  className="text-slate-100 text-base font-bold uppercase tracking-wider"
+                  className="text-brand-text text-base font-bold uppercase tracking-wider"
                 />
               </View>
 
-              <Text className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+              <Text className="text-xs font-bold text-brand-text-subtle uppercase tracking-wider mb-2">
                 3. WhatsApp number (optional)
               </Text>
-              <View className="bg-slate-900 border border-slate-800 rounded-2xl px-4 py-3 mb-6">
+              <View className="bg-brand-surface border border-brand-border rounded-2xl px-4 py-3 mb-6">
                 <TextInput
                   value={phone}
                   onChangeText={setPhone}
                   placeholder="98765 43210"
-                  placeholderTextColor={theme.semantic.textFaint}
+                  placeholderTextColor={colors['text-faint']}
                   keyboardType="phone-pad"
-                  className="text-slate-100 text-sm font-semibold"
+                  className="text-brand-text text-sm font-semibold"
                 />
               </View>
 
               <Card className="p-5">
-                <View className="flex-row items-center justify-between pb-3 border-b border-slate-800 mb-3">
-                  <Text className="text-xs text-slate-400">Paying to</Text>
-                  <Text className="text-xs font-mono font-bold text-emerald-400">
+                <View className="flex-row items-center justify-between pb-3 border-b border-brand-border mb-3">
+                  <Text className="text-xs text-brand-text-muted">Paying to</Text>
+                  <Text className="text-xs font-mono font-bold text-brand-accent">
                     {merchant.upiId || '—'}
                   </Text>
                 </View>
                 <View className="flex-row items-center justify-between mb-4">
-                  <Text className="text-sm font-bold text-slate-200">Total</Text>
-                  <Text className="text-2xl font-extrabold text-emerald-400">
+                  <Text className="text-sm font-bold text-brand-text">Total</Text>
+                  <Text className="text-2xl font-extrabold text-brand-accent">
                     {formatCurrency(chosen?.amount ?? 0, merchant.currency)}
                   </Text>
                 </View>
@@ -259,7 +260,7 @@ export default function CheckoutScreen() {
                   fullWidth
                   loading={busy}
                   disabled={!chosen}
-                  icon={<Smartphone size={18} color={theme.semantic.onAccent} />}
+                  icon={<Smartphone size={18} color={colors['on-accent']} />}
                   onPress={pay}
                 />
               </Card>
@@ -267,15 +268,15 @@ export default function CheckoutScreen() {
           )}
 
           {error && (
-            <View className="flex-row items-start gap-2 mt-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30">
-              <AlertCircle size={14} color={theme.semantic.danger} />
-              <Text className="text-xs text-rose-300 flex-1 leading-4">{error}</Text>
+            <View className="flex-row items-start gap-2 mt-4 p-3 rounded-xl bg-brand-danger/10 border border-brand-danger/30">
+              <AlertCircle size={14} color={colors['danger']} />
+              <Text className="text-xs text-brand-danger flex-1 leading-4">{error}</Text>
             </View>
           )}
 
           <View className="flex-row items-center justify-center gap-2 mt-6">
-            <ShieldCheck size={14} color={theme.semantic.accent} />
-            <Text className="text-[11px] text-slate-500 text-center">Secured by NoParchi</Text>
+            <ShieldCheck size={14} color={colors['accent']} />
+            <Text className="text-[11px] text-brand-text-faint text-center">Secured by NoParchi</Text>
           </View>
         </View>
       </ScrollView>
@@ -296,39 +297,42 @@ const PendingPass: React.FC<{
   currency: string;
   payUrl: string | null;
   onOpenPass: () => void;
-}> = ({ ticketCode, amount, currency, payUrl, onOpenPass }) => (
+}> = ({ ticketCode, amount, currency, payUrl, onOpenPass }) => {
+  const colors = useThemeColors();
+  return (
   <Card className="items-center p-6">
-    <View className="w-14 h-14 rounded-full bg-amber-500/10 border border-amber-500/30 items-center justify-center mb-3">
-      <CheckCircle2 size={28} color={theme.semantic.warning} />
+    <View className="w-14 h-14 rounded-full bg-brand-warning/10 border border-brand-warning/30 items-center justify-center mb-3">
+      <CheckCircle2 size={28} color={colors['warning']} />
     </View>
-    <Text className="text-xl font-extrabold text-slate-100 text-center">
+    <Text className="text-xl font-extrabold text-brand-text text-center">
       Pay {formatCurrency(amount, currency)} to finish
     </Text>
-    <Text className="text-xs text-slate-400 text-center mt-2 leading-4 mb-5">
+    <Text className="text-xs text-brand-text-muted text-center mt-2 leading-4 mb-5">
       Scan this with any UPI app, or use the payment app that just opened. Then show the
       code below to the staff — they will activate your pass.
     </Text>
 
     {payUrl && (
-      <View className="p-3 bg-white rounded-2xl mb-5">
+      <View className="p-3 bg-brand-paper rounded-2xl mb-5">
         <QRCode
           value={payUrl}
           size={170}
-          color={theme.semantic.onPaper}
-          backgroundColor={theme.semantic.paper}
+          color={colors['on-paper']}
+          backgroundColor={colors['paper']}
         />
       </View>
     )}
 
-    <View className="w-full rounded-2xl bg-slate-950 border border-slate-800 p-4 items-center mb-5">
-      <Text className="text-[11px] text-slate-400 uppercase font-semibold tracking-wider mb-1">
+    <View className="w-full rounded-2xl bg-brand-bg border border-brand-border p-4 items-center mb-5">
+      <Text className="text-[11px] text-brand-text-muted uppercase font-semibold tracking-wider mb-1">
         Your pass code
       </Text>
-      <Text className="text-2xl font-mono font-extrabold text-slate-100 tracking-widest">
+      <Text className="text-2xl font-mono font-extrabold text-brand-text tracking-widest">
         {ticketCode}
       </Text>
     </View>
 
     <Button title="Open my pass" variant="primary" size="lg" fullWidth onPress={onOpenPass} />
   </Card>
-);
+  );
+};

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { MessageSquare, X, Send, CheckCircle2, AlertCircle, Link2 } from 'lucide-react-native';
-import theme from '../../src/config/theme';
+import { useThemeColors } from '../../src/context/ThemeContext';
 import { Button } from './Button';
 import { messagingProvider } from '../../src/services/messaging';
 import { MESSAGING_PROVIDERS, type MessagingProviderId } from '../../src/config/providers';
@@ -35,6 +35,7 @@ export const PassDeliveryModal: React.FC<PassDeliveryModalProps> = ({
   visible,
   onClose,
 }) => {
+  const colors = useThemeColors();
   const [phone, setPhone] = useState('');
   const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState<'sent' | 'handed_off' | null>(null);
@@ -85,42 +86,42 @@ export const PassDeliveryModal: React.FC<PassDeliveryModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={close}>
-      <View className="flex-1 bg-black/80 items-center justify-center p-4">
-        <View className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-5 sm:p-6">
-          <View className="flex-row items-center justify-between pb-4 border-b border-slate-800">
+      <View className="flex-1 bg-brand-scrim items-center justify-center p-4">
+        <View className="bg-brand-surface border border-brand-border rounded-3xl w-full max-w-lg p-5 sm:p-6">
+          <View className="flex-row items-center justify-between pb-4 border-b border-brand-border">
             <View className="flex-row items-center gap-3">
-              <View className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 items-center justify-center">
-                <MessageSquare size={20} color={theme.semantic.accent} />
+              <View className="w-10 h-10 rounded-xl bg-brand-accent/10 border border-brand-accent/30 items-center justify-center">
+                <MessageSquare size={20} color={colors['accent']} />
               </View>
               <View className="flex-1">
-                <Text className="text-lg font-bold text-slate-100">Send the pass</Text>
-                <Text className="text-xs text-slate-400">{providerMeta.label}</Text>
+                <Text className="text-lg font-bold text-brand-text">Send the pass</Text>
+                <Text className="text-xs text-brand-text-muted">{providerMeta.label}</Text>
               </View>
             </View>
             <TouchableOpacity
               onPress={close}
-              className="w-8 h-8 rounded-full bg-slate-800 items-center justify-center"
+              className="w-8 h-8 rounded-full bg-brand-surface-raised items-center justify-center"
             >
-              <X size={16} color={theme.semantic.textMuted} />
+              <X size={16} color={colors['text-muted']} />
             </TouchableOpacity>
           </View>
 
           <ScrollView className="max-h-[26rem] my-4">
             <View className="items-center mb-4">
-              <View className="p-3 bg-white rounded-2xl">
+              <View className="p-3 bg-brand-paper rounded-2xl">
                 <QRCode
                   value={url ?? transaction.ticketCode}
                   size={140}
-                  color={theme.semantic.onPaper}
-                  backgroundColor={theme.semantic.paper}
+                  color={colors['on-paper']}
+                  backgroundColor={colors['paper']}
                 />
               </View>
-              <Text className="text-sm font-mono font-extrabold text-slate-100 mt-3 tracking-wider">
+              <Text className="text-sm font-mono font-extrabold text-brand-text mt-3 tracking-wider">
                 {transaction.ticketCode}
               </Text>
             </View>
 
-            <View className="rounded-2xl bg-slate-950/70 border border-slate-800 p-4 gap-2.5 mb-4">
+            <View className="rounded-2xl bg-brand-bg/70 border border-brand-border p-4 gap-2.5 mb-4">
               <Row label="Type" value={transaction.ticketTypeLabel} />
               {transaction.vehicleNumber ? (
                 <Row label="Vehicle" value={transaction.vehicleNumber} />
@@ -131,35 +132,35 @@ export const PassDeliveryModal: React.FC<PassDeliveryModalProps> = ({
 
             {outcome === null && (
               <>
-                <Text className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                <Text className="text-xs font-bold text-brand-text-subtle uppercase tracking-wider mb-2">
                   Customer WhatsApp number
                 </Text>
-                <View className="bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3">
+                <View className="bg-brand-bg border border-brand-border rounded-2xl px-4 py-3">
                   <TextInput
                     value={phone || transaction.customerPhone || ''}
                     onChangeText={setPhone}
                     placeholder="98765 43210"
-                    placeholderTextColor={theme.semantic.textFaint}
+                    placeholderTextColor={colors['text-faint']}
                     keyboardType="phone-pad"
-                    className="text-slate-100 text-sm font-semibold"
+                    className="text-brand-text text-sm font-semibold"
                   />
                 </View>
-                <Text className="text-[11px] text-slate-500 mt-2 leading-4">
+                <Text className="text-[11px] text-brand-text-faint mt-2 leading-4">
                   {providerMeta.note}
                 </Text>
               </>
             )}
 
             {outcome !== null && (
-              <View className="items-center p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30">
-                <CheckCircle2 size={28} color={theme.semantic.accent} />
-                <Text className="text-sm font-bold text-emerald-300 mt-2 text-center">
+              <View className="items-center p-4 rounded-2xl bg-brand-accent/10 border border-brand-accent/30">
+                <CheckCircle2 size={28} color={colors['accent']} />
+                <Text className="text-sm font-bold text-brand-accent mt-2 text-center">
                   {outcome === 'sent'
                     ? 'Pass sent to the customer.'
                     : 'WhatsApp opened with the pass ready to send.'}
                 </Text>
                 {outcome === 'handed_off' && (
-                  <Text className="text-[11px] text-slate-400 mt-1.5 text-center leading-4">
+                  <Text className="text-[11px] text-brand-text-muted mt-1.5 text-center leading-4">
                     Press send in WhatsApp to finish. Nothing was sent automatically.
                   </Text>
                 )}
@@ -167,9 +168,9 @@ export const PassDeliveryModal: React.FC<PassDeliveryModalProps> = ({
             )}
 
             {error && (
-              <View className="flex-row items-start gap-2 mt-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30">
-                <AlertCircle size={14} color={theme.semantic.danger} />
-                <Text className="text-xs text-rose-300 flex-1 leading-4">{error}</Text>
+              <View className="flex-row items-start gap-2 mt-3 p-3 rounded-xl bg-brand-danger/10 border border-brand-danger/30">
+                <AlertCircle size={14} color={colors['danger']} />
+                <Text className="text-xs text-brand-danger flex-1 leading-4">{error}</Text>
               </View>
             )}
           </ScrollView>
@@ -181,7 +182,7 @@ export const PassDeliveryModal: React.FC<PassDeliveryModalProps> = ({
               size="lg"
               fullWidth
               loading={busy}
-              icon={<Send size={16} color={theme.semantic.onAccent} />}
+              icon={<Send size={16} color={colors['on-accent']} />}
               onPress={send}
             />
           ) : (
@@ -190,8 +191,8 @@ export const PassDeliveryModal: React.FC<PassDeliveryModalProps> = ({
 
           {url && (
             <View className="flex-row items-center justify-center gap-1.5 mt-3">
-              <Link2 size={11} color={theme.semantic.textFaint} />
-              <Text numberOfLines={1} className="text-[10px] font-mono text-slate-500">
+              <Link2 size={11} color={colors['text-faint']} />
+              <Text numberOfLines={1} className="text-[10px] font-mono text-brand-text-faint">
                 {url}
               </Text>
             </View>
@@ -204,8 +205,8 @@ export const PassDeliveryModal: React.FC<PassDeliveryModalProps> = ({
 
 const Row: React.FC<{ label: string; value: string }> = ({ label, value }) => (
   <View className="flex-row items-center justify-between gap-3">
-    <Text className="text-xs text-slate-400">{label}</Text>
-    <Text numberOfLines={1} className="text-sm font-bold text-slate-100">
+    <Text className="text-xs text-brand-text-muted">{label}</Text>
+    <Text numberOfLines={1} className="text-sm font-bold text-brand-text">
       {value}
     </Text>
   </View>

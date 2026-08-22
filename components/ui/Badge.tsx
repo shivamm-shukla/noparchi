@@ -22,12 +22,12 @@ interface BadgeProps {
  * before the text class.
  */
 const VARIANTS: Record<BadgeVariant, { container: string; text: string }> = {
-  success: { container: 'bg-emerald-500/10 border-emerald-500/30', text: 'text-emerald-400' },
-  emerald: { container: 'bg-emerald-500/10 border-emerald-500/30', text: 'text-emerald-400' },
-  warning: { container: 'bg-amber-500/10 border-amber-500/30', text: 'text-amber-400' },
-  danger: { container: 'bg-rose-500/10 border-rose-500/30', text: 'text-rose-400' },
-  info: { container: 'bg-sky-500/10 border-sky-500/30', text: 'text-sky-400' },
-  neutral: { container: 'bg-slate-800 border-slate-700', text: 'text-slate-300' },
+  success: { container: 'bg-brand-accent/10 border-brand-accent/30', text: 'text-brand-accent' },
+  emerald: { container: 'bg-brand-accent/10 border-brand-accent/30', text: 'text-brand-accent' },
+  warning: { container: 'bg-brand-warning/10 border-brand-warning/30', text: 'text-brand-warning' },
+  danger: { container: 'bg-brand-danger/10 border-brand-danger/30', text: 'text-brand-danger' },
+  info: { container: 'bg-brand-info/10 border-brand-info/30', text: 'text-brand-info' },
+  neutral: { container: 'bg-brand-surface-raised border-brand-border-strong', text: 'text-brand-text-subtle' },
 };
 
 export const Badge: React.FC<BadgeProps> = ({ label, variant = 'neutral', size = 'md' }) => {

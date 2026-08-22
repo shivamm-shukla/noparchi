@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { Link } from 'expo-router';
 import { Sparkles, AlertCircle, ArrowLeft } from 'lucide-react-native';
-import theme from '../../src/config/theme';
+import { useThemeColors } from '../../src/context/ThemeContext';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Field } from '../../components/ui/Field';
@@ -16,6 +16,7 @@ import { authService } from '../../src/services/authService';
  * empty Settings screen.
  */
 export default function SignUpScreen() {
+  const colors = useThemeColors();
   const [businessName, setBusinessName] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [phone, setPhone] = useState('');
@@ -62,17 +63,17 @@ export default function SignUpScreen() {
 
   if (confirmEmailNotice) {
     return (
-      <View className="flex-1 bg-slate-950 items-center justify-center p-6">
+      <View className="flex-1 bg-brand-bg items-center justify-center p-6">
         <Card className="w-full max-w-md p-6 items-center">
-          <Text className="text-xl font-extrabold text-slate-100 text-center mb-2">
+          <Text className="text-xl font-extrabold text-brand-text text-center mb-2">
             Check your email
           </Text>
-          <Text className="text-sm text-slate-400 text-center leading-5 mb-5">
+          <Text className="text-sm text-brand-text-muted text-center leading-5 mb-5">
             Confirm your address, then sign in. Your business is set up on the first sign-in.
           </Text>
           <Link href="/(auth)/sign-in" asChild>
             <TouchableOpacity>
-              <Text className="text-sm font-bold text-emerald-400">Back to sign in</Text>
+              <Text className="text-sm font-bold text-brand-accent">Back to sign in</Text>
             </TouchableOpacity>
           </Link>
         </Card>
@@ -83,24 +84,24 @@ export default function SignUpScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1 bg-slate-950"
+      className="flex-1 bg-brand-bg"
     >
       <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 24, paddingTop: 48 }}>
         <View className="w-full max-w-md mx-auto">
           <Link href="/(auth)/sign-in" asChild>
             <TouchableOpacity className="flex-row items-center gap-1.5 mb-6">
-              <ArrowLeft size={16} color={theme.semantic.textMuted} />
-              <Text className="text-xs font-bold text-slate-300">Back</Text>
+              <ArrowLeft size={16} color={colors['text-muted']} />
+              <Text className="text-xs font-bold text-brand-text-subtle">Back</Text>
             </TouchableOpacity>
           </Link>
 
           <View className="flex-row items-center gap-2 mb-6">
-            <View className="w-11 h-11 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 items-center justify-center">
-              <Sparkles size={22} color={theme.semantic.accent} />
+            <View className="w-11 h-11 rounded-2xl bg-brand-accent/10 border border-brand-accent/30 items-center justify-center">
+              <Sparkles size={22} color={colors['accent']} />
             </View>
             <View>
-              <Text className="text-2xl font-extrabold text-slate-100">Set up your business</Text>
-              <Text className="text-xs text-slate-400">Takes about a minute.</Text>
+              <Text className="text-2xl font-extrabold text-brand-text">Set up your business</Text>
+              <Text className="text-xs text-brand-text-muted">Takes about a minute.</Text>
             </View>
           </View>
 
@@ -110,8 +111,8 @@ export default function SignUpScreen() {
                 value={businessName}
                 onChangeText={setBusinessName}
                 placeholder="Metro Hub Parking"
-                placeholderTextColor={theme.semantic.textFaint}
-                className="text-slate-100 text-base"
+                placeholderTextColor={colors['text-faint']}
+                className="text-brand-text text-base"
               />
             </Field>
 
@@ -120,8 +121,8 @@ export default function SignUpScreen() {
                 value={ownerName}
                 onChangeText={setOwnerName}
                 placeholder="Rajesh Sharma"
-                placeholderTextColor={theme.semantic.textFaint}
-                className="text-slate-100 text-base"
+                placeholderTextColor={colors['text-faint']}
+                className="text-brand-text text-base"
               />
             </Field>
 
@@ -130,9 +131,9 @@ export default function SignUpScreen() {
                 value={phone}
                 onChangeText={setPhone}
                 placeholder="98765 43210"
-                placeholderTextColor={theme.semantic.textFaint}
+                placeholderTextColor={colors['text-faint']}
                 keyboardType="phone-pad"
-                className="text-slate-100 text-base"
+                className="text-brand-text text-base"
               />
             </Field>
 
@@ -141,8 +142,8 @@ export default function SignUpScreen() {
                 value={location}
                 onChangeText={setLocation}
                 placeholder="Connaught Place, New Delhi"
-                placeholderTextColor={theme.semantic.textFaint}
-                className="text-slate-100 text-base"
+                placeholderTextColor={colors['text-faint']}
+                className="text-brand-text text-base"
               />
             </Field>
 
@@ -151,23 +152,23 @@ export default function SignUpScreen() {
                 value={upiId}
                 onChangeText={setUpiId}
                 placeholder="yourbusiness@icici"
-                placeholderTextColor={theme.semantic.textFaint}
+                placeholderTextColor={colors['text-faint']}
                 autoCapitalize="none"
-                className="text-slate-100 text-base"
+                className="text-brand-text text-base"
               />
             </Field>
 
-            <View className="h-px bg-slate-800 my-2" />
+            <View className="h-px bg-brand-surface-raised my-2" />
 
             <Field label="Email">
               <TextInput
                 value={email}
                 onChangeText={setEmail}
                 placeholder="you@business.com"
-                placeholderTextColor={theme.semantic.textFaint}
+                placeholderTextColor={colors['text-faint']}
                 autoCapitalize="none"
                 keyboardType="email-address"
-                className="text-slate-100 text-base"
+                className="text-brand-text text-base"
               />
             </Field>
 
@@ -176,16 +177,16 @@ export default function SignUpScreen() {
                 value={password}
                 onChangeText={setPassword}
                 placeholder="••••••••"
-                placeholderTextColor={theme.semantic.textFaint}
+                placeholderTextColor={colors['text-faint']}
                 secureTextEntry
-                className="text-slate-100 text-base"
+                className="text-brand-text text-base"
               />
             </Field>
 
             {error && (
-              <View className="flex-row items-start gap-2 mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30">
-                <AlertCircle size={14} color={theme.semantic.danger} />
-                <Text className="text-xs text-rose-300 flex-1 leading-4">{error}</Text>
+              <View className="flex-row items-start gap-2 mb-4 p-3 rounded-xl bg-brand-danger/10 border border-brand-danger/30">
+                <AlertCircle size={14} color={colors['danger']} />
+                <Text className="text-xs text-brand-danger flex-1 leading-4">{error}</Text>
               </View>
             )}
 
