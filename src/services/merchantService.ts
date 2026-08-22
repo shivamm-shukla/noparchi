@@ -89,6 +89,9 @@ class MerchantService {
         label: draft.label.trim(),
         icon: draft.icon,
         amount: draft.amount,
+        valid_for_minutes: draft.validForMinutes,
+        extension_amount: draft.extensionAmount,
+        extension_minutes: draft.extensionMinutes,
         sort_order: draft.sortOrder,
         is_active: draft.isActive,
       })
@@ -108,6 +111,12 @@ class MerchantService {
     if (patch.label !== undefined) update.label = patch.label.trim();
     if (patch.icon !== undefined) update.icon = patch.icon;
     if (patch.amount !== undefined) update.amount = patch.amount;
+    // Explicit undefined checks throughout: null is a meaningful value here
+    // (no expiry, fall back to the base price), so `if (patch.x)` would quietly
+    // refuse to ever clear one of these.
+    if (patch.validForMinutes !== undefined) update.valid_for_minutes = patch.validForMinutes;
+    if (patch.extensionAmount !== undefined) update.extension_amount = patch.extensionAmount;
+    if (patch.extensionMinutes !== undefined) update.extension_minutes = patch.extensionMinutes;
     if (patch.sortOrder !== undefined) update.sort_order = patch.sortOrder;
     if (patch.isActive !== undefined) update.is_active = patch.isActive;
 

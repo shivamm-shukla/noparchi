@@ -18,6 +18,12 @@ export interface PaymentRequest {
   amount: number;
   currency: string;
   note: string;
+  /**
+   * Set when the customer is buying more time rather than the original pass.
+   * Gateways settle the extension instead, so paying twice cannot accidentally
+   * mark the pass itself as paid again.
+   */
+  extensionId?: string;
 }
 
 export type PaymentOutcome =

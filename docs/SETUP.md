@@ -91,6 +91,35 @@ What to expect before switching a merchant to this in Settings:
 - The free allowance is counted in **conversations**, not messages.
 - The sending number must **not** be registered on the consumer WhatsApp app.
 
+### Optional — automatic expiry reminders
+
+Thirty minutes before a pass runs out, the customer gets a WhatsApp message with
+a link to their pass page, where a countdown and an **Extend** button are
+waiting. This needs the Cloud API above — the free share-link provider cannot
+send anything unattended, so without it the fallback is the **Running out soon**
+card on the dashboard, which staff nudge by hand.
+
+```bash
+npx supabase secrets set CRON_SECRET="$(openssl rand -hex 32)"
+npx supabase secrets set PUBLIC_WEB_URL=https://your-app-domain
+npx supabase secrets set WHATSAPP_REMINDER_TEMPLATE=noparchi_expiry_reminder
+npx supabase functions deploy expiry-reminders --no-verify-jwt
+```
+
+Then enable **pg_cron** and **pg_net** under Database → Extensions, tell the
+database where to find the function, and re-run the migrations:
+
+```sql
+alter database postgres set app.settings.functions_url =
+  'https://YOUR-PROJECT.functions.supabase.co';
+alter database postgres set app.settings.cron_secret = 'the CRON_SECRET you set';
+```
+
+The reminder template needs four body variables — business, vehicle, minutes
+left, extension offer — and a **URL button** whose variable is the pass code.
+The sweep runs every five minutes and claims each pass exactly once, so a
+customer is never messaged twice about the same pass.
+
 ### Optional — Razorpay (the only way to skip manual payment confirmation)
 
 Test mode needs no KYC, so this can be built and exercised before any paperwork.
@@ -135,6 +164,35 @@ npm start            # then press a / i for a device
 5. **Scanner** → type the pass code → big green **VERIFIED**.
 6. Scan the same code again → big red **ALREADY USED**.
 7. Try a code that was never paid for → amber **NOT PAID**.
+
+### Test expiry, extension and overstay
+
+The starter pass types are timed: Car is 6 hours (+₹30 per 3), Bike is 12 hours
+(+₹10 per 6), General Entry never expires. To see the whole loop in a minute
+rather than six hours, add a throwaway type in **Settings → Pass types** with a
+**1 hour** validity, then shorten it directly in the Supabase SQL editor:
+
+```sql
+update ticket_types set valid_for_minutes = 2, extension_minutes = 2, extension_amount = 5
+ where code = 'YOUR_TEST_CODE';
+```
+
+1. Issue a pass of that type and open it at `/ticket/<code>`. A **live countdown**
+   sits above the QR.
+2. Under thirty minutes left it turns amber; the **Extend** button shows the
+   price and the time it buys.
+3. Tap **Extend** → a pending extension is created and priced by the server. The
+   pass page says the time lands once staff confirm.
+4. **Ledger** → the row shows *Extension requested* → tap **Extension paid**.
+   The customer's page updates on its own.
+5. Let it run out. The countdown flips to **Time over by**, and the overstay due
+   appears.
+6. **Scanner** → scan it → amber **TIME OVER** with the amount to collect →
+   **Collected ₹X — open gate**. The collection is recorded against the
+   gatekeeper who tapped it, and shows in the ledger.
+
+Overstay is billed in whole extension periods, so extending in advance is never
+more expensive than being late — the incentive points at paying early.
 
 ### Test that permissions are real
 
@@ -187,5 +245,9 @@ entry box, which is why it is there.
 | Pass types for an existing merchant | Settings → Pass types (no code) |
 | Add a payment gateway | `src/services/payment/`, register in `index.ts` |
 | Add a delivery channel | `src/services/messaging/`, register in `index.ts` |
-| Scan rules (what clears a gate) | `validate_ticket` in `supabase/migrations/…rpc_functions.sql` |
+| Scan rules (what clears a gate) | `validate_ticket` in `supabase/migrations/…expiry_rpcs.sql` |
+| How long a pass lasts / extension price | Settings → Pass types (no code) |
+| Default validity for new merchants | `src/config/pricing.ts` |
+| How overstay is calculated | `overstay_due` in `supabase/migrations/…pass_expiry.sql` |
+| Reminder lead time | `EXPIRY_LEAD_MINUTES` secret (default 30) |
 | Who can see what | `supabase/migrations/…rls_policies.sql` |

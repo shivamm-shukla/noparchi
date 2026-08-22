@@ -58,10 +58,19 @@ export interface Transaction {
   paymentVerifiedAt: string | null;
   issuedByUserId: string | null;
   ticketCode: string;
+  activatedAt: string | null;
   expiresAt: string | null;
+  extensionCount: number;
+  overstayAmount: number;
+  overstayCollectedAt: string | null;
   createdAt: string;
   /** Present only when the caller joined validations; null means not scanned. */
   validation: TicketValidation | null;
+  /**
+   * An extension the customer started but has not paid for yet. Staff confirm
+   * it from the ledger, the same way they confirm the original payment.
+   */
+  pendingExtension: { id: string; amount: number; minutes: number; extendsTo: string } | null;
 }
 
 export interface TicketValidation {
@@ -82,7 +91,18 @@ export interface TicketValidation {
  * never landed", because the second one usually means the customer is standing
  * right there and can be asked to pay.
  */
-export type ScanStatus = 'VERIFIED' | 'ALREADY_USED' | 'UNPAID' | 'INVALID' | 'UNAUTHORIZED';
+export type ScanStatus =
+  | 'VERIFIED'
+  | 'ALREADY_USED'
+  | 'UNPAID'
+  /**
+   * A real, paid pass whose time ran out. Distinct from INVALID because the
+   * customer is standing there with money owed, not trying to cheat - the
+   * gatekeeper collects the overstay and clears them through.
+   */
+  | 'EXPIRED'
+  | 'INVALID'
+  | 'UNAUTHORIZED';
 
 export interface ScanResult {
   success: boolean;
@@ -93,6 +113,9 @@ export interface ScanResult {
   scannedAt?: string | null;
   /** True when the scan was recorded on-device and has not reached the server. */
   queuedOffline?: boolean;
+  /** Set on EXPIRED: what the gatekeeper should collect before opening the gate. */
+  overstayDue?: number;
+  expiresAt?: string | null;
 }
 
 export interface DashboardStats {
@@ -102,11 +125,27 @@ export interface DashboardStats {
   growthPercent: number | null;
   passesIssued: number | null;
   pendingPayments: number | null;
+  extensionRevenue: number | null;
+  overstayRevenue: number | null;
   scans: number;
   myScans: number;
   openPasses: number;
+  /** Paid, unused passes expiring within the hour. */
+  expiringSoon: number;
   from: string;
   to: string;
+}
+
+/** A pass about to run out, for the merchant's "expiring soon" list. */
+export interface ExpiringPass {
+  ticketCode: string;
+  typeLabel: string;
+  vehicleNumber: string | null;
+  customerPhone: string | null;
+  expiresAt: string;
+  reminderSentAt: string | null;
+  isExpired: boolean;
+  overstayDue: number;
 }
 
 export type DateRangeKey = 'today' | 'yesterday' | 'week' | 'month' | 'all';
@@ -129,6 +168,16 @@ export interface CheckoutTicketType {
   icon: string;
   amount: number;
   sortOrder: number;
+  validForMinutes: number | null;
+  extensionAmount: number | null;
+  extensionMinutes: number | null;
+}
+
+export interface PendingExtension {
+  extensionId: string;
+  amount: number;
+  minutes: number;
+  extendsTo: string;
 }
 
 /** Public pass view shown on /ticket/[ticketCode]. */
@@ -139,8 +188,23 @@ export interface PublicTicket {
   typeLabel: string;
   vehicleNumber: string | null;
   issuedAt: string;
+  activatedAt: string | null;
   expiresAt: string | null;
   isUsed: boolean;
   usedAt: string | null;
-  merchant: { id: string; businessName: string; location: string };
+  extensionCount: number;
+  /** Owed right now if the pass has already run out. Zero otherwise. */
+  overstayDue: number;
+  canExtend: boolean;
+  extensionAmount: number | null;
+  extensionMinutes: number | null;
+  pendingExtension: PendingExtension | null;
+  merchant: {
+    id: string;
+    businessName: string;
+    location: string;
+    upiId: string;
+    currency: string;
+    paymentProvider: string;
+  };
 }

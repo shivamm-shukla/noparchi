@@ -39,16 +39,21 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { ticketCode } = await req.json();
-    if (!ticketCode) return json({ success: false, message: 'No pass code given.' }, 400);
+    const { ticketCode, extensionId } = await req.json();
+    if (!ticketCode && !extensionId) {
+      return json({ success: false, message: 'No pass code given.' }, 400);
+    }
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
       auth: { persistSession: false },
     });
 
-    const { data: context, error } = await admin.rpc('gateway_order_context', {
-      p_ticket_code: ticketCode,
-    });
+    // Two things can be paid for: the original pass, and an extension of it.
+    // Both are priced server-side by their own context function.
+    const { data: context, error } = extensionId
+      ? await admin.rpc('extension_order_context', { p_extension_id: extensionId })
+      : await admin.rpc('gateway_order_context', { p_ticket_code: ticketCode });
+
     if (error) throw error;
     if (!context?.success) {
       return json({ success: false, message: context?.message ?? 'Pass not found.' }, 404);
@@ -67,7 +72,13 @@ Deno.serve(async (req) => {
         // The pass code travels with the order so the webhook can settle the
         // right row without trusting anything the browser sends back.
         receipt: context.ticketCode,
-        notes: { ticketCode: context.ticketCode, business: context.businessName },
+        // The webhook settles whichever of these is present, so it never has to
+        // trust anything the browser sends back.
+        notes: {
+          ticketCode: context.ticketCode,
+          business: context.businessName,
+          ...(context.extensionId ? { extensionId: context.extensionId } : {}),
+        },
       }),
     });
 

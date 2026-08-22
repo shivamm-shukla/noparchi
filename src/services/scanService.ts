@@ -123,6 +123,8 @@ class ScanService {
       ticket?: TransactionRow;
       validation?: TicketValidationRow;
       scannedAt?: string;
+      overstayDue?: number;
+      expiresAt?: string;
     };
 
     return {
@@ -132,7 +134,35 @@ class ScanService {
       ticket: payload.ticket ? toTransaction(payload.ticket) : null,
       validation: payload.validation ? toValidation(payload.validation) : null,
       scannedAt: payload.scannedAt ?? null,
+      overstayDue: payload.overstayDue === undefined ? undefined : Number(payload.overstayDue),
+      expiresAt: payload.expiresAt ?? null,
     };
+  }
+
+  /**
+   * Take the overstay and open the gate, for a pass that came back EXPIRED.
+   *
+   * A separate, deliberate second action rather than something validate_ticket
+   * does on its own: money is changing hands, and the gatekeeper has to be the
+   * one who says it did. The server recomputes what is owed and refuses
+   * anything short of it, so the amount sent from here can round up but never
+   * down.
+   */
+  async clearExpired(params: {
+    ticketCode: string;
+    collectedAmount: number;
+    exitGate?: string;
+    notes?: string;
+  }): Promise<ScanResult> {
+    const client = requireSupabase();
+    const { data, error } = await client.rpc('clear_expired_pass', {
+      p_ticket_code: params.ticketCode,
+      p_collected_amount: params.collectedAmount,
+      p_exit_gate: params.exitGate ?? 'Main Exit',
+      p_notes: params.notes ?? null,
+    });
+    if (error) throw error;
+    return this.fromRpc(data);
   }
 
   /**
@@ -165,6 +195,22 @@ class ScanService {
     }
 
     const cached = await offlineScanStore.getCachedPass(merchantId, ticketCode);
+
+    // An expired pass owes money, and the overstay can only be computed by the
+    // server. Clearing it offline would either let someone out for free or make
+    // the gatekeeper guess - so this one case waits for a connection.
+    if (cached?.expiresAt && new Date(cached.expiresAt).getTime() < Date.now()) {
+      return {
+        success: false,
+        status: 'EXPIRED',
+        message:
+          'This pass has expired and the overstay charge needs a connection to work out. ' +
+          'Reconnect, or collect at the counter.',
+        expiresAt: cached.expiresAt,
+        queuedOffline: true,
+      };
+    }
+
     if (!cached) {
       const age = await offlineScanStore.cacheAgeMinutes();
       return {
@@ -208,7 +254,9 @@ class ScanService {
     if (!supabase) return;
     const { data, error } = await supabase
       .from('transactions')
-      .select('ticket_code, amount, ticket_type_label, vehicle_number, validation:ticket_validations(id)')
+      .select(
+        'ticket_code, amount, ticket_type_label, vehicle_number, expires_at, validation:ticket_validations(id)'
+      )
       .eq('merchant_id', merchantId)
       .eq('status', 'paid')
       .order('created_at', { ascending: false })
@@ -229,6 +277,7 @@ class ScanService {
         amount: Number(row.amount),
         typeLabel: String(row.ticket_type_label ?? 'Pass'),
         vehicleNumber: (row.vehicle_number as string | null) ?? null,
+        expiresAt: (row.expires_at as string | null) ?? null,
       }));
 
     await offlineScanStore.cachePasses(merchantId, passes);

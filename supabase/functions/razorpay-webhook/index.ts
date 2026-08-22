@@ -75,9 +75,11 @@ Deno.serve(async (req) => {
     }
 
     const payment = event.payload?.payment?.entity ?? {};
-    // The pass code was attached at order creation, server-side.
+    // Both notes were attached at order creation, server-side.
     const ticketCode: string | undefined = payment.notes?.ticketCode;
-    if (!ticketCode) {
+    const extensionId: string | undefined = payment.notes?.extensionId;
+
+    if (!ticketCode && !extensionId) {
       console.error('payment.captured carried no ticketCode note:', payment.id);
       return json({ received: true, ignored: 'no ticketCode' });
     }
@@ -86,15 +88,24 @@ Deno.serve(async (req) => {
       auth: { persistSession: false },
     });
 
-    const { data, error } = await admin.rpc('settle_payment_by_gateway', {
-      p_ticket_code: ticketCode,
-      p_payment_ref: payment.id,
-      p_provider: 'razorpay',
-    });
+    // An extension note means the customer bought more time on an existing
+    // pass; settling the pass itself would be wrong and would leave the
+    // extension unpaid forever.
+    const { data, error } = extensionId
+      ? await admin.rpc('settle_extension_by_gateway', {
+          p_extension_id: extensionId,
+          p_payment_ref: payment.id,
+          p_provider: 'razorpay',
+        })
+      : await admin.rpc('settle_payment_by_gateway', {
+          p_ticket_code: ticketCode,
+          p_payment_ref: payment.id,
+          p_provider: 'razorpay',
+        });
     if (error) throw error;
 
     if (!data?.success) {
-      console.error('Settlement refused for', ticketCode, data?.message);
+      console.error('Settlement refused for', extensionId ?? ticketCode, data?.message);
       // Still a 200: the payment is real, and making Razorpay retry forever
       // will not change the answer. The mismatch belongs in the logs.
       return json({ received: true, settled: false, reason: data?.message });

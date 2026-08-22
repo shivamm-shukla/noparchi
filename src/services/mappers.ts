@@ -17,6 +17,7 @@ import type {
   TicketTypeRow,
   TransactionRow,
   TicketValidationRow,
+  PassExtensionRow,
 } from '../types/db';
 import type {
   Merchant,
@@ -74,6 +75,9 @@ export function toTicketType(row: TicketTypeRow): TicketType {
     // NUMERIC arrives as a JSON number, but coerce defensively: a string here
     // would silently turn revenue sums into string concatenation.
     amount: Number(row.amount),
+    validForMinutes: row.valid_for_minutes ?? null,
+    extensionAmount: row.extension_amount === null ? null : Number(row.extension_amount),
+    extensionMinutes: row.extension_minutes ?? null,
     sortOrder: row.sort_order,
     isActive: row.is_active,
   };
@@ -96,6 +100,7 @@ export function toValidation(
 
 type TransactionRowWithEmbed = TransactionRow & {
   validation?: TicketValidationRow | TicketValidationRow[] | null;
+  extensions?: PassExtensionRow[] | null;
 };
 
 export function toTransaction(row: TransactionRowWithEmbed): Transaction {
@@ -114,8 +119,25 @@ export function toTransaction(row: TransactionRowWithEmbed): Transaction {
     paymentVerifiedAt: row.payment_verified_at,
     issuedByUserId: row.issued_by_user_id,
     ticketCode: row.ticket_code,
+    activatedAt: row.activated_at ?? null,
     expiresAt: row.expires_at,
+    extensionCount: row.extension_count ?? 0,
+    overstayAmount: Number(row.overstay_amount ?? 0),
+    overstayCollectedAt: row.overstay_collected_at ?? null,
     createdAt: row.created_at,
     validation: validationRow ? toValidation(validationRow) : null,
+    pendingExtension: (() => {
+      // Filtered here rather than in the query so the same embed can serve any
+      // caller that later wants the full extension history.
+      const pending = (row.extensions ?? []).find((e) => e.status === 'pending');
+      return pending
+        ? {
+            id: pending.id,
+            amount: Number(pending.amount),
+            minutes: pending.minutes,
+            extendsTo: pending.extends_to,
+          }
+        : null;
+    })(),
   };
 }

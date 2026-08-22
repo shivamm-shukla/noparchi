@@ -71,6 +71,32 @@ export default function ScannerScreen() {
     [merchant, busy, modalVisible, exitGate, refresh]
   );
 
+  /**
+   * The pass had run out. The gatekeeper has taken the overstay in cash; record
+   * it and open the gate. Kept as an explicit second action rather than
+   * something the scan does by itself, because money changed hands and someone
+   * has to be accountable for saying so.
+   */
+  const collectOverstay = async (amount: number) => {
+    const code = result?.ticket?.ticketCode;
+    if (!code) return;
+    try {
+      const cleared = await scanService.clearExpired({
+        ticketCode: code,
+        collectedAmount: amount,
+        exitGate,
+      });
+      setResult(cleared);
+      refresh({ silent: true });
+    } catch (err) {
+      setResult({
+        success: false,
+        status: 'INVALID',
+        message: err instanceof Error ? err.message : 'Could not record the overstay.',
+      });
+    }
+  };
+
   const submitManual = () => {
     const code = manualCode.trim();
     if (!code) return;
@@ -205,6 +231,7 @@ export default function ScannerScreen() {
       <ValidationModal
         result={result}
         visible={modalVisible}
+        onCollectOverstay={collectOverstay}
         onClose={() => {
           setModalVisible(false);
           setResult(null);

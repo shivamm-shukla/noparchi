@@ -50,6 +50,9 @@ export interface TicketTypeRow {
   label: string;
   icon: string;
   amount: number;
+  valid_for_minutes: number | null;
+  extension_amount: number | null;
+  extension_minutes: number | null;
   sort_order: number;
   is_active: boolean;
   created_at: string;
@@ -72,9 +75,36 @@ export interface TransactionRow {
   payment_verified_by: string | null;
   issued_by_user_id: string | null;
   ticket_code: string;
+
+  /** When the pass became usable. The expiry clock starts here, not at creation. */
+  activated_at: string | null;
   expires_at: string | null;
+  extension_count: number;
+  overstay_amount: number;
+  overstay_collected_at: string | null;
+  overstay_collected_by: string | null;
+  reminder_sent_at: string | null;
+
   created_at: string;
   updated_at: string;
+}
+
+export type ExtensionStatus = 'pending' | 'paid' | 'cancelled';
+
+export interface PassExtensionRow {
+  id: string;
+  transaction_id: string;
+  merchant_id: string;
+  amount: number;
+  minutes: number;
+  extends_from: string;
+  extends_to: string;
+  status: ExtensionStatus;
+  payment_provider: string | null;
+  payment_ref: string | null;
+  payment_verified_at: string | null;
+  payment_verified_by: string | null;
+  created_at: string;
 }
 
 export interface TicketValidationRow {

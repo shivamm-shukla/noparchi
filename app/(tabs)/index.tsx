@@ -13,6 +13,9 @@ import {
   MessageSquare,
   AlertTriangle,
   X,
+  Clock as ClockIcon,
+  Timer,
+  MessageCircle,
 } from 'lucide-react-native';
 import theme from '../../src/config/theme';
 import { useAuth } from '../../src/context/AuthContext';
@@ -25,8 +28,10 @@ import { Button } from '../../components/ui/Button';
 import { CustomBrandedQR } from '../../components/ui/CustomBrandedQR';
 import { NewTicketModal } from '../../components/ui/NewTicketModal';
 import { PassDeliveryModal } from '../../components/ui/PassDeliveryModal';
-import { formatCurrency, formatTimeAgo } from '../../src/utils/formatters';
-import type { Transaction } from '../../src/types';
+import { messagingProvider } from '../../src/services/messaging';
+import { passUrl } from '../../src/utils/links';
+import { formatCurrency, formatTimeAgo, formatDateTime } from '../../src/utils/formatters';
+import type { ExpiringPass, Merchant, Transaction } from '../../src/types';
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -35,6 +40,7 @@ export default function DashboardScreen() {
     stats,
     transactions,
     ticketTypes,
+    expiringPasses,
     isLoading,
     isRefreshing,
     error,
@@ -162,7 +168,11 @@ export default function DashboardScreen() {
             <StatsCard
               title="Still inside"
               value={stats?.openPasses ?? 0}
-              subtitle="paid, not yet exited"
+              subtitle={
+                stats?.expiringSoon
+                  ? `${stats.expiringSoon} running out soon`
+                  : 'paid, not yet exited'
+              }
               icon={<Car size={20} color={theme.semantic.warning} />}
             />
             {stats?.canViewRevenue && (
@@ -178,6 +188,16 @@ export default function DashboardScreen() {
               />
             )}
           </View>
+
+          {/*
+            Expiring passes, surfaced before the activity feed because they are
+            the only thing here that is time-sensitive. When automated WhatsApp
+            is off this list is also the fallback: staff can nudge each customer
+            themselves rather than only discovering the overstay at the gate.
+          */}
+          {canSeeLedger && expiringPasses.length > 0 && (
+            <ExpiringSoonCard passes={expiringPasses} merchant={merchant} />
+          )}
 
           <View className="flex-col lg:flex-row gap-6">
             <View className="flex-1">
@@ -282,6 +302,87 @@ export default function DashboardScreen() {
     </View>
   );
 }
+
+const ExpiringSoonCard: React.FC<{ passes: ExpiringPass[]; merchant: Merchant }> = ({
+  passes,
+  merchant,
+}) => {
+  const nudge = async (pass: ExpiringPass) => {
+    if (!pass.customerPhone) return;
+    const url = passUrl(pass.ticketCode);
+    if (!url) return;
+
+    // Uses the merchant's configured provider, so a business on the Cloud API
+    // sends automatically while everyone else gets WhatsApp opened with the
+    // message ready.
+    await messagingProvider(merchant.messagingProvider).sendPass({
+      recipientPhone: pass.customerPhone,
+      businessName: merchant.businessName,
+      location: merchant.location,
+      ticketCode: pass.ticketCode,
+      typeLabel: pass.typeLabel,
+      amount: pass.overstayDue,
+      currency: merchant.currency,
+      vehicleNumber: pass.vehicleNumber,
+      issuedAt: pass.expiresAt,
+      passUrl: url,
+    });
+  };
+
+  return (
+    <Card className="mb-6 border-amber-500/30">
+      <View className="flex-row items-center gap-2 mb-4 pb-3 border-b border-slate-800">
+        <Timer size={17} color={theme.semantic.warning} />
+        <Text className="text-base font-bold text-slate-100">Running out soon</Text>
+        <Badge label={String(passes.length)} variant="warning" size="sm" />
+      </View>
+
+      <View className="gap-2.5">
+        {passes.slice(0, 6).map((pass) => (
+          <View
+            key={pass.ticketCode}
+            className="flex-row items-center justify-between gap-3 p-3 rounded-xl bg-slate-950/60 border border-slate-800"
+          >
+            <View className="flex-1 min-w-0">
+              <View className="flex-row items-center gap-2 flex-wrap">
+                <Text numberOfLines={1} className="text-xs font-bold text-slate-200 uppercase">
+                  {pass.vehicleNumber || pass.typeLabel}
+                </Text>
+                <Badge
+                  label={pass.isExpired ? 'Time over' : 'Ending'}
+                  variant={pass.isExpired ? 'danger' : 'warning'}
+                  size="sm"
+                />
+                {pass.reminderSentAt && (
+                  <Badge label="Reminded" variant="neutral" size="sm" />
+                )}
+              </View>
+              <View className="flex-row items-center gap-1.5 mt-0.5">
+                <ClockIcon size={10} color={theme.semantic.textFaint} />
+                <Text className="text-[11px] text-slate-400">
+                  {formatDateTime(pass.expiresAt)}
+                  {pass.overstayDue > 0
+                    ? ` · ${formatCurrency(pass.overstayDue, merchant.currency)} due`
+                    : ''}
+                </Text>
+              </View>
+            </View>
+
+            {pass.customerPhone && (
+              <TouchableOpacity
+                onPress={() => nudge(pass)}
+                accessibilityLabel="Remind this customer on WhatsApp"
+                className="p-2 rounded-lg bg-slate-800 active:bg-slate-700"
+              >
+                <MessageCircle size={14} color={theme.semantic.accentSoft} />
+              </TouchableOpacity>
+            )}
+          </View>
+        ))}
+      </View>
+    </Card>
+  );
+};
 
 const QuickAction: React.FC<{
   label: string;

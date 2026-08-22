@@ -9,7 +9,7 @@
 import { requireSupabase, supabase } from '../lib/supabase';
 import { toTransaction } from './mappers';
 import type { TransactionRow } from '../types/db';
-import type { DashboardStats, DateRangeKey, Transaction } from '../types';
+import type { DashboardStats, DateRangeKey, ExpiringPass, Transaction } from '../types';
 
 /** Local-time day boundaries: a venue's "today" is its own midnight, not UTC. */
 export function rangeBounds(range: DateRangeKey): { from: Date; to: Date } {
@@ -45,7 +45,7 @@ class TransactionService {
       // The embed is normalised in toTransaction: PostgREST may return a to-one
       // relation as an object or a single-element array, and an empty array is
       // truthy - which previously made every unscanned pass read as used.
-      .select('*, validation:ticket_validations(*)')
+      .select('*, validation:ticket_validations(*), extensions:pass_extensions(*)')
       .eq('merchant_id', params.merchantId)
       .gte('created_at', from.toISOString())
       .lt('created_at', to.toISOString())
@@ -79,12 +79,52 @@ class TransactionService {
       growthPercent: data.growthPercent === null ? null : Number(data.growthPercent),
       passesIssued: data.passesIssued === null ? null : Number(data.passesIssued),
       pendingPayments: data.pendingPayments === null ? null : Number(data.pendingPayments),
+      extensionRevenue: data.extensionRevenue === null ? null : Number(data.extensionRevenue),
+      overstayRevenue: data.overstayRevenue === null ? null : Number(data.overstayRevenue),
       scans: Number(data.scans ?? 0),
       myScans: Number(data.myScans ?? 0),
       openPasses: Number(data.openPasses ?? 0),
+      expiringSoon: Number(data.expiringSoon ?? 0),
       from: data.from,
       to: data.to,
     };
+  }
+
+  /**
+   * Passes about to run out, so staff can nudge customers before the overstay
+   * charge starts - and so a venue without automated WhatsApp still has a way
+   * to act on expiry rather than only discovering it at the gate.
+   */
+  async expiringSoon(withinMinutes = 60): Promise<ExpiringPass[]> {
+    const client = requireSupabase();
+    const { data, error } = await client.rpc('passes_expiring_soon', {
+      p_within_minutes: withinMinutes,
+    });
+    if (error) throw error;
+    if (!data?.success) return [];
+
+    return ((data.passes ?? []) as Array<Record<string, unknown>>).map((p) => ({
+      ticketCode: String(p.ticketCode),
+      typeLabel: String(p.typeLabel),
+      vehicleNumber: (p.vehicleNumber as string | null) ?? null,
+      customerPhone: (p.customerPhone as string | null) ?? null,
+      expiresAt: String(p.expiresAt),
+      reminderSentAt: (p.reminderSentAt as string | null) ?? null,
+      isExpired: Boolean(p.isExpired),
+      overstayDue: Number(p.overstayDue ?? 0),
+    }));
+  }
+
+  /** Confirm that the customer's extension payment landed. */
+  async confirmExtension(ticketCode: string, paymentRef?: string): Promise<string> {
+    const client = requireSupabase();
+    const { data, error } = await client.rpc('confirm_extension', {
+      p_ticket_code: ticketCode,
+      p_payment_ref: paymentRef ?? null,
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.message ?? 'Could not confirm the extension.');
+    return String(data.extendsTo);
   }
 
   /**

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, RefreshControl } from 'react-native';
-import { Search, BookOpen, ShieldCheck, Car, MessageSquare, CheckCircle2, AlertTriangle } from 'lucide-react-native';
+import { Search, BookOpen, ShieldCheck, Car, MessageSquare, CheckCircle2, AlertTriangle, TimerReset, Clock } from 'lucide-react-native';
 import theme from '../../src/config/theme';
 import { useAuth } from '../../src/context/AuthContext';
 import { useApp } from '../../src/context/AppContext';
@@ -13,6 +13,7 @@ import { RoleGate } from '../../components/ui/RoleGate';
 import { PassDeliveryModal } from '../../components/ui/PassDeliveryModal';
 import { transactionService } from '../../src/services/transactionService';
 import { formatCurrency, formatDateTime } from '../../src/utils/formatters';
+import { formatDuration } from '../../src/config/pricing';
 import type { Transaction } from '../../src/types';
 
 export default function LedgerScreen() {
@@ -22,6 +23,7 @@ export default function LedgerScreen() {
   const [query, setQuery] = useState('');
   const [deliverFor, setDeliverFor] = useState<Transaction | null>(null);
   const [confirmingCode, setConfirmingCode] = useState<string | null>(null);
+  const [extendingCode, setExtendingCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
@@ -70,6 +72,24 @@ export default function LedgerScreen() {
       await refresh({ silent: true });
     } finally {
       setConfirmingCode(null);
+    }
+  };
+
+  /**
+   * The customer tapped Extend on their pass and paid; a staff member confirms
+   * the money arrived. Same accountability as the original payment - the
+   * extension does not take effect until a named person says it did.
+   */
+  const confirmExtension = async (tx: Transaction) => {
+    setExtendingCode(tx.ticketCode);
+    setError(null);
+    try {
+      await transactionService.confirmExtension(tx.ticketCode);
+      await refresh({ silent: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not confirm the extension.');
+    } finally {
+      setExtendingCode(null);
     }
   };
 
@@ -137,7 +157,9 @@ export default function LedgerScreen() {
                     currency={merchant.currency}
                     canConfirm={can('can_issue_passes')}
                     confirming={confirmingCode === tx.ticketCode}
+                    extending={extendingCode === tx.ticketCode}
                     onConfirm={() => confirmPayment(tx)}
+                    onConfirmExtension={() => confirmExtension(tx)}
                     onDeliver={() => setDeliverFor(tx)}
                   />
                 ))}
@@ -190,11 +212,28 @@ const LedgerRow: React.FC<{
   currency: string;
   canConfirm: boolean;
   confirming: boolean;
+  extending: boolean;
   onConfirm: () => void;
+  onConfirmExtension: () => void;
   onDeliver: () => void;
-}> = ({ transaction, currency, canConfirm, confirming, onConfirm, onDeliver }) => {
+}> = ({
+  transaction,
+  currency,
+  canConfirm,
+  confirming,
+  extending,
+  onConfirm,
+  onConfirmExtension,
+  onDeliver,
+}) => {
   const exited = Boolean(transaction.validation);
   const pending = transaction.status === 'pending';
+  const expired =
+    !exited &&
+    transaction.status === 'paid' &&
+    Boolean(transaction.expiresAt) &&
+    new Date(transaction.expiresAt!).getTime() < Date.now();
+  const extension = transaction.pendingExtension;
 
   return (
     <Card className="p-3.5">
@@ -224,10 +263,13 @@ const LedgerRow: React.FC<{
                 {transaction.vehicleNumber || transaction.ticketTypeLabel}
               </Text>
               <Badge
-                label={pending ? 'Unpaid' : exited ? 'Exited' : 'Inside'}
-                variant={pending ? 'warning' : exited ? 'success' : 'info'}
+                label={pending ? 'Unpaid' : exited ? 'Exited' : expired ? 'Time over' : 'Inside'}
+                variant={pending ? 'warning' : exited ? 'success' : expired ? 'danger' : 'info'}
                 size="sm"
               />
+              {transaction.extensionCount > 0 && (
+                <Badge label={`+${transaction.extensionCount}`} variant="neutral" size="sm" />
+              )}
             </View>
             <Text className="text-[11px] font-mono text-slate-400 mt-0.5">
               {transaction.ticketCode}
@@ -236,8 +278,15 @@ const LedgerRow: React.FC<{
               {formatDateTime(transaction.createdAt)}
               {transaction.validation
                 ? ` · exited ${formatDateTime(transaction.validation.scannedAt)}`
-                : ''}
+                : transaction.expiresAt
+                  ? ` · ${expired ? 'expired' : 'until'} ${formatDateTime(transaction.expiresAt)}`
+                  : ''}
             </Text>
+            {transaction.overstayAmount > 0 && (
+              <Text className="text-[11px] text-amber-400 mt-0.5">
+                Overstay collected: {formatCurrency(transaction.overstayAmount, currency)}
+              </Text>
+            )}
           </View>
         </View>
 
@@ -265,6 +314,29 @@ const LedgerRow: React.FC<{
             loading={confirming}
             icon={<CheckCircle2 size={14} color={theme.semantic.accent} />}
             onPress={onConfirm}
+          />
+        </View>
+      )}
+
+      {/* The customer asked for more time and paid; a person still has to say
+          the money arrived before the clock moves. */}
+      {extension && canConfirm && (
+        <View className="mt-3 pt-3 border-t border-slate-800">
+          <View className="flex-row items-center gap-1.5 mb-2">
+            <Clock size={12} color={theme.semantic.warning} />
+            <Text className="text-[11px] text-amber-300 font-semibold">
+              Extension requested · {formatCurrency(extension.amount, currency)} for{' '}
+              {formatDuration(extension.minutes)}
+            </Text>
+          </View>
+          <Button
+            title={`Extension paid — extend to ${formatDateTime(extension.extendsTo)}`}
+            variant="secondary"
+            size="sm"
+            fullWidth
+            loading={extending}
+            icon={<TimerReset size={14} color={theme.semantic.accent} />}
+            onPress={onConfirmExtension}
           />
         </View>
       )}

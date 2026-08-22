@@ -18,7 +18,13 @@ import { useAuth } from './AuthContext';
 import { merchantService } from '../services/merchantService';
 import { transactionService } from '../services/transactionService';
 import { scanService, type SyncConflict } from '../services/scanService';
-import type { DashboardStats, DateRangeKey, StaffMember, Transaction } from '../types';
+import type {
+  DashboardStats,
+  DateRangeKey,
+  ExpiringPass,
+  StaffMember,
+  Transaction,
+} from '../types';
 import type { TicketType } from '../config/pricing';
 
 interface AppContextValue {
@@ -26,6 +32,8 @@ interface AppContextValue {
   stats: DashboardStats | null;
   ticketTypes: TicketType[];
   staff: StaffMember[];
+  /** Paid, unused passes running out within the hour, soonest first. */
+  expiringPasses: ExpiringPass[];
   range: DateRangeKey;
   isLoading: boolean;
   isRefreshing: boolean;
@@ -48,6 +56,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
   const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [expiringPasses, setExpiringPasses] = useState<ExpiringPass[]>([]);
   const [range, setRange] = useState<DateRangeKey>('today');
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -86,9 +95,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // A gatekeeper without can_view_ledger gets no rows from the database
         // by design. Asking anyway would just log a permission error every
         // refresh, so skip the call entirely.
-        const txResult = canViewLedger
-          ? await transactionService.list({ merchantId, range })
-          : [];
+        // Both of these carry customer data, so the server returns nothing for
+        // staff without can_view_ledger. Asking anyway would log a permission
+        // error on every refresh, so skip the calls entirely.
+        const [txResult, expiringResult] = canViewLedger
+          ? await Promise.all([
+              transactionService.list({ merchantId, range }),
+              transactionService.expiringSoon(60),
+            ])
+          : [[] as Transaction[], [] as ExpiringPass[]];
 
         if (token !== loadToken.current) return;
 
@@ -96,6 +111,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setTicketTypes(typesResult);
         setStaff(staffResult);
         setTransactions(txResult);
+        setExpiringPasses(expiringResult);
       } catch (err) {
         if (token !== loadToken.current) return;
         setError(err instanceof Error ? err.message : 'Could not load your data.');
@@ -156,6 +172,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       stats,
       ticketTypes,
       staff,
+      expiringPasses,
       range,
       isLoading,
       isRefreshing,
@@ -171,6 +188,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       stats,
       ticketTypes,
       staff,
+      expiringPasses,
       range,
       isLoading,
       isRefreshing,

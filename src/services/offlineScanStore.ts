@@ -33,6 +33,8 @@ export interface CachedPass {
   amount: number;
   typeLabel: string;
   vehicleNumber: string | null;
+  /** null for pass types that never expire. */
+  expiresAt: string | null;
 }
 
 export interface QueuedScan {

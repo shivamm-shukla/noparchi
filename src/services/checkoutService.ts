@@ -38,6 +38,15 @@ class CheckoutService {
         icon: String(t.icon ?? 'ticket'),
         amount: Number(t.amount),
         sortOrder: Number(t.sort_order ?? 0),
+        validForMinutes: t.valid_for_minutes === null || t.valid_for_minutes === undefined
+          ? null
+          : Number(t.valid_for_minutes),
+        extensionAmount: t.extension_amount === null || t.extension_amount === undefined
+          ? null
+          : Number(t.extension_amount),
+        extensionMinutes: t.extension_minutes === null || t.extension_minutes === undefined
+          ? null
+          : Number(t.extension_minutes),
       })),
     };
   }
@@ -82,6 +91,8 @@ class CheckoutService {
     if (!data?.success) throw new Error(data?.message ?? 'Pass not found.');
 
     const t = data.ticket as Record<string, unknown>;
+    const pending = t.pendingExtension as Record<string, unknown> | null;
+
     return {
       ticketCode: String(t.ticketCode),
       status: t.status as PublicTicket['status'],
@@ -89,10 +100,58 @@ class CheckoutService {
       typeLabel: String(t.typeLabel),
       vehicleNumber: (t.vehicleNumber as string | null) ?? null,
       issuedAt: String(t.issuedAt),
+      activatedAt: (t.activatedAt as string | null) ?? null,
       expiresAt: (t.expiresAt as string | null) ?? null,
       isUsed: Boolean(t.isUsed),
       usedAt: (t.usedAt as string | null) ?? null,
+      extensionCount: Number(t.extensionCount ?? 0),
+      overstayDue: Number(t.overstayDue ?? 0),
+      canExtend: Boolean(t.canExtend),
+      extensionAmount: t.extensionAmount === null || t.extensionAmount === undefined
+        ? null
+        : Number(t.extensionAmount),
+      extensionMinutes: t.extensionMinutes === null || t.extensionMinutes === undefined
+        ? null
+        : Number(t.extensionMinutes),
+      pendingExtension: pending
+        ? {
+            extensionId: String(pending.extensionId),
+            amount: Number(pending.amount),
+            minutes: Number(pending.minutes),
+            extendsTo: String(pending.extendsTo),
+          }
+        : null,
       merchant: data.merchant as PublicTicket['merchant'],
+    };
+  }
+
+  /**
+   * The customer taps Extend, usually straight from the WhatsApp reminder.
+   *
+   * Creates a PENDING extension and nothing more. The extra time only lands
+   * once the money is confirmed, so tapping this cannot by itself buy time -
+   * the same rule that governs the original checkout.
+   */
+  async startExtension(ticketCode: string): Promise<{
+    extensionId: string;
+    amount: number;
+    minutes: number;
+    extendsTo: string;
+    merchant: { businessName: string; upiId: string; currency: string; paymentProvider: string };
+  }> {
+    const client = requireSupabase();
+    const { data, error } = await client.rpc('public_start_extension', {
+      p_ticket_code: ticketCode,
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.message ?? 'Could not start the extension.');
+
+    return {
+      extensionId: String(data.extensionId),
+      amount: Number(data.amount),
+      minutes: Number(data.minutes),
+      extendsTo: String(data.extendsTo),
+      merchant: data.merchant,
     };
   }
 }

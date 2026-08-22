@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, Platform, Share } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import QRCode from 'react-native-qrcode-svg';
@@ -10,29 +10,35 @@ import {
   AlertCircle,
   RefreshCw,
   XCircle,
+  TimerReset,
+  IndianRupee,
 } from 'lucide-react-native';
 import theme from '../../src/config/theme';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { checkoutService } from '../../src/services/checkoutService';
+import { paymentProvider } from '../../src/services/payment';
 import { passUrl } from '../../src/utils/links';
+import { formatDuration } from '../../src/config/pricing';
 import { formatCurrency, formatDateTime } from '../../src/utils/formatters';
 import type { PublicTicket } from '../../src/types';
 
 /**
- * The customer's pass.
+ * The customer's pass, with its clock.
  *
- * Fetched by code from a public RPC, so it works on the customer's own phone
- * with no account. The previous version looked the pass up in the merchant
- * app's in-memory context - which on a customer's device always missed, leaving
- * the page rendering placeholder values including a hardcoded ₹50.
+ * This is where the expiry loop closes. The WhatsApp reminder links straight
+ * here, so the countdown and the Extend button have to be the first things a
+ * customer sees - they arrive already knowing their time is nearly up and
+ * wanting one decision, not a receipt to read.
  */
 export default function TicketScreen() {
   const { ticketCode } = useLocalSearchParams<{ ticketCode: string }>();
   const [ticket, setTicket] = useState<PublicTicket | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [extending, setExtending] = useState(false);
+  const [extendPayUrl, setExtendPayUrl] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!ticketCode) return;
@@ -50,14 +56,24 @@ export default function TicketScreen() {
     load();
   }, [load]);
 
-  // A pass bought with UPI stays pending until a gatekeeper confirms the money.
-  // Polling means the customer sees it turn valid without refreshing, which is
-  // the difference between waiting calmly and asking staff what went wrong.
+  /**
+   * Poll while anything is still moving: a pending payment, a pending
+   * extension, or a live countdown. The customer should watch their pass turn
+   * valid rather than be told to refresh - and after an extension is confirmed
+   * at the counter, the new time appears on its own.
+   */
+  const shouldPoll =
+    ticket?.status === 'pending' ||
+    Boolean(ticket?.pendingExtension) ||
+    (ticket?.status === 'paid' && !ticket.isUsed && Boolean(ticket.expiresAt));
+
   useEffect(() => {
-    if (ticket?.status !== 'pending') return;
-    const timer = setInterval(load, 8000);
+    if (!shouldPoll) return;
+    const timer = setInterval(load, 10000);
     return () => clearInterval(timer);
-  }, [ticket?.status, load]);
+  }, [shouldPoll, load]);
+
+  const remaining = useCountdown(ticket?.expiresAt ?? null);
 
   const share = async () => {
     if (!ticket) return;
@@ -71,6 +87,38 @@ export default function TicketScreen() {
       }
     } else {
       await Share.share({ message });
+    }
+  };
+
+  const extend = async () => {
+    if (!ticket) return;
+    setExtending(true);
+    setError(null);
+    try {
+      const started = await checkoutService.startExtension(ticket.ticketCode);
+
+      const provider = paymentProvider(ticket.merchant.paymentProvider);
+      const result = await provider.begin({
+        merchantId: ticket.merchant.id,
+        merchantName: ticket.merchant.businessName,
+        upiId: ticket.merchant.upiId,
+        ticketCode: ticket.ticketCode,
+        amount: started.amount,
+        currency: ticket.merchant.currency,
+        note: `${ticket.merchant.businessName} extension`,
+        extensionId: started.extensionId,
+      });
+
+      if (result.outcome === 'failed') {
+        setError(result.error ?? 'Could not start the payment.');
+        return;
+      }
+      setExtendPayUrl(result.payUrl ?? null);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not extend the pass.');
+    } finally {
+      setExtending(false);
     }
   };
 
@@ -98,7 +146,7 @@ export default function TicketScreen() {
     );
   }
 
-  const state = passState(ticket);
+  const state = passState(ticket, remaining);
 
   return (
     <View className="flex-1 bg-slate-950">
@@ -111,6 +159,21 @@ export default function TicketScreen() {
 
       <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>
         <View className="max-w-lg mx-auto w-full px-4 py-6">
+          {/*
+            The clock sits above the QR on purpose. Someone arriving from a
+            "your time is nearly up" message needs the number and the button,
+            not to scroll past a receipt to find them.
+          */}
+          {ticket.status === 'paid' && !ticket.isUsed && ticket.expiresAt && (
+            <CountdownCard
+              ticket={ticket}
+              remaining={remaining}
+              extending={extending}
+              payUrl={extendPayUrl}
+              onExtend={extend}
+            />
+          )}
+
           <Card className="items-center p-6 mb-6">
             <View
               className={`w-14 h-14 rounded-full items-center justify-center mb-3 border ${state.ringClass}`}
@@ -128,12 +191,6 @@ export default function TicketScreen() {
               {state.headline}
             </Text>
 
-            {/*
-              The QR encodes the pass URL, which is what the gatekeeper's scanner
-              reads. It is rendered even for a pending pass so the customer has
-              it ready the moment payment is confirmed - but the status above
-              never claims the pass is valid before it is.
-            */}
             <View className="p-4 bg-white rounded-3xl items-center mb-4 border-4 border-emerald-500/20">
               <QRCode
                 value={passUrl(ticket.ticketCode) ?? ticket.ticketCode}
@@ -154,7 +211,20 @@ export default function TicketScreen() {
               <Row label="Pass type" value={ticket.typeLabel} />
               {ticket.vehicleNumber ? <Row label="Vehicle" value={ticket.vehicleNumber} /> : null}
               <Row label="Amount" value={formatCurrency(ticket.amount)} highlight />
-              <Row label="Issued" value={formatDateTime(ticket.issuedAt)} icon={<Clock size={13} color={theme.semantic.textMuted} />} />
+              {ticket.extensionCount > 0 && (
+                <Row
+                  label="Extended"
+                  value={`${ticket.extensionCount} time${ticket.extensionCount > 1 ? 's' : ''}`}
+                />
+              )}
+              <Row
+                label="Issued"
+                value={formatDateTime(ticket.issuedAt)}
+                icon={<Clock size={13} color={theme.semantic.textMuted} />}
+              />
+              {ticket.expiresAt ? (
+                <Row label="Valid until" value={formatDateTime(ticket.expiresAt)} />
+              ) : null}
               {ticket.usedAt ? <Row label="Exited" value={formatDateTime(ticket.usedAt)} /> : null}
             </View>
 
@@ -176,6 +246,13 @@ export default function TicketScreen() {
             </View>
           </Card>
 
+          {error && (
+            <View className="flex-row items-start gap-2 mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30">
+              <AlertCircle size={14} color={theme.semantic.danger} />
+              <Text className="text-xs text-rose-300 flex-1 leading-4">{error}</Text>
+            </View>
+          )}
+
           <View className="flex-row items-center justify-center gap-2">
             <ShieldCheck size={14} color={theme.semantic.accent} />
             <Text className="text-xs text-slate-500 text-center">Powered by NoParchi</Text>
@@ -186,7 +263,147 @@ export default function TicketScreen() {
   );
 }
 
-function passState(ticket: PublicTicket) {
+// -----------------------------------------------------------------------------
+
+interface Remaining {
+  totalMs: number;
+  expired: boolean;
+  label: string;
+}
+
+/**
+ * Ticks once a second, so the last minute genuinely counts down.
+ *
+ * Derived from the expiry timestamp on every tick rather than decremented, so a
+ * backgrounded tab or a phone that slept wakes up showing the right number
+ * instead of however far its own counter got.
+ */
+function useCountdown(expiresAt: string | null): Remaining | null {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!expiresAt) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [expiresAt]);
+
+  return useMemo(() => {
+    if (!expiresAt) return null;
+    const totalMs = new Date(expiresAt).getTime() - now;
+    const expired = totalMs <= 0;
+    const abs = Math.abs(totalMs);
+
+    const hours = Math.floor(abs / 3600000);
+    const minutes = Math.floor((abs % 3600000) / 60000);
+    const seconds = Math.floor((abs % 60000) / 1000);
+
+    const label =
+      hours > 0
+        ? `${hours}h ${String(minutes).padStart(2, '0')}m`
+        : `${minutes}:${String(seconds).padStart(2, '0')}`;
+
+    return { totalMs, expired, label };
+  }, [expiresAt, now]);
+}
+
+const CountdownCard: React.FC<{
+  ticket: PublicTicket;
+  remaining: Remaining | null;
+  extending: boolean;
+  payUrl: string | null;
+  onExtend: () => void;
+}> = ({ ticket, remaining, extending, payUrl, onExtend }) => {
+  if (!remaining) return null;
+
+  const pending = ticket.pendingExtension;
+  // Under half an hour is when the reminder goes out, so it is also when this
+  // card should start looking urgent.
+  const urgent = !remaining.expired && remaining.totalMs < 30 * 60 * 1000;
+
+  const tone = remaining.expired
+    ? { border: 'border-rose-500/50', bg: 'bg-rose-500/10', text: 'text-rose-300' }
+    : urgent
+      ? { border: 'border-amber-500/50', bg: 'bg-amber-500/10', text: 'text-amber-300' }
+      : { border: 'border-emerald-500/40', bg: 'bg-emerald-500/5', text: 'text-emerald-300' };
+
+  return (
+    <Card className={`${tone.border} ${tone.bg} p-5 mb-5 items-center`}>
+      <Text className="text-[11px] font-bold uppercase tracking-widest text-slate-400">
+        {remaining.expired ? 'Time over by' : 'Time left'}
+      </Text>
+      <Text className={`text-5xl font-extrabold tracking-tight mt-1 ${tone.text}`}>
+        {remaining.label}
+      </Text>
+      <Text className="text-[11px] text-slate-400 mt-1">
+        {remaining.expired ? 'Expired' : 'Valid until'} {formatDateTime(ticket.expiresAt!)}
+      </Text>
+
+      {/* An expired pass owes money at the gate. Say the number plainly here so
+          it is not a surprise handed over by a gatekeeper. */}
+      {remaining.expired && ticket.overstayDue > 0 && (
+        <View className="flex-row items-center gap-1.5 mt-3 px-3 py-2 rounded-xl bg-rose-500/15 border border-rose-500/40">
+          <IndianRupee size={14} color={theme.semantic.danger} />
+          <Text className="text-xs font-bold text-rose-200">
+            {formatCurrency(ticket.overstayDue)} due at the exit
+          </Text>
+        </View>
+      )}
+
+      {pending ? (
+        <View className="w-full mt-5 items-center">
+          <Text className="text-xs font-bold text-slate-200 text-center mb-1">
+            Pay {formatCurrency(pending.amount)} for {formatDuration(pending.minutes)} more
+          </Text>
+          <Text className="text-[11px] text-slate-400 text-center mb-4 leading-4">
+            Your extra time starts once the staff confirm the payment. This page updates on its
+            own.
+          </Text>
+
+          {payUrl && (
+            <View className="p-3 bg-white rounded-2xl mb-3">
+              <QRCode
+                value={payUrl}
+                size={150}
+                color={theme.semantic.onPaper}
+                backgroundColor={theme.semantic.paper}
+              />
+            </View>
+          )}
+
+          <View className="flex-row items-center gap-2 px-3 py-2 rounded-xl bg-slate-950/70 border border-slate-800">
+            <Clock size={12} color={theme.semantic.warning} />
+            <Text className="text-[11px] font-semibold text-slate-300">
+              Waiting for payment confirmation
+            </Text>
+          </View>
+        </View>
+      ) : ticket.canExtend ? (
+        <View className="w-full mt-4">
+          <Button
+            title={
+              ticket.extensionAmount !== null && ticket.extensionMinutes !== null
+                ? `Extend ${formatDuration(ticket.extensionMinutes)} · ${formatCurrency(ticket.extensionAmount)}`
+                : 'Extend my time'
+            }
+            variant="primary"
+            size="lg"
+            fullWidth
+            loading={extending}
+            icon={<TimerReset size={17} color={theme.semantic.onAccent} />}
+            onPress={onExtend}
+          />
+          {!remaining.expired && (
+            <Text className="text-[11px] text-slate-500 text-center mt-2 leading-4">
+              Extending now costs the same as the overstay would — never more.
+            </Text>
+          )}
+        </View>
+      ) : null}
+    </Card>
+  );
+};
+
+function passState(ticket: PublicTicket, remaining: Remaining | null) {
   if (ticket.isUsed) {
     return {
       badge: 'Exited',
@@ -197,6 +414,21 @@ function passState(ticket: PublicTicket) {
       color: theme.semantic.textMuted,
       ringClass: 'bg-slate-800 border-slate-700',
       textClass: 'text-slate-400',
+    };
+  }
+  if (ticket.status === 'paid' && remaining?.expired) {
+    return {
+      badge: 'Time over',
+      badgeVariant: 'warning' as const,
+      headline: 'Your time has run out',
+      instruction:
+        ticket.overstayDue > 0
+          ? 'Extend above, or pay the overstay to the gatekeeper on your way out.'
+          : 'Extend above, or show this at the exit.',
+      Icon: Clock,
+      color: theme.semantic.warning,
+      ringClass: 'bg-amber-500/10 border-amber-500/30',
+      textClass: 'text-amber-400',
     };
   }
   if (ticket.status === 'paid') {

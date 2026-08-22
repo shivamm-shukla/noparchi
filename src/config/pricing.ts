@@ -24,6 +24,19 @@ export interface TicketType {
   icon: TicketTypeIcon;
   /** Price in whole rupees. */
   amount: number;
+
+  /**
+   * How long the pass stays valid once paid, in minutes.
+   *
+   * null means it never expires - correct for a mela day pass or a stall token,
+   * where timing the customer would be noise. Parking types should set it.
+   */
+  validForMinutes: number | null;
+  /** Price of one extension. null falls back to `amount`. */
+  extensionAmount: number | null;
+  /** Length of one extension. null falls back to `validForMinutes`. */
+  extensionMinutes: number | null;
+
   sortOrder: number;
   isActive: boolean;
 }
@@ -39,10 +52,30 @@ export const CURRENCY = 'INR';
  * rather than a hardcoded Postgres enum.
  */
 export const DEFAULT_TICKET_TYPES: TicketTypeDraft[] = [
-  { code: 'TWO_WHEELER', label: '2-Wheeler / Bike', icon: 'bike', amount: 20, sortOrder: 1, isActive: true },
-  { code: 'FOUR_WHEELER', label: '4-Wheeler / Car', icon: 'car', amount: 50, sortOrder: 2, isActive: true },
-  { code: 'HEAVY_VEHICLE', label: 'Bus / Commercial', icon: 'truck', amount: 100, sortOrder: 3, isActive: true },
-  { code: 'GENERAL_ENTRY', label: 'General Entry Pass', icon: 'ticket', amount: 40, sortOrder: 4, isActive: true },
+  // Vehicle passes are timed, with a cheaper extension than the first window -
+  // the first stretch covers the cost of the space, later ones are pure margin
+  // and should be easy to say yes to. The general entry pass is untimed, since
+  // a mela ticket has no meaningful checkout time.
+  {
+    code: 'TWO_WHEELER', label: '2-Wheeler / Bike', icon: 'bike', amount: 20,
+    validForMinutes: 12 * 60, extensionAmount: 10, extensionMinutes: 6 * 60,
+    sortOrder: 1, isActive: true,
+  },
+  {
+    code: 'FOUR_WHEELER', label: '4-Wheeler / Car', icon: 'car', amount: 50,
+    validForMinutes: 6 * 60, extensionAmount: 30, extensionMinutes: 3 * 60,
+    sortOrder: 2, isActive: true,
+  },
+  {
+    code: 'HEAVY_VEHICLE', label: 'Bus / Commercial', icon: 'truck', amount: 100,
+    validForMinutes: 6 * 60, extensionAmount: 60, extensionMinutes: 3 * 60,
+    sortOrder: 3, isActive: true,
+  },
+  {
+    code: 'GENERAL_ENTRY', label: 'General Entry Pass', icon: 'ticket', amount: 40,
+    validForMinutes: null, extensionAmount: null, extensionMinutes: null,
+    sortOrder: 4, isActive: true,
+  },
 ];
 
 /** Fallback used only when a merchant somehow has no active types at all. */
@@ -51,9 +84,53 @@ export const FALLBACK_TICKET_TYPE: TicketTypeDraft = {
   label: 'Entry Pass',
   icon: 'ticket',
   amount: 0,
+  validForMinutes: null,
+  extensionAmount: null,
+  extensionMinutes: null,
   sortOrder: 0,
   isActive: true,
 };
+
+/**
+ * Common validity windows offered in Settings.
+ *
+ * A short list of real choices beats a free-text minutes box: nobody running a
+ * parking lot wants to type 360, and a typo there silently expires every pass
+ * six minutes after it is sold.
+ */
+export const VALIDITY_PRESETS: { label: string; minutes: number | null }[] = [
+  { label: 'No expiry', minutes: null },
+  { label: '1 hour', minutes: 60 },
+  { label: '3 hours', minutes: 180 },
+  { label: '6 hours', minutes: 360 },
+  { label: '12 hours', minutes: 720 },
+  { label: '24 hours', minutes: 1440 },
+];
+
+/** Human-readable duration: 90 -> "1 hr 30 min". */
+export function formatDuration(minutes: number | null | undefined): string {
+  if (minutes === null || minutes === undefined) return 'No expiry';
+  if (minutes < 60) return `${minutes} min`;
+
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours < 24) return rest ? `${hours} hr ${rest} min` : `${hours} hr`;
+
+  const days = Math.floor(hours / 24);
+  const restHours = hours % 24;
+  return restHours ? `${days}d ${restHours}h` : `${days} day${days > 1 ? 's' : ''}`;
+}
+
+/** What one extension of this type costs and buys, with the fallbacks applied. */
+export function extensionTerms(
+  type: Pick<TicketType, 'amount' | 'validForMinutes' | 'extensionAmount' | 'extensionMinutes'>
+): { amount: number; minutes: number } | null {
+  if (type.validForMinutes === null) return null;
+  return {
+    amount: type.extensionAmount ?? type.amount,
+    minutes: type.extensionMinutes ?? type.validForMinutes,
+  };
+}
 
 export function activeTicketTypes(types: TicketType[]): TicketType[] {
   return types.filter((t) => t.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
@@ -85,6 +162,24 @@ export function validateTicketTypeDraft(draft: Partial<TicketTypeDraft>): string
   }
   if (draft.amount === undefined || draft.amount < 0 || !Number.isFinite(draft.amount)) {
     return 'Amount must be zero or more.';
+  }
+  if (draft.validForMinutes !== null && draft.validForMinutes !== undefined) {
+    if (!Number.isFinite(draft.validForMinutes) || draft.validForMinutes <= 0) {
+      return 'Validity must be more than zero minutes, or set to no expiry.';
+    }
+  }
+  if (draft.extensionAmount !== null && draft.extensionAmount !== undefined) {
+    if (!Number.isFinite(draft.extensionAmount) || draft.extensionAmount < 0) {
+      return 'Extension price must be zero or more.';
+    }
+  }
+  // An extension longer than the original window is not wrong, but an extension
+  // on a pass that never expires is meaningless and would confuse the UI.
+  if (
+    (draft.extensionAmount !== null && draft.extensionAmount !== undefined) &&
+    (draft.validForMinutes === null || draft.validForMinutes === undefined)
+  ) {
+    return 'A pass with no expiry cannot be extended - clear the extension price.';
   }
   return null;
 }

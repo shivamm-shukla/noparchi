@@ -38,7 +38,7 @@ class RazorpayProvider implements PaymentProvider {
       // The order is created server-side: amount must come from the database,
       // never from the browser, or a customer could pay one rupee for any pass.
       const { data, error } = await supabase.functions.invoke('razorpay-order', {
-        body: { ticketCode: request.ticketCode },
+        body: { ticketCode: request.ticketCode, extensionId: request.extensionId },
       });
       if (error) throw error;
       if (!data?.success) {

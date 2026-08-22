@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView } from 'react-native';
-import { CheckCircle2, XCircle, AlertTriangle, ShieldAlert, WifiOff } from 'lucide-react-native';
+import { CheckCircle2, XCircle, AlertTriangle, ShieldAlert, WifiOff, Clock, IndianRupee } from 'lucide-react-native';
 import theme from '../../src/config/theme';
 import { Button } from './Button';
 import { formatCurrency, formatDateTime } from '../../src/utils/formatters';
@@ -10,6 +10,12 @@ interface ValidationModalProps {
   result: ScanResult | null;
   visible: boolean;
   onClose: () => void;
+  /**
+   * Collect the overstay and open the gate. Only shown for EXPIRED, and only
+   * when the caller can act on it - the scanner passes it, a read-only view
+   * would not.
+   */
+  onCollectOverstay?: (amount: number) => Promise<void>;
 }
 
 /**
@@ -49,6 +55,14 @@ const PRESENTATION: Record<
     color: theme.semantic.warning,
     Icon: AlertTriangle,
   },
+  EXPIRED: {
+    headline: 'TIME OVER',
+    tone: 'bg-amber-500/15',
+    ring: 'border-amber-500/50',
+    text: 'text-amber-400',
+    color: theme.semantic.warning,
+    Icon: Clock,
+  },
   INVALID: {
     headline: 'INVALID',
     tone: 'bg-rose-500/15',
@@ -67,10 +81,33 @@ const PRESENTATION: Record<
   },
 };
 
-export const ValidationModal: React.FC<ValidationModalProps> = ({ result, visible, onClose }) => {
+export const ValidationModal: React.FC<ValidationModalProps> = ({
+  result,
+  visible,
+  onClose,
+  onCollectOverstay,
+}) => {
+  const [collecting, setCollecting] = useState(false);
+
   if (!result) return null;
   const p = PRESENTATION[result.status] ?? PRESENTATION.INVALID;
   const ticket = result.ticket;
+
+  const overstayDue = result.overstayDue ?? 0;
+  // Offline, the server cannot be asked what is owed, so there is nothing to
+  // collect against and the button would be a guess.
+  const canCollect =
+    result.status === 'EXPIRED' && Boolean(onCollectOverstay) && !result.queuedOffline;
+
+  const collect = async () => {
+    if (!onCollectOverstay) return;
+    setCollecting(true);
+    try {
+      await onCollectOverstay(overstayDue);
+    } finally {
+      setCollecting(false);
+    }
+  };
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -88,6 +125,20 @@ export const ValidationModal: React.FC<ValidationModalProps> = ({ result, visibl
             <Text className="text-sm text-slate-300 text-center mt-3 leading-5">
               {result.message}
             </Text>
+
+            {result.status === 'EXPIRED' && overstayDue > 0 && (
+              <View className="w-full mt-5 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/40 items-center">
+                <Text className="text-[11px] font-bold text-amber-300 uppercase tracking-wider">
+                  Collect before exit
+                </Text>
+                <View className="flex-row items-center gap-1 mt-1">
+                  <IndianRupee size={22} color={theme.semantic.warning} />
+                  <Text className="text-3xl font-extrabold text-amber-300">
+                    {overstayDue.toFixed(0)}
+                  </Text>
+                </View>
+              </View>
+            )}
 
             {result.queuedOffline && (
               <View className="flex-row items-center gap-2 mt-4 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700">
@@ -111,9 +162,23 @@ export const ValidationModal: React.FC<ValidationModalProps> = ({ result, visibl
             </ScrollView>
           )}
 
-          <View className="mt-6">
+          <View className="mt-6 gap-2">
+            {canCollect && (
+              <Button
+                title={
+                  overstayDue > 0
+                    ? `Collected ${formatCurrency(overstayDue)} — open gate`
+                    : 'Open gate'
+                }
+                variant="primary"
+                size="lg"
+                fullWidth
+                loading={collecting}
+                onPress={collect}
+              />
+            )}
             <Button
-              title="Scan next pass"
+              title={canCollect ? 'Cancel' : 'Scan next pass'}
               variant={result.success ? 'primary' : 'secondary'}
               size="lg"
               fullWidth

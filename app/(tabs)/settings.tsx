@@ -29,7 +29,12 @@ import {
   type PermissionSet,
 } from '../../src/config/permissions';
 import { PAYMENT_PROVIDERS, MESSAGING_PROVIDERS } from '../../src/config/providers';
-import { validateTicketTypeDraft } from '../../src/config/pricing';
+import {
+  validateTicketTypeDraft,
+  formatDuration,
+  extensionTerms,
+  VALIDITY_PRESETS,
+} from '../../src/config/pricing';
 import { ticketTypeIcon } from '../../src/config/icons';
 import { formatCurrency } from '../../src/utils/formatters';
 import type { StaffMember } from '../../src/types';
@@ -343,14 +348,25 @@ const TicketTypesSection: React.FC<{
   const [code, setCode] = useState('');
   const [label, setLabel] = useState('');
   const [amount, setAmount] = useState('');
+  const [validMinutes, setValidMinutes] = useState<number | null>(360);
+  const [extAmount, setExtAmount] = useState('');
+  const [extMinutes, setExtMinutes] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
 
   const add = async () => {
+    // null in either extension field means "fall back to the base price /
+    // window". Storing null rather than a copy keeps that link live, so an
+    // owner who later raises the base price does not silently leave extensions
+    // priced at the old rate.
+    const timed = validMinutes !== null;
     const draft = {
       code: code.trim().toUpperCase().replace(/\s+/g, '_'),
       label: label.trim(),
       icon: 'ticket' as const,
       amount: Number(amount),
+      validForMinutes: validMinutes,
+      extensionAmount: timed && extAmount.trim() !== '' ? Number(extAmount) : null,
+      extensionMinutes: timed ? extMinutes : null,
       sortOrder: types.length + 1,
       isActive: true,
     };
@@ -367,6 +383,9 @@ const TicketTypesSection: React.FC<{
       setCode('');
       setLabel('');
       setAmount('');
+      setValidMinutes(360);
+      setExtAmount('');
+      setExtMinutes(null);
       setAdding(false);
       onChanged();
     } catch (err) {
@@ -404,7 +423,15 @@ const TicketTypesSection: React.FC<{
               <Icon size={18} color={type.isActive ? theme.semantic.accent : theme.semantic.textFaint} />
               <View className="flex-1 min-w-0">
                 <Text className="text-sm font-bold text-slate-100">{type.label}</Text>
-                <Text className="text-[11px] font-mono text-slate-500">{type.code}</Text>
+                <Text className="text-[11px] text-slate-500">
+                  {formatDuration(type.validForMinutes)}
+                  {(() => {
+                    const terms = extensionTerms(type);
+                    return terms
+                      ? ` · +${formatCurrency(terms.amount, currency)} per ${formatDuration(terms.minutes)}`
+                      : '';
+                  })()}
+                </Text>
               </View>
               <Text className="text-sm font-extrabold text-emerald-400">
                 {formatCurrency(type.amount, currency)}
@@ -466,6 +493,91 @@ const TicketTypesSection: React.FC<{
                 className="text-slate-100 text-base"
               />
             </Field>
+
+            <Text className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+              Valid for
+            </Text>
+            <View className="flex-row flex-wrap gap-2 mb-2">
+              {VALIDITY_PRESETS.map((preset) => (
+                <TouchableOpacity
+                  key={preset.label}
+                  onPress={() => {
+                    setValidMinutes(preset.minutes);
+                    // An untimed pass cannot be extended, so clear the terms
+                    // rather than leave stale ones the form would then reject.
+                    if (preset.minutes === null) {
+                      setExtAmount('');
+                      setExtMinutes(null);
+                    }
+                  }}
+                  activeOpacity={0.7}
+                  className={`px-3 py-1.5 rounded-xl border ${
+                    validMinutes === preset.minutes
+                      ? 'bg-emerald-500 border-emerald-400'
+                      : 'bg-slate-950 border-slate-800'
+                  }`}
+                >
+                  <Text
+                    className={`text-xs font-bold ${
+                      validMinutes === preset.minutes ? 'text-slate-900' : 'text-slate-400'
+                    }`}
+                  >
+                    {preset.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text className="text-[11px] text-slate-500 mb-4 leading-4">
+              The clock starts when the pass is paid for, not when it is created.
+            </Text>
+
+            {validMinutes !== null && (
+              <>
+                <Text className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                  Extension
+                </Text>
+                <View className="bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 mb-2">
+                  <TextInput
+                    value={extAmount}
+                    onChangeText={setExtAmount}
+                    placeholder={`Leave blank for the same price (${amount || '0'})`}
+                    placeholderTextColor={theme.semantic.textFaint}
+                    keyboardType="number-pad"
+                    className="text-slate-100 text-base"
+                  />
+                </View>
+                <View className="flex-row flex-wrap gap-2 mb-2">
+                  {VALIDITY_PRESETS.filter((preset) => preset.minutes !== null).map((preset) => (
+                    <TouchableOpacity
+                      key={preset.label}
+                      onPress={() =>
+                        setExtMinutes(extMinutes === preset.minutes ? null : preset.minutes)
+                      }
+                      activeOpacity={0.7}
+                      className={`px-3 py-1.5 rounded-xl border ${
+                        extMinutes === preset.minutes
+                          ? 'bg-emerald-500 border-emerald-400'
+                          : 'bg-slate-950 border-slate-800'
+                      }`}
+                    >
+                      <Text
+                        className={`text-xs font-bold ${
+                          extMinutes === preset.minutes ? 'text-slate-900' : 'text-slate-400'
+                        }`}
+                      >
+                        {preset.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <Text className="text-[11px] text-slate-500 mb-4 leading-4">
+                  Leave both blank to charge the same price for the same length again. Overstay
+                  is billed in whole extensions, so extending in advance is never more expensive
+                  than being late.
+                </Text>
+              </>
+            )}
+
             <View className="flex-row gap-2">
               <Button title="Cancel" variant="secondary" className="flex-1" onPress={() => setAdding(false)} />
               <Button title="Add" variant="primary" className="flex-1" loading={busy} onPress={add} />
