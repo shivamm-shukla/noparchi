@@ -19,9 +19,10 @@ import React, {
 import { authService } from '../services/authService';
 import { offlineScanStore } from '../services/offlineScanStore';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { missingConfig } from '../config/env';
+import { missingConfig, isPreview } from '../config/env';
 import { hasPermission, type PermissionKey } from '../config/permissions';
 import type { Merchant, StaffMember } from '../types';
+import { previewMerchant, previewOwner } from '../services/previewData';
 
 type AuthStatus =
   | 'loading'
@@ -47,13 +48,17 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [status, setStatus] = useState<AuthStatus>(
-    isSupabaseConfigured ? 'loading' : 'unconfigured'
+    isPreview ? 'signed-in' : isSupabaseConfigured ? 'loading' : 'unconfigured'
   );
-  const [user, setUser] = useState<StaffMember | null>(null);
-  const [merchant, setMerchant] = useState<Merchant | null>(null);
+  const [user, setUser] = useState<StaffMember | null>(isPreview ? previewOwner : null);
+  const [merchant, setMerchant] = useState<Merchant | null>(
+    isPreview ? previewMerchant : null
+  );
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    // Preview signs in as the sample owner and never talks to a server.
+    if (isPreview) return;
     if (!isSupabaseConfigured) {
       setStatus('unconfigured');
       return;
@@ -93,7 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // React to sign-in and sign-out happening anywhere, including the token
   // refresh that follows a staff PIN exchange.
   useEffect(() => {
-    if (!supabase) return;
+    if (isPreview || !supabase) return;
     const { data } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
         load();
@@ -103,6 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [load]);
 
   const signOut = useCallback(async () => {
+    if (isPreview) return;
     await authService.signOut();
     // A gate device is often shared. Clearing the offline cache and the local
     // used-set stops one account's passes leaking into the next session.

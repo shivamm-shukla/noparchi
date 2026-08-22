@@ -4,6 +4,35 @@ Everything here is on a free tier. Where a paid step is unavoidable it says so.
 
 ---
 
+## 0. Just want to look at it first?
+
+```bash
+npm install
+npm run preview
+```
+
+Opens the whole app on sample data with no backend at all — every screen, both
+themes, all the scanner outcomes. An amber bar across the top says so the entire
+time, and nothing you press is saved anywhere.
+
+Things worth clicking:
+
+- **Settings → Appearance** switches light / dark / automatic.
+- **Scanner** — type a code from the Ledger to see each outcome:
+  `NP-K4RT-8WQZ` verified · `NP-B3ZC-7PLM` already used ·
+  `NP-Q9WE-5HJN` expired with overstay · `NP-T6NX-4RVB` not paid ·
+  anything else invalid.
+- **`/ticket/NP-Q9WE-5HJN`** — the customer's pass with a live countdown that has
+  already run out, and the Extend button.
+- **`/pay/preview-merchant`** — the app-less customer checkout.
+
+> Preview mode is opt-in through `EXPO_PUBLIC_PREVIEW=1` and is never a fallback
+> from a failed request. Expo inlines that variable at build time and Metro
+> caches the result, which is why the `preview` and `web` scripts both pass
+> `--clear` — switching modes without it silently keeps the previous value.
+
+---
+
 ## 1. Create the Supabase project (free)
 
 1. supabase.com → **New project**. Pick the region closest to your venues

@@ -7,6 +7,8 @@
  * makes that permission real rather than decorative.
  */
 import { requireSupabase, supabase } from '../lib/supabase';
+import { isPreview } from '../config/env';
+import { previewTransactions, previewExpiring, previewStats } from './previewData';
 import { toTransaction } from './mappers';
 import type { TransactionRow } from '../types/db';
 import type { DashboardStats, DateRangeKey, ExpiringPass, Transaction } from '../types';
@@ -37,6 +39,7 @@ class TransactionService {
     range: DateRangeKey;
     limit?: number;
   }): Promise<Transaction[]> {
+    if (isPreview) return previewTransactions;
     const client = requireSupabase();
     const { from, to } = rangeBounds(params.range);
 
@@ -62,6 +65,7 @@ class TransactionService {
    * full on every dashboard render.
    */
   async stats(range: DateRangeKey = 'today'): Promise<DashboardStats> {
+    if (isPreview) return previewStats;
     const client = requireSupabase();
     const { from, to } = rangeBounds(range);
 
@@ -96,6 +100,7 @@ class TransactionService {
    * to act on expiry rather than only discovering it at the gate.
    */
   async expiringSoon(withinMinutes = 60): Promise<ExpiringPass[]> {
+    if (isPreview) return previewExpiring;
     const client = requireSupabase();
     const { data, error } = await client.rpc('passes_expiring_soon', {
       p_within_minutes: withinMinutes,
@@ -117,6 +122,7 @@ class TransactionService {
 
   /** Confirm that the customer's extension payment landed. */
   async confirmExtension(ticketCode: string, paymentRef?: string): Promise<string> {
+    if (isPreview) return new Date(Date.now() + 180 * 60000).toISOString();
     const client = requireSupabase();
     const { data, error } = await client.rpc('confirm_extension', {
       p_ticket_code: ticketCode,
@@ -141,6 +147,7 @@ class TransactionService {
     markPaid?: boolean;
     paymentRef?: string;
   }): Promise<Transaction> {
+    if (isPreview) return previewTransactions[0];
     const client = requireSupabase();
     const { data, error } = await client.rpc('issue_pass', {
       p_ticket_type_code: params.ticketTypeCode,
@@ -156,6 +163,7 @@ class TransactionService {
 
   /** Confirm that a customer's UPI payment actually landed. */
   async confirmPayment(ticketCode: string, paymentRef?: string): Promise<Transaction> {
+    if (isPreview) return previewTransactions[0];
     const client = requireSupabase();
     const { data, error } = await client.rpc('confirm_payment', {
       p_ticket_code: ticketCode,
@@ -174,7 +182,7 @@ class TransactionService {
    * publication either, so no event could ever have arrived.
    */
   subscribe(merchantId: string, onChange: () => void): () => void {
-    if (!supabase) return () => {};
+    if (isPreview || !supabase) return () => {};
 
     const channel = supabase
       .channel(`gate-activity:${merchantId}`)

@@ -8,6 +8,8 @@
  * they narrow within the caller's own tenant.
  */
 import { requireSupabase } from '../lib/supabase';
+import { isPreview } from '../config/env';
+import { previewMerchant, previewStaff, previewTicketTypes } from './previewData';
 import { toMerchant, toStaffMember, toTicketType } from './mappers';
 import type { MerchantRow, MerchantUserRow, TicketTypeRow } from '../types/db';
 import type { Merchant, StaffMember, MerchantBranding } from '../types';
@@ -16,6 +18,7 @@ import type { PermissionSet } from '../config/permissions';
 
 class MerchantService {
   async getMerchant(merchantId: string): Promise<Merchant> {
+    if (isPreview) return previewMerchant;
     const client = requireSupabase();
     const { data, error } = await client
       .from('merchants')
@@ -37,6 +40,10 @@ class MerchantService {
       branding?: MerchantBranding;
     }
   ): Promise<Merchant> {
+    // Preview writes go nowhere by design - the point is to look at the screens,
+    // and a change that appeared to save but did not would be worse than one
+    // that plainly does nothing.
+    if (isPreview) return { ...previewMerchant, ...patch } as Merchant;
     const client = requireSupabase();
 
     const update: Record<string, unknown> = {};
@@ -66,6 +73,7 @@ class MerchantService {
   // ---------------------------------------------------------------------------
 
   async listTicketTypes(merchantId: string, includeInactive = false): Promise<TicketType[]> {
+    if (isPreview) return previewTicketTypes;
     const client = requireSupabase();
     let query = client
       .from('ticket_types')
@@ -80,6 +88,7 @@ class MerchantService {
   }
 
   async createTicketType(merchantId: string, draft: TicketTypeDraft): Promise<TicketType> {
+    if (isPreview) return { ...draft, id: 'preview', merchantId } as TicketType;
     const client = requireSupabase();
     const { data, error } = await client
       .from('ticket_types')
@@ -106,6 +115,7 @@ class MerchantService {
   }
 
   async updateTicketType(id: string, patch: Partial<TicketTypeDraft>): Promise<TicketType> {
+    if (isPreview) return { ...previewTicketTypes[0], ...patch, id };
     const client = requireSupabase();
     const update: Record<string, unknown> = {};
     if (patch.label !== undefined) update.label = patch.label.trim();
@@ -138,6 +148,7 @@ class MerchantService {
    * checkout without rewriting history.
    */
   async retireTicketType(id: string): Promise<void> {
+    if (isPreview) return;
     const client = requireSupabase();
     const { error } = await client.from('ticket_types').update({ is_active: false }).eq('id', id);
     if (error) throw error;
@@ -148,6 +159,7 @@ class MerchantService {
   // ---------------------------------------------------------------------------
 
   async listStaff(merchantId: string): Promise<StaffMember[]> {
+    if (isPreview) return previewStaff;
     const client = requireSupabase();
     const { data, error } = await client
       .from('merchant_users')
@@ -168,6 +180,9 @@ class MerchantService {
    * simpler than a merge.
    */
   async setStaffPermissions(userId: string, permissions: PermissionSet): Promise<StaffMember> {
+    if (isPreview) {
+      return { ...(previewStaff.find((s) => s.id === userId) ?? previewStaff[1]), permissions };
+    }
     const client = requireSupabase();
     const { data, error } = await client
       .from('merchant_users')
@@ -206,6 +221,7 @@ class MerchantService {
   }
 
   private async invokeProvision<T = unknown>(body: Record<string, unknown>): Promise<T> {
+    if (isPreview) return { userId: 'preview-new-staff' } as T;
     const client = requireSupabase();
     const { data, error } = await client.functions.invoke('staff-provision', { body });
     if (error) {

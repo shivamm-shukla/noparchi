@@ -26,6 +26,14 @@ import type {
   Transaction,
 } from '../types';
 import type { TicketType } from '../config/pricing';
+import { isPreview } from '../config/env';
+import {
+  previewExpiring,
+  previewStaff,
+  previewStats,
+  previewTicketTypes,
+  previewTransactions,
+} from '../services/previewData';
 
 interface AppContextValue {
   transactions: Transaction[];
@@ -52,13 +60,19 @@ const AppContext = createContext<AppContextValue | null>(null);
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { status, merchant, user } = useAuth();
 
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
-  const [staff, setStaff] = useState<StaffMember[]>([]);
-  const [expiringPasses, setExpiringPasses] = useState<ExpiringPass[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>(
+    isPreview ? previewTransactions : []
+  );
+  const [stats, setStats] = useState<DashboardStats | null>(isPreview ? previewStats : null);
+  const [ticketTypes, setTicketTypes] = useState<TicketType[]>(
+    isPreview ? previewTicketTypes : []
+  );
+  const [staff, setStaff] = useState<StaffMember[]>(isPreview ? previewStaff : []);
+  const [expiringPasses, setExpiringPasses] = useState<ExpiringPass[]>(
+    isPreview ? previewExpiring : []
+  );
   const [range, setRange] = useState<DateRangeKey>('today');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!isPreview);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [syncConflicts, setSyncConflicts] = useState<SyncConflict[]>([]);
@@ -74,6 +88,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const refresh = useCallback(
     async (opts?: { silent?: boolean }) => {
+      // Preview data is fixed; refreshing it would only make the spinner blink.
+      if (isPreview) return;
       if (status !== 'signed-in' || !merchantId) return;
 
       const token = ++loadToken.current;
@@ -134,7 +150,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Runs on sign-in and whenever the merchant changes, which is when a device
   // that was out of signal typically comes back.
   useEffect(() => {
-    if (status !== 'signed-in' || !merchantId) return;
+    if (isPreview || status !== 'signed-in' || !merchantId) return;
     let cancelled = false;
 
     (async () => {
@@ -153,7 +169,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Live gate activity. Refreshes silently so the screen does not flash a
   // spinner every time a pass is sold at the gate.
   useEffect(() => {
-    if (status !== 'signed-in' || !merchantId) return;
+    if (isPreview || status !== 'signed-in' || !merchantId) return;
     return transactionService.subscribe(merchantId, () => {
       refresh({ silent: true });
     });

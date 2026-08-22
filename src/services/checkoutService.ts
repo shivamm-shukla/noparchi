@@ -6,6 +6,8 @@
  * checkout page without opening any merchant's ledger to the internet.
  */
 import { requireSupabase } from '../lib/supabase';
+import { isPreview } from '../config/env';
+import { previewCheckout, previewTicket } from './previewData';
 import type { CheckoutMerchant, CheckoutTicketType, PublicTicket } from '../types';
 
 export interface CheckoutInfo {
@@ -23,6 +25,7 @@ class CheckoutService {
    * gate QR led to the same shop at the same prices, paying the same UPI ID.
    */
   async loadCheckout(merchantId: string): Promise<CheckoutInfo> {
+    if (isPreview) return previewCheckout;
     const client = requireSupabase();
     const { data, error } = await client.rpc('public_checkout_info', {
       p_merchant_id: merchantId,
@@ -64,6 +67,14 @@ class CheckoutService {
     vehicleNumber?: string;
     customerPhone?: string;
   }): Promise<{ ticketCode: string; amount: number; ticketTypeLabel: string }> {
+    if (isPreview) {
+      const type = previewCheckout.ticketTypes.find((t) => t.code === params.ticketTypeCode);
+      return {
+        ticketCode: 'NP-PREV-1234',
+        amount: type?.amount ?? 0,
+        ticketTypeLabel: type?.label ?? 'Preview pass',
+      };
+    }
     const client = requireSupabase();
     const { data, error } = await client.rpc('public_start_checkout', {
       p_merchant_id: params.merchantId,
@@ -83,6 +94,7 @@ class CheckoutService {
 
   /** The customer's own pass page. Works with no session on any device. */
   async loadTicket(ticketCode: string): Promise<PublicTicket> {
+    if (isPreview) return previewTicket(ticketCode);
     const client = requireSupabase();
     const { data, error } = await client.rpc('public_ticket_status', {
       p_ticket_code: ticketCode,
@@ -139,6 +151,15 @@ class CheckoutService {
     extendsTo: string;
     merchant: { businessName: string; upiId: string; currency: string; paymentProvider: string };
   }> {
+    if (isPreview) {
+      return {
+        extensionId: 'preview-extension',
+        amount: 30,
+        minutes: 180,
+        extendsTo: new Date(Date.now() + 180 * 60000).toISOString(),
+        merchant: previewCheckout.merchant,
+      };
+    }
     const client = requireSupabase();
     const { data, error } = await client.rpc('public_start_extension', {
       p_ticket_code: ticketCode,

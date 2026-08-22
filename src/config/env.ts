@@ -23,6 +23,16 @@ function readPublic(name: string): string | null {
 const supabaseUrl = readPublic('EXPO_PUBLIC_SUPABASE_URL');
 const supabaseAnonKey = readPublic('EXPO_PUBLIC_SUPABASE_ANON_KEY');
 
+/**
+ * Renders every screen from sample data, with no backend at all.
+ *
+ * Opt-in only, via EXPO_PUBLIC_PREVIEW=1 - never a fallback from a failed
+ * request. That distinction matters: the inherited code silently served mock
+ * data whenever a call errored, so an unconfigured app looked like a working
+ * one. Preview mode announces itself on screen the whole time it is on.
+ */
+export const isPreview = process.env.EXPO_PUBLIC_PREVIEW === '1';
+
 export const env = {
   supabaseUrl,
   supabaseAnonKey,

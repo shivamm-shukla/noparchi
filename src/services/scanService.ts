@@ -12,6 +12,8 @@
  * client could claim to be whoever it liked.
  */
 import { requireSupabase, supabase } from '../lib/supabase';
+import { isPreview } from '../config/env';
+import { previewTransactions } from './previewData';
 import { offlineScanStore, type SyncConflict } from './offlineScanStore';
 import type { ScanResult, ScanStatus, Transaction } from '../types';
 import type { TransactionRow, TicketValidationRow } from '../types/db';
@@ -81,6 +83,7 @@ class ScanService {
 
     this.inFlight = true;
     try {
+      if (isPreview) return previewScan(ticketCode);
       const client = requireSupabase();
       const { data, error } = await client.rpc('validate_ticket', {
         p_ticket_code: ticketCode,
@@ -154,6 +157,14 @@ class ScanService {
     exitGate?: string;
     notes?: string;
   }): Promise<ScanResult> {
+    if (isPreview) {
+      return {
+        success: true,
+        status: 'VERIFIED',
+        message: 'Overstay recorded. Exit cleared.',
+        scannedAt: new Date().toISOString(),
+      };
+    }
     const client = requireSupabase();
     const { data, error } = await client.rpc('clear_expired_pass', {
       p_ticket_code: params.ticketCode,
@@ -251,7 +262,7 @@ class ScanService {
    * offline mode necessary in the first place.
    */
   async refreshOfflineCache(merchantId: string, limit = 500): Promise<void> {
-    if (!supabase) return;
+    if (isPreview || !supabase) return;
     const { data, error } = await supabase
       .from('transactions')
       .select(
@@ -292,7 +303,7 @@ class ScanService {
    * got through the gate twice and the owner should know.
    */
   async syncQueued(): Promise<{ synced: number; conflicts: SyncConflict[] }> {
-    if (!supabase) return { synced: 0, conflicts: [] };
+    if (isPreview || !supabase) return { synced: 0, conflicts: [] };
 
     const queue = await offlineScanStore.pendingScans();
     if (queue.length === 0) return { synced: 0, conflicts: [] };
@@ -337,6 +348,57 @@ class ScanService {
 
     return { synced, conflicts };
   }
+}
+
+/**
+ * Preview outcomes, chosen so every modal state can be reached by scanning one
+ * of the sample codes shown on the ledger - a valid pass, a used one, an expired
+ * one, an unpaid one, and anything else as invalid.
+ */
+function previewScan(ticketCode: string): ScanResult {
+  const match = previewTransactions.find((t) => t.ticketCode === ticketCode);
+
+  if (!match) {
+    return {
+      success: false,
+      status: 'INVALID',
+      message: 'Invalid pass. This QR is not recognised at this location.',
+    };
+  }
+  if (match.status === 'pending') {
+    return {
+      success: false,
+      status: 'UNPAID',
+      message: 'Payment not confirmed for this pass. Do not allow exit.',
+      ticket: match,
+    };
+  }
+  if (match.validation) {
+    return {
+      success: false,
+      status: 'ALREADY_USED',
+      message: `Already used at 4:12 PM by ${match.validation.scannedByName} (Main Exit).`,
+      ticket: match,
+      validation: match.validation,
+    };
+  }
+  if (match.expiresAt && new Date(match.expiresAt).getTime() < Date.now()) {
+    return {
+      success: false,
+      status: 'EXPIRED',
+      message: 'Pass expired. Collect 30 overstay before exit.',
+      ticket: match,
+      overstayDue: 30,
+      expiresAt: match.expiresAt,
+    };
+  }
+  return {
+    success: true,
+    status: 'VERIFIED',
+    message: 'Pass verified. Exit cleared.',
+    ticket: match,
+    scannedAt: new Date().toISOString(),
+  };
 }
 
 export const scanService = new ScanService();

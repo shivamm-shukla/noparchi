@@ -7,6 +7,7 @@ import { useThemeColors } from '../src/context/ThemeContext';
 import { AuthProvider, useAuth } from '../src/context/AuthContext';
 import { AppProvider } from '../src/context/AppContext';
 import { ThemeProvider, useTheme } from '../src/context/ThemeContext';
+import { PreviewBanner } from '../components/ui/PreviewBanner';
 import '../global.css';
 
 /**
