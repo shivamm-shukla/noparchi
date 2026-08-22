@@ -40,7 +40,8 @@
         {
           "cameraPermission": "NoParchi uses camera to scan and verify exit tickets."
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true
