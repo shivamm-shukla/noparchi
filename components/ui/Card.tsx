@@ -18,7 +18,10 @@ export const Card: React.FC<CardProps> = ({
       case 'elevated':
         return 'bg-slate-900 border border-slate-800 shadow-lg shadow-black/40';
       case 'glass':
-        return 'bg-slate-900/80 border border-slate-800/80 backdrop-blur-md';
+        // No backdrop-blur: it is a web-only filter that renders as a plain
+        // translucent panel on Android and iOS, so the variant would look
+        // different on the platforms the merchant actually uses.
+        return 'bg-slate-900/80 border border-slate-800/80';
       case 'emerald':
         return 'bg-emerald-950/30 border border-emerald-500/20';
       case 'default':

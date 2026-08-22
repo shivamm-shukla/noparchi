@@ -30,7 +30,7 @@ export const DateFilter: React.FC<DateFilterProps> = ({ selected, onSelect }) =>
               key={item.id}
               onPress={() => onSelect(item.id)}
               activeOpacity={0.7}
-              className={`px-3.5 py-1.5 rounded-full border transition-all ${
+              className={`px-3.5 py-1.5 rounded-full border ${
                 isActive
                   ? 'bg-emerald-500 border-emerald-400'
                   : 'bg-slate-900 border-slate-800 active:bg-slate-800'
