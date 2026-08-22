@@ -1,13 +1,13 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { DateFilterRange } from '../../src/types';
+import type { DateRangeKey } from '../../src/types';
 
 interface DateFilterProps {
-  selected: DateFilterRange;
-  onSelect: (filter: DateFilterRange) => void;
+  selected: DateRangeKey;
+  onSelect: (range: DateRangeKey) => void;
 }
 
-const FILTER_OPTIONS: { id: DateFilterRange; label: string }[] = [
+const FILTER_OPTIONS: { id: DateRangeKey; label: string }[] = [
   { id: 'today', label: 'Today' },
   { id: 'yesterday', label: 'Yesterday' },
   { id: 'week', label: 'This Week' },

@@ -1,39 +1,44 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 
+export type BadgeVariant =
+  | 'success'
+  | 'warning'
+  | 'danger'
+  | 'info'
+  | 'neutral'
+  | 'emerald';
+
 interface BadgeProps {
   label: string;
-  variant?: 'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'emerald';
+  variant?: BadgeVariant;
   size?: 'sm' | 'md';
 }
 
-export const Badge: React.FC<BadgeProps> = ({ label, variant = 'neutral', size = 'md' }) => {
-  const getColors = () => {
-    switch (variant) {
-      case 'success':
-      case 'emerald':
-        return 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400';
-      case 'warning':
-        return 'bg-amber-500/10 border-amber-500/30 text-amber-400';
-      case 'danger':
-        return 'bg-rose-500/10 border-rose-500/30 text-rose-400';
-      case 'info':
-        return 'bg-sky-500/10 border-sky-500/30 text-sky-400';
-      case 'neutral':
-      default:
-        return 'bg-slate-800 border-slate-700 text-slate-300';
-    }
-  };
+/**
+ * Container and text classes are held separately rather than sliced out of one
+ * string. The previous version did `getColors().split(' ').slice(0, 2)`, which
+ * silently depended on every variant listing exactly two container classes
+ * before the text class.
+ */
+const VARIANTS: Record<BadgeVariant, { container: string; text: string }> = {
+  success: { container: 'bg-emerald-500/10 border-emerald-500/30', text: 'text-emerald-400' },
+  emerald: { container: 'bg-emerald-500/10 border-emerald-500/30', text: 'text-emerald-400' },
+  warning: { container: 'bg-amber-500/10 border-amber-500/30', text: 'text-amber-400' },
+  danger: { container: 'bg-rose-500/10 border-rose-500/30', text: 'text-rose-400' },
+  info: { container: 'bg-sky-500/10 border-sky-500/30', text: 'text-sky-400' },
+  neutral: { container: 'bg-slate-800 border-slate-700', text: 'text-slate-300' },
+};
 
-  const sizeClasses = size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-xs';
+export const Badge: React.FC<BadgeProps> = ({ label, variant = 'neutral', size = 'md' }) => {
+  const styles = VARIANTS[variant];
+  const sizeClasses = size === 'sm' ? 'px-2 py-0.5' : 'px-2.5 py-1';
 
   return (
     <View
-      className={`flex-row items-center justify-center rounded-full border ${getColors().split(' ').slice(0, 2).join(' ')} ${sizeClasses}`}
+      className={`flex-row items-center justify-center rounded-full border ${styles.container} ${sizeClasses}`}
     >
-      <Text className={`font-semibold tracking-wide ${getColors().split(' ').slice(2).join(' ')}`}>
-        {label}
-      </Text>
+      <Text className={`text-xs font-semibold tracking-wide ${styles.text}`}>{label}</Text>
     </View>
   );
 };

@@ -1,109 +1,146 @@
-export type TransactionStatus = 'PENDING' | 'SUCCESS' | 'FAILED' | 'REFUNDED';
-export type VehicleType = 'TWO_WHEELER' | 'FOUR_WHEELER' | 'HEAVY_VEHICLE' | 'GENERAL_ENTRY';
+/**
+ * Domain types used by screens and components.
+ *
+ * camelCase, deliberately decoupled from the snake_case database rows in
+ * ./db.ts. Services own the mapping in one place so a column rename does not
+ * ripple through the UI.
+ */
+import type { PermissionSet } from '../config/permissions';
+import type { TicketType } from '../config/pricing';
+import type { TransactionStatus } from './db';
 
-export interface MerchantConfig {
-  twoWheelerRate: number;
-  fourWheelerRate: number;
-  flatRate: number;
-  currency: string;
-  enableWhatsApp: boolean;
-  businessLogo?: string;
-  themeColor?: string;
-  welcomeMessage?: string;
-}
+export type { TransactionStatus, TicketType, PermissionSet };
+export type { PermissionKey } from '../config/permissions';
 
 export interface Merchant {
   id: string;
   businessName: string;
   location: string;
   upiId: string;
-  configSettings: MerchantConfig;
+  currency: string;
+  paymentProvider: string;
+  messagingProvider: string;
+  branding: MerchantBranding;
   createdAt: string;
-  updatedAt: string;
 }
 
-export interface StaffPermission {
-  id?: string;
-  userId: string;
-  can_view_ledger: boolean;
-  can_verify_tickets: boolean;
-  can_edit_settings: boolean;
-  can_issue_refund: boolean;
-  createdAt?: string;
-  updatedAt?: string;
+export interface MerchantBranding {
+  logoUrl?: string;
+  welcomeMessage?: string;
 }
 
-export interface User {
+/** A signed-in owner or gatekeeper. */
+export interface StaffMember {
   id: string;
   merchantId: string;
+  authUserId: string | null;
   isOwner: boolean;
-  phone: string;
   name: string;
-  passcode: string;
-  permission?: StaffPermission;
+  phone: string;
+  /** Always fully resolved via normalizePermissions - never partial. */
+  permissions: PermissionSet;
+  isActive: boolean;
+  lastSeenAt: string | null;
   createdAt: string;
-  updatedAt: string;
 }
 
 export interface Transaction {
   id: string;
   merchantId: string;
+  ticketTypeCode: string;
+  ticketTypeLabel: string;
   amount: number;
-  vehicleNumber?: string | null;
-  vehicleType: VehicleType;
+  vehicleNumber: string | null;
+  customerPhone: string | null;
   status: TransactionStatus;
-  paymentRef?: string | null;
-  customerPhone?: string | null;
+  paymentProvider: string;
+  paymentRef: string | null;
+  paymentVerifiedAt: string | null;
+  issuedByUserId: string | null;
   ticketCode: string;
-  qrPayload?: string | null;
+  expiresAt: string | null;
   createdAt: string;
-  updatedAt: string;
-  validation?: TicketValidation | null;
+  /** Present only when the caller joined validations; null means not scanned. */
+  validation: TicketValidation | null;
 }
 
 export interface TicketValidation {
   id: string;
   transactionId: string;
   scannedByUserId: string;
-  scannedByUser?: {
-    id: string;
-    name: string;
-    phone: string;
-  };
-  timestamp: string;
-  exitGate?: string;
-  notes?: string;
-  transaction?: Transaction;
+  scannedByName?: string;
+  exitGate: string;
+  notes: string | null;
+  scannedAt: string;
+}
+
+/**
+ * Result of a scan.
+ *
+ * UNPAID is distinct from INVALID on purpose: a gatekeeper needs to know the
+ * difference between "this QR is fake" and "this is a real pass whose payment
+ * never landed", because the second one usually means the customer is standing
+ * right there and can be asked to pay.
+ */
+export type ScanStatus = 'VERIFIED' | 'ALREADY_USED' | 'UNPAID' | 'INVALID' | 'UNAUTHORIZED';
+
+export interface ScanResult {
+  success: boolean;
+  status: ScanStatus;
+  message: string;
+  ticket?: Transaction | null;
+  validation?: TicketValidation | null;
+  scannedAt?: string | null;
+  /** True when the scan was recorded on-device and has not reached the server. */
+  queuedOffline?: boolean;
 }
 
 export interface DashboardStats {
-  todayRevenue: number;
-  todayTransactionsCount: number;
-  todayScansCount: number;
-  activeVehiclesCount: number;
-  yesterdayRevenue: number;
-  growthPercentage: number;
+  canViewRevenue: boolean;
+  revenue: number | null;
+  previousRevenue: number | null;
+  growthPercent: number | null;
+  passesIssued: number | null;
+  pendingPayments: number | null;
+  scans: number;
+  myScans: number;
+  openPasses: number;
+  from: string;
+  to: string;
 }
 
-export type DateFilterRange = 'today' | 'yesterday' | 'week' | 'month' | 'all';
+export type DateRangeKey = 'today' | 'yesterday' | 'week' | 'month' | 'all';
 
-export interface TicketValidationResult {
-  success: boolean;
-  status: 'VERIFIED' | 'ALREADY_USED' | 'INVALID' | 'UNAUTHORIZED';
-  message: string;
-  transaction?: Transaction;
-  validation?: TicketValidation;
-  scannedAt?: string;
-}
-
-export interface WhatsAppTemplatePayload {
-  recipientPhone: string;
-  customerName?: string;
+/** Public checkout view of a merchant - no staff, no ledger, no settings. */
+export interface CheckoutMerchant {
+  id: string;
   businessName: string;
   location: string;
+  upiId: string;
+  currency: string;
+  paymentProvider: string;
+  messagingProvider: string;
+  branding: MerchantBranding;
+}
+
+export interface CheckoutTicketType {
+  code: string;
+  label: string;
+  icon: string;
   amount: number;
-  vehicleNumber?: string;
+  sortOrder: number;
+}
+
+/** Public pass view shown on /ticket/[ticketCode]. */
+export interface PublicTicket {
   ticketCode: string;
-  qrCodeUrl: string;
+  status: TransactionStatus;
+  amount: number;
+  typeLabel: string;
+  vehicleNumber: string | null;
   issuedAt: string;
+  expiresAt: string | null;
+  isUsed: boolean;
+  usedAt: string | null;
+  merchant: { id: string; businessName: string; location: string };
 }

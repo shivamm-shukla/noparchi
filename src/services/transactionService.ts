@@ -1,236 +1,157 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { Transaction, DashboardStats, DateFilterRange, VehicleType } from '../types';
-import { INITIAL_TRANSACTIONS } from './mockData';
+/**
+ * Passes and revenue.
+ *
+ * Reads rely on row level security for tenant scoping. The transactions SELECT
+ * policy also requires can_view_ledger, so a gatekeeper without it receives an
+ * empty result from the database rather than a hidden screen - which is what
+ * makes that permission real rather than decorative.
+ */
+import { requireSupabase, supabase } from '../lib/supabase';
+import { toTransaction } from './mappers';
+import type { TransactionRow } from '../types/db';
+import type { DashboardStats, DateRangeKey, Transaction } from '../types';
 
-const STORAGE_KEY_TRANSACTIONS = '@noparchi_transactions_v1';
+/** Local-time day boundaries: a venue's "today" is its own midnight, not UTC. */
+export function rangeBounds(range: DateRangeKey): { from: Date; to: Date } {
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  switch (range) {
+    case 'today':
+      return { from: startOfToday, to: new Date(startOfToday.getTime() + 86400000) };
+    case 'yesterday':
+      return { from: new Date(startOfToday.getTime() - 86400000), to: startOfToday };
+    case 'week':
+      return { from: new Date(startOfToday.getTime() - 6 * 86400000), to: now };
+    case 'month':
+      return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: now };
+    case 'all':
+    default:
+      return { from: new Date(0), to: now };
+  }
+}
 
 class TransactionService {
-  private localTransactions: Transaction[] = [];
-  private initialized = false;
-
-  async init(): Promise<void> {
-    if (this.initialized) return;
-    try {
-      const stored = await AsyncStorage.getItem(STORAGE_KEY_TRANSACTIONS);
-      if (stored) {
-        this.localTransactions = JSON.parse(stored);
-      } else {
-        this.localTransactions = [...INITIAL_TRANSACTIONS];
-        await this.persist();
-      }
-    } catch {
-      this.localTransactions = [...INITIAL_TRANSACTIONS];
-    }
-    this.initialized = true;
-  }
-
-  private async persist(): Promise<void> {
-    try {
-      await AsyncStorage.setItem(
-        STORAGE_KEY_TRANSACTIONS,
-        JSON.stringify(this.localTransactions)
-      );
-    } catch (e) {
-      console.warn('Failed to persist transactions locally', e);
-    }
-  }
-
-  async getTransactions(merchantId: string, filter: DateFilterRange = 'today'): Promise<Transaction[]> {
-    await this.init();
-
-    if (isSupabaseConfigured) {
-      try {
-        let query = supabase
-          .from('transactions')
-          .select('*, validation:ticket_validations(*)')
-          .eq('merchantId', merchantId)
-          .order('createdAt', { ascending: false });
-
-        const now = new Date();
-        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-
-        if (filter === 'today') {
-          query = query.gte('createdAt', startOfToday);
-        } else if (filter === 'yesterday') {
-          const startOfYesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).toISOString();
-          query = query.gte('createdAt', startOfYesterday).lt('createdAt', startOfToday);
-        } else if (filter === 'week') {
-          const startOfWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-          query = query.gte('createdAt', startOfWeek);
-        } else if (filter === 'month') {
-          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-          query = query.gte('createdAt', startOfMonth);
-        }
-
-        const { data, error } = await query;
-        if (!error && data) {
-          return data as Transaction[];
-        }
-      } catch (err) {
-        console.warn('Supabase fetch failed, falling back to local store:', err);
-      }
-    }
-
-    // Local / Offline store fallback
-    const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-    const startOfYesterday = startOfToday - 24 * 60 * 60 * 1000;
-    const startOfWeek = now.getTime() - 7 * 24 * 60 * 60 * 1000;
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
-
-    return this.localTransactions
-      .filter((tx) => {
-        if (tx.merchantId !== merchantId) return false;
-        const txTime = new Date(tx.createdAt).getTime();
-
-        if (filter === 'today') return txTime >= startOfToday;
-        if (filter === 'yesterday') return txTime >= startOfYesterday && txTime < startOfToday;
-        if (filter === 'week') return txTime >= startOfWeek;
-        if (filter === 'month') return txTime >= startOfMonth;
-        return true;
-      })
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }
-
-  async getDashboardStats(merchantId: string): Promise<DashboardStats> {
-    await this.init();
-
-    const todayTxs = await this.getTransactions(merchantId, 'today');
-    const yesterdayTxs = await this.getTransactions(merchantId, 'yesterday');
-
-    const todayRevenue = todayTxs
-      .filter((t) => t.status === 'SUCCESS')
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    const yesterdayRevenue = yesterdayTxs
-      .filter((t) => t.status === 'SUCCESS')
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    const todayScansCount = todayTxs.filter((t) => Boolean(t.validation)).length;
-    const activeVehiclesCount = todayTxs.filter((t) => !t.validation && t.status === 'SUCCESS').length;
-
-    let growthPercentage = 0;
-    if (yesterdayRevenue > 0) {
-      growthPercentage = Math.round(((todayRevenue - yesterdayRevenue) / yesterdayRevenue) * 100);
-    } else if (todayRevenue > 0) {
-      growthPercentage = 100;
-    }
-
-    return {
-      todayRevenue,
-      todayTransactionsCount: todayTxs.length,
-      todayScansCount,
-      activeVehiclesCount,
-      yesterdayRevenue,
-      growthPercentage,
-    };
-  }
-
-  async createTransaction(params: {
+  async list(params: {
     merchantId: string;
-    amount: number;
-    vehicleNumber?: string;
-    vehicleType?: VehicleType;
-    customerPhone?: string;
-    paymentRef?: string;
-  }): Promise<{ success: boolean; transaction: Transaction; ticketCode: string }> {
-    await this.init();
+    range: DateRangeKey;
+    limit?: number;
+  }): Promise<Transaction[]> {
+    const client = requireSupabase();
+    const { from, to } = rangeBounds(params.range);
 
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let randomPart = '';
-    for (let i = 0; i < 6; i++) {
-      randomPart += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    const timestamp = Date.now().toString(36).toUpperCase().slice(-4);
-    const ticketCode = `NP-${timestamp}-${randomPart}`;
-    const vehicleNumber = params.vehicleNumber ? params.vehicleNumber.trim().toUpperCase() : undefined;
-    const paymentRef = params.paymentRef || `UPI-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+    const { data, error } = await client
+      .from('transactions')
+      // The embed is normalised in toTransaction: PostgREST may return a to-one
+      // relation as an object or a single-element array, and an empty array is
+      // truthy - which previously made every unscanned pass read as used.
+      .select('*, validation:ticket_validations(*)')
+      .eq('merchant_id', params.merchantId)
+      .gte('created_at', from.toISOString())
+      .lt('created_at', to.toISOString())
+      .order('created_at', { ascending: false })
+      .limit(params.limit ?? 200);
 
-    const newTx: Transaction = {
-      id: `tx-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      merchantId: params.merchantId,
-      amount: params.amount,
-      vehicleNumber: vehicleNumber || null,
-      vehicleType: params.vehicleType || 'FOUR_WHEELER',
-      status: 'SUCCESS',
-      paymentRef,
-      customerPhone: params.customerPhone || null,
-      ticketCode,
-      qrPayload: JSON.stringify({
-        app: 'NoParchi',
-        ticketCode,
-        merchantId: params.merchantId,
-        amount: params.amount,
-        vehicleNumber,
-        issuedAt: new Date().toISOString(),
-      }),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      validation: null,
-    };
+    if (error) throw error;
+    return (data as TransactionRow[]).map(toTransaction);
+  }
 
-    if (isSupabaseConfigured) {
-      try {
-        const { data, error } = await supabase
-          .from('transactions')
-          .insert({
-            merchantId: newTx.merchantId,
-            amount: newTx.amount,
-            vehicleNumber: newTx.vehicleNumber,
-            vehicleType: newTx.vehicleType,
-            status: newTx.status,
-            paymentRef: newTx.paymentRef,
-            customerPhone: newTx.customerPhone,
-            ticketCode: newTx.ticketCode,
-            qrPayload: newTx.qrPayload,
-          })
-          .select()
-          .single();
+  /**
+   * Aggregated in Postgres rather than by pulling every row and reducing in
+   * JavaScript. The old version fetched today's and yesterday's transactions in
+   * full on every dashboard render.
+   */
+  async stats(range: DateRangeKey = 'today'): Promise<DashboardStats> {
+    const client = requireSupabase();
+    const { from, to } = rangeBounds(range);
 
-        if (!error && data) {
-          newTx.id = data.id;
-        }
-      } catch (err) {
-        console.warn('Supabase create transaction failed, stored locally:', err);
-      }
-    }
-
-    this.localTransactions.unshift(newTx);
-    await this.persist();
+    const { data, error } = await client.rpc('dashboard_stats', {
+      p_from: from.toISOString(),
+      p_to: to.toISOString(),
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.message ?? 'Could not load dashboard figures.');
 
     return {
-      success: true,
-      transaction: newTx,
-      ticketCode,
+      canViewRevenue: Boolean(data.canViewRevenue),
+      revenue: data.revenue === null ? null : Number(data.revenue),
+      previousRevenue: data.previousRevenue === null ? null : Number(data.previousRevenue),
+      growthPercent: data.growthPercent === null ? null : Number(data.growthPercent),
+      passesIssued: data.passesIssued === null ? null : Number(data.passesIssued),
+      pendingPayments: data.pendingPayments === null ? null : Number(data.pendingPayments),
+      scans: Number(data.scans ?? 0),
+      myScans: Number(data.myScans ?? 0),
+      openPasses: Number(data.openPasses ?? 0),
+      from: data.from,
+      to: data.to,
     };
   }
 
-  subscribeToMerchantActivity(merchantId: string, onUpdate: (tx: Transaction) => void): () => void {
-    if (!isSupabaseConfigured) {
-      return () => {};
-    }
+  /**
+   * Issue a pass from the merchant app - the walk-up cash or in-person UPI case.
+   *
+   * markPaid records that a named staff member saw the money arrive, against
+   * their id. That is a real verification by an accountable person, which is
+   * categorically different from a customer asserting it about themselves.
+   */
+  async issuePass(params: {
+    ticketTypeCode: string;
+    vehicleNumber?: string;
+    customerPhone?: string;
+    markPaid?: boolean;
+    paymentRef?: string;
+  }): Promise<Transaction> {
+    const client = requireSupabase();
+    const { data, error } = await client.rpc('issue_pass', {
+      p_ticket_type_code: params.ticketTypeCode,
+      p_vehicle_number: params.vehicleNumber ?? null,
+      p_customer_phone: params.customerPhone ?? null,
+      p_mark_paid: params.markPaid ?? true,
+      p_payment_ref: params.paymentRef ?? null,
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.message ?? 'Could not issue the pass.');
+    return toTransaction(data.ticket as TransactionRow);
+  }
+
+  /** Confirm that a customer's UPI payment actually landed. */
+  async confirmPayment(ticketCode: string, paymentRef?: string): Promise<Transaction> {
+    const client = requireSupabase();
+    const { data, error } = await client.rpc('confirm_payment', {
+      p_ticket_code: ticketCode,
+      p_payment_ref: paymentRef ?? null,
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.message ?? 'Could not confirm the payment.');
+    return toTransaction(data.ticket as TransactionRow);
+  }
+
+  /**
+   * Live gate activity.
+   *
+   * The filter uses merchant_id, a plain lowercase column. The previous version
+   * filtered on a quoted camelCase name and the tables were never added to the
+   * publication either, so no event could ever have arrived.
+   */
+  subscribe(merchantId: string, onChange: () => void): () => void {
+    if (!supabase) return () => {};
 
     const channel = supabase
-      .channel(`public:transactions:${merchantId}`)
+      .channel(`gate-activity:${merchantId}`)
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'transactions',
-          filter: `merchantId=eq.${merchantId}`,
-        },
-        (payload) => {
-          if (payload.new) {
-            onUpdate(payload.new as Transaction);
-          }
-        }
+        { event: '*', schema: 'public', table: 'transactions', filter: `merchant_id=eq.${merchantId}` },
+        onChange
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'ticket_validations', filter: `merchant_id=eq.${merchantId}` },
+        onChange
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase?.removeChannel(channel);
     };
   }
 }

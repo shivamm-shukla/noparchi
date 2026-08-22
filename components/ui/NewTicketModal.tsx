@@ -1,199 +1,189 @@
-import React, { useState } from 'react';
-import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView, Alert, Platform } from 'react-native';
-import { PlusCircle, Car, Bike, Truck, Ticket, X, Check } from 'lucide-react-native';
-import { useApp } from '../../src/context/AppContext';
-import { VehicleType, Transaction } from '../../src/types';
+import React, { useMemo, useState } from 'react';
+import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView } from 'react-native';
+import { PlusCircle, X, AlertCircle } from 'lucide-react-native';
+import theme from '../../src/config/theme';
 import { Button } from './Button';
+import { useApp } from '../../src/context/AppContext';
+import { transactionService } from '../../src/services/transactionService';
+import { activeTicketTypes } from '../../src/config/pricing';
+import { ticketTypeIcon } from '../../src/config/icons';
+import { formatCurrency } from '../../src/utils/formatters';
+import type { Transaction } from '../../src/types';
 
 interface NewTicketModalProps {
   visible: boolean;
   onClose: () => void;
-  onSuccess?: (transaction: Transaction) => void;
+  onIssued?: (transaction: Transaction) => void;
 }
 
-export const NewTicketModal: React.FC<NewTicketModalProps> = ({ visible, onClose, onSuccess }) => {
-  const { merchant, createTransaction } = useApp();
-  const [vehicleType, setVehicleType] = useState<VehicleType>('FOUR_WHEELER');
+/**
+ * Issue a pass at the counter - the walk-up cash or in-person UPI case.
+ *
+ * The pass types and their prices come from the merchant's own ticket_types
+ * rows, so an owner who adds "Cycle" in Settings sees it here immediately. The
+ * previous version hardcoded four vehicle types and a rate ladder with the
+ * literal fallbacks 20 / 50 / 40 repeated in three separate components.
+ *
+ * The amount is never sent from here: issue_pass reads it from the database, so
+ * a tampered client cannot issue a hundred-rupee pass for one rupee.
+ */
+export const NewTicketModal: React.FC<NewTicketModalProps> = ({ visible, onClose, onIssued }) => {
+  const { ticketTypes, refresh } = useApp();
+  const types = useMemo(() => activeTicketTypes(ticketTypes), [ticketTypes]);
+
+  const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [vehicleNumber, setVehicleNumber] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
-  const [customAmount, setCustomAmount] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const getAutoAmount = (type: VehicleType): number => {
-    switch (type) {
-      case 'TWO_WHEELER':
-        return merchant.configSettings?.twoWheelerRate || 20;
-      case 'FOUR_WHEELER':
-        return merchant.configSettings?.fourWheelerRate || 50;
-      case 'HEAVY_VEHICLE':
-        return (merchant.configSettings?.fourWheelerRate || 50) * 2;
-      default:
-        return merchant.configSettings?.flatRate || 40;
-    }
+  const chosen = types.find((t) => t.code === selectedCode) ?? types[0] ?? null;
+
+  const reset = () => {
+    setSelectedCode(null);
+    setVehicleNumber('');
+    setCustomerPhone('');
+    setError(null);
   };
 
-  const currentAmount = customAmount ? parseFloat(customAmount) : getAutoAmount(vehicleType);
-
-  const handleSubmit = async () => {
-    if (!currentAmount || currentAmount <= 0) {
-      if (Platform.OS === 'web') alert('Please enter a valid amount');
-      else Alert.alert('Error', 'Please enter a valid amount');
-      return;
-    }
-
-    setLoading(true);
+  const submit = async () => {
+    if (!chosen) return;
+    setBusy(true);
+    setError(null);
     try {
-      const res = await createTransaction({
-        amount: currentAmount,
-        vehicleNumber: vehicleNumber ? vehicleNumber.toUpperCase() : undefined,
-        vehicleType,
-        customerPhone: customerPhone || undefined,
+      const transaction = await transactionService.issuePass({
+        ticketTypeCode: chosen.code,
+        vehicleNumber: vehicleNumber.trim() || undefined,
+        customerPhone: customerPhone.trim() || undefined,
+        // The staff member is physically taking the money, so this is a real
+        // verification by an accountable person - recorded against their id.
+        markPaid: true,
       });
-
-      if (res.success) {
-        setVehicleNumber('');
-        setCustomerPhone('');
-        setCustomAmount('');
-        onClose();
-        if (onSuccess) {
-          onSuccess(res.transaction);
-        }
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to create ticket';
-      if (Platform.OS === 'web') alert(msg);
-      else Alert.alert('Error', msg);
+      await refresh({ silent: true });
+      onIssued?.(transaction);
+      reset();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not issue the pass.');
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   };
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View className="flex-1 bg-black/80 items-center justify-center p-4">
-        <View className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-5 sm:p-6 shadow-2xl">
-          {/* Header */}
+        <View className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-lg p-5 sm:p-6">
           <View className="flex-row items-center justify-between pb-4 border-b border-slate-800">
             <View className="flex-row items-center gap-3">
               <View className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 items-center justify-center">
-                <PlusCircle size={20} color="#10B981" />
+                <PlusCircle size={20} color={theme.semantic.accent} />
               </View>
               <View>
-                <Text className="text-lg font-bold text-slate-100">Issue Entry Pass</Text>
-                <Text className="text-xs text-slate-400">Generate a digital parking ticket</Text>
+                <Text className="text-lg font-bold text-slate-100">Issue a pass</Text>
+                <Text className="text-xs text-slate-400">For a customer paying at the gate</Text>
               </View>
             </View>
             <TouchableOpacity
               onPress={onClose}
               className="w-8 h-8 rounded-full bg-slate-800 items-center justify-center"
             >
-              <X size={16} color="#94A3B8" />
+              <X size={16} color={theme.semantic.textMuted} />
             </TouchableOpacity>
           </View>
 
           <ScrollView className="max-h-96 my-4">
-            {/* Vehicle Type Selection */}
-            <Text className="text-xs font-semibold text-slate-300 mb-2">Select Vehicle Type</Text>
-            <View className="grid grid-cols-2 gap-2 mb-4">
-              {[
-                { type: 'TWO_WHEELER' as VehicleType, label: '2 Wheeler', icon: <Bike size={18} color="#10B981" />, rate: merchant.configSettings?.twoWheelerRate || 20 },
-                { type: 'FOUR_WHEELER' as VehicleType, label: '4 Wheeler (Car)', icon: <Car size={18} color="#38BDF8" />, rate: merchant.configSettings?.fourWheelerRate || 50 },
-                { type: 'HEAVY_VEHICLE' as VehicleType, label: 'Heavy / Bus', icon: <Truck size={18} color="#F59E0B" />, rate: (merchant.configSettings?.fourWheelerRate || 50) * 2 },
-                { type: 'GENERAL_ENTRY' as VehicleType, label: 'Flat Pass', icon: <Ticket size={18} color="#A78BFA" />, rate: merchant.configSettings?.flatRate || 40 },
-              ].map((item) => {
-                const isSelected = vehicleType === item.type;
-                return (
-                  <TouchableOpacity
-                    key={item.type}
-                    onPress={() => {
-                      setVehicleType(item.type);
-                      setCustomAmount('');
-                    }}
-                    activeOpacity={0.7}
-                    className={`p-3 rounded-xl border flex-row items-center justify-between ${
-                      isSelected
-                        ? 'bg-emerald-500/10 border-emerald-500/60'
-                        : 'bg-slate-800/60 border-slate-700/60'
-                    }`}
-                  >
-                    <View className="flex-row items-center gap-2">
-                      {item.icon}
-                      <View>
-                        <Text className="text-xs font-bold text-slate-100">{item.label}</Text>
-                        <Text className="text-[10px] text-slate-400">₹{item.rate}</Text>
-                      </View>
-                    </View>
-                    {isSelected && (
-                      <View className="w-4 h-4 rounded-full bg-emerald-500 items-center justify-center">
-                        <Check size={10} color="#0F172A" />
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            {types.length === 0 ? (
+              <View className="items-center py-8">
+                <AlertCircle size={28} color={theme.semantic.warning} />
+                <Text className="text-sm font-bold text-slate-100 mt-3 text-center">
+                  No pass types yet
+                </Text>
+                <Text className="text-xs text-slate-400 text-center mt-1.5 leading-4">
+                  Add one in Settings → Pass types before issuing passes.
+                </Text>
+              </View>
+            ) : (
+              <>
+                <Text className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2.5">
+                  Pass type
+                </Text>
+                <View className="flex-row flex-wrap gap-2.5 mb-5">
+                  {types.map((type) => {
+                    const Icon = ticketTypeIcon(type.icon);
+                    const isSelected = chosen?.code === type.code;
+                    return (
+                      <TouchableOpacity
+                        key={type.id}
+                        onPress={() => setSelectedCode(type.code)}
+                        activeOpacity={0.7}
+                        className={`flex-1 min-w-[140px] p-3.5 rounded-2xl border ${
+                          isSelected
+                            ? 'bg-emerald-500/10 border-emerald-500/60'
+                            : 'bg-slate-950/60 border-slate-800'
+                        }`}
+                      >
+                        <View className="flex-row items-center justify-between mb-2">
+                          <Icon
+                            size={18}
+                            color={isSelected ? theme.semantic.accent : theme.semantic.textMuted}
+                          />
+                          <Text className="text-sm font-extrabold text-slate-100">
+                            {formatCurrency(type.amount)}
+                          </Text>
+                        </View>
+                        <Text className="text-xs font-bold text-slate-200">{type.label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
 
-            {/* Vehicle Number Input */}
-            <View className="mb-3">
-              <Text className="text-xs font-semibold text-slate-300 mb-1.5">
-                Vehicle Registration Number (Optional)
-              </Text>
-              <View className="bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5">
-                <TextInput
-                  value={vehicleNumber}
-                  onChangeText={setVehicleNumber}
-                  placeholder="e.g. DL 01 AB 1234"
-                  placeholderTextColor="#64748B"
-                  autoCapitalize="characters"
-                  className="text-slate-100 text-sm font-semibold uppercase"
-                />
-              </View>
-            </View>
+                <Text className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                  Vehicle number (optional)
+                </Text>
+                <View className="bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 mb-4">
+                  <TextInput
+                    value={vehicleNumber}
+                    onChangeText={setVehicleNumber}
+                    placeholder="DL 01 AB 1234"
+                    placeholderTextColor={theme.semantic.textFaint}
+                    autoCapitalize="characters"
+                    className="text-slate-100 text-base font-bold uppercase tracking-wider"
+                  />
+                </View>
 
-            {/* Customer WhatsApp Phone */}
-            <View className="mb-3">
-              <Text className="text-xs font-semibold text-slate-300 mb-1.5">
-                Customer Phone / WhatsApp (For Digital Pass)
-              </Text>
-              <View className="bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5">
-                <TextInput
-                  value={customerPhone}
-                  onChangeText={setCustomerPhone}
-                  placeholder="+91 98765 43210"
-                  placeholderTextColor="#64748B"
-                  keyboardType="phone-pad"
-                  className="text-slate-100 text-sm"
-                />
-              </View>
-            </View>
-
-            {/* Amount Override */}
-            <View className="mb-4">
-              <View className="flex-row items-center justify-between mb-1.5">
-                <Text className="text-xs font-semibold text-slate-300">Amount (₹)</Text>
-                <Text className="text-[10px] text-emerald-400 font-medium">Default: ₹{getAutoAmount(vehicleType)}</Text>
-              </View>
-              <View className="bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5">
-                <TextInput
-                  value={customAmount}
-                  onChangeText={setCustomAmount}
-                  placeholder={`₹${getAutoAmount(vehicleType)}`}
-                  placeholderTextColor="#64748B"
-                  keyboardType="numeric"
-                  className="text-slate-100 text-sm font-bold"
-                />
-              </View>
-            </View>
+                <Text className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                  WhatsApp number (optional)
+                </Text>
+                <View className="bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3">
+                  <TextInput
+                    value={customerPhone}
+                    onChangeText={setCustomerPhone}
+                    placeholder="98765 43210"
+                    placeholderTextColor={theme.semantic.textFaint}
+                    keyboardType="phone-pad"
+                    className="text-slate-100 text-sm font-semibold"
+                  />
+                </View>
+              </>
+            )}
           </ScrollView>
 
-          {/* Action */}
+          {error && (
+            <View className="flex-row items-start gap-2 mb-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30">
+              <AlertCircle size={14} color={theme.semantic.danger} />
+              <Text className="text-xs text-rose-300 flex-1 leading-4">{error}</Text>
+            </View>
+          )}
+
           <Button
-            title={`Issue Pass (₹${currentAmount})`}
+            title={chosen ? `Issue pass · ${formatCurrency(chosen.amount)}` : 'Issue pass'}
             variant="primary"
             size="lg"
             fullWidth
-            loading={loading}
-            onPress={handleSubmit}
+            loading={busy}
+            disabled={!chosen}
+            onPress={submit}
           />
         </View>
       </View>

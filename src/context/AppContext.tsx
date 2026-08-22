@@ -1,244 +1,191 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  Merchant,
-  User,
-  Transaction,
-  DashboardStats,
-  DateFilterRange,
-  TicketValidationResult,
-  StaffPermission,
-  MerchantConfig,
-  VehicleType,
-} from '../types';
-import { INITIAL_MERCHANT, INITIAL_USERS } from '../services/mockData';
+/**
+ * Tenant data: passes, figures, ticket types, staff.
+ *
+ * Sits on top of AuthContext and holds no identity of its own. Every call it
+ * makes is already scoped by row level security, so nothing here has to
+ * remember to filter by merchant - and nothing here can forget to.
+ */
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { useAuth } from './AuthContext';
+import { merchantService } from '../services/merchantService';
 import { transactionService } from '../services/transactionService';
-import { validationService } from '../services/validationService';
-import { staffService } from '../services/staffService';
+import { scanService, type SyncConflict } from '../services/scanService';
+import type { DashboardStats, DateRangeKey, StaffMember, Transaction } from '../types';
+import type { TicketType } from '../config/pricing';
 
-interface AppContextType {
-  merchant: Merchant;
-  currentUser: User;
-  staffList: User[];
+interface AppContextValue {
   transactions: Transaction[];
-  stats: DashboardStats;
-  selectedFilter: DateFilterRange;
+  stats: DashboardStats | null;
+  ticketTypes: TicketType[];
+  staff: StaffMember[];
+  range: DateRangeKey;
   isLoading: boolean;
-  setFilter: (filter: DateFilterRange) => void;
-  switchUser: (userId: string) => Promise<void>;
-  refreshData: () => Promise<void>;
-  createTransaction: (params: {
-    amount: number;
-    vehicleNumber?: string;
-    vehicleType?: VehicleType;
-    customerPhone?: string;
-  }) => Promise<{ success: boolean; transaction: Transaction; ticketCode: string }>;
-  validateTicket: (rawQrCode: string, exitGate?: string, notes?: string) => Promise<TicketValidationResult>;
-  updateStaffPermissions: (userId: string, permissions: Partial<StaffPermission>) => Promise<void>;
-  addNewStaff: (params: { name: string; phone: string; passcode: string; permissions?: Partial<StaffPermission> }) => Promise<User>;
-  updateMerchantSettings: (newSettings: Partial<MerchantConfig> & { businessName?: string; location?: string; upiId?: string }) => Promise<void>;
+  isRefreshing: boolean;
+  error: string | null;
+  /** Offline scans the server rejected on sync - shown once, then dismissed. */
+  syncConflicts: SyncConflict[];
+  setRange: (range: DateRangeKey) => void;
+  refresh: (opts?: { silent?: boolean }) => Promise<void>;
+  dismissConflicts: () => void;
+  /** Applies a local change immediately, before the server round-trip. */
+  applyOptimistic: (updater: (current: Transaction[]) => Transaction[]) => void;
 }
 
-const STORAGE_KEY_MERCHANT = '@noparchi_merchant_v1';
-const STORAGE_KEY_ACTIVE_USER_ID = '@noparchi_active_user_id_v1';
-
-const AppContext = createContext<AppContextType | null>(null);
+const AppContext = createContext<AppContextValue | null>(null);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [merchant, setMerchant] = useState<Merchant>(INITIAL_MERCHANT);
-  const [currentUser, setCurrentUser] = useState<User>(INITIAL_USERS[0]);
-  const [staffList, setStaffList] = useState<User[]>(INITIAL_USERS);
+  const { status, merchant, user } = useAuth();
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [selectedFilter, setSelectedFilter] = useState<DateFilterRange>('today');
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [stats, setStats] = useState<DashboardStats>({
-    todayRevenue: 0,
-    todayTransactionsCount: 0,
-    todayScansCount: 0,
-    activeVehiclesCount: 0,
-    yesterdayRevenue: 0,
-    growthPercentage: 0,
-  });
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [ticketTypes, setTicketTypes] = useState<TicketType[]>([]);
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [range, setRange] = useState<DateRangeKey>('today');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [syncConflicts, setSyncConflicts] = useState<SyncConflict[]>([]);
 
-  const loadData = useCallback(async () => {
-    try {
-      // 1. Load Merchant
-      const storedMerchant = await AsyncStorage.getItem(STORAGE_KEY_MERCHANT);
-      let currentMerchant = INITIAL_MERCHANT;
-      if (storedMerchant) {
-        currentMerchant = JSON.parse(storedMerchant);
-        setMerchant(currentMerchant);
-      }
+  const merchantId = merchant?.id ?? null;
+  const canViewLedger = user?.permissions.can_view_ledger ?? false;
 
-      // 2. Load Staff
-      const staff = await staffService.getStaffMembers(currentMerchant.id);
-      setStaffList(staff);
+  /**
+   * Realtime and pull-to-refresh can both fire while a load is already running.
+   * Without this the later response can overwrite the newer one.
+   */
+  const loadToken = useRef(0);
 
-      // 3. Load Active User
-      const storedUserId = await AsyncStorage.getItem(STORAGE_KEY_ACTIVE_USER_ID);
-      if (storedUserId) {
-        const found = staff.find((u) => u.id === storedUserId);
-        if (found) {
-          setCurrentUser(found);
-        } else if (staff.length > 0) {
-          setCurrentUser(staff[0]);
+  const refresh = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      if (status !== 'signed-in' || !merchantId) return;
+
+      const token = ++loadToken.current;
+      if (opts?.silent) setIsRefreshing(true);
+      else setIsLoading(true);
+
+      try {
+        setError(null);
+
+        // Ticket types and staff are cheap and rarely change, but they are what
+        // the Settings and checkout screens are built from, so they load with
+        // everything else rather than per-screen.
+        const [statsResult, typesResult, staffResult] = await Promise.all([
+          transactionService.stats(range),
+          merchantService.listTicketTypes(merchantId, true),
+          merchantService.listStaff(merchantId),
+        ]);
+
+        // A gatekeeper without can_view_ledger gets no rows from the database
+        // by design. Asking anyway would just log a permission error every
+        // refresh, so skip the call entirely.
+        const txResult = canViewLedger
+          ? await transactionService.list({ merchantId, range })
+          : [];
+
+        if (token !== loadToken.current) return;
+
+        setStats(statsResult);
+        setTicketTypes(typesResult);
+        setStaff(staffResult);
+        setTransactions(txResult);
+      } catch (err) {
+        if (token !== loadToken.current) return;
+        setError(err instanceof Error ? err.message : 'Could not load your data.');
+      } finally {
+        if (token === loadToken.current) {
+          setIsLoading(false);
+          setIsRefreshing(false);
         }
-      } else if (staff.length > 0) {
-        setCurrentUser(staff[0]);
       }
-
-      // 4. Load Stats and Transactions
-      const [newStats, txs] = await Promise.all([
-        transactionService.getDashboardStats(currentMerchant.id),
-        transactionService.getTransactions(currentMerchant.id, selectedFilter),
-      ]);
-
-      setStats(newStats);
-      setTransactions(txs);
-    } catch (err) {
-      console.error('Error loading AppContext data:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [selectedFilter]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  // Real-time subscription to merchant activity
-  useEffect(() => {
-    if (!merchant.id) return;
-    const unsubscribe = transactionService.subscribeToMerchantActivity(
-      merchant.id,
-      () => {
-        loadData();
-      }
-    );
-    return () => unsubscribe();
-  }, [merchant.id, loadData]);
-
-  const switchUser = async (userId: string) => {
-    const target = staffList.find((u) => u.id === userId);
-    if (target) {
-      setCurrentUser(target);
-      await AsyncStorage.setItem(STORAGE_KEY_ACTIVE_USER_ID, userId);
-    }
-  };
-
-  const setFilter = (filter: DateFilterRange) => {
-    setSelectedFilter(filter);
-  };
-
-  const refreshData = async () => {
-    await loadData();
-  };
-
-  const createTransaction = async (params: {
-    amount: number;
-    vehicleNumber?: string;
-    vehicleType?: VehicleType;
-    customerPhone?: string;
-  }) => {
-    const res = await transactionService.createTransaction({
-      merchantId: merchant.id,
-      ...params,
-    });
-    await loadData();
-    return res;
-  };
-
-  const validateTicket = async (
-    rawQrCode: string,
-    exitGate?: string,
-    notes?: string
-  ): Promise<TicketValidationResult> => {
-    const result = await validationService.validateTicket({
-      rawQrCode,
-      scannerUser: currentUser,
-      exitGate,
-      notes,
-    });
-    await loadData();
-    return result;
-  };
-
-  const updateStaffPermissions = async (
-    userId: string,
-    permissions: Partial<StaffPermission>
-  ) => {
-    const updated = await staffService.updateStaffPermissions(userId, permissions);
-    if (updated) {
-      setStaffList((prev) =>
-        prev.map((u) => (u.id === userId ? { ...u, permission: updated.permission } : u))
-      );
-      if (currentUser.id === userId) {
-        setCurrentUser((prev) => ({ ...prev, permission: updated.permission }));
-      }
-    }
-  };
-
-  const addNewStaff = async (params: {
-    name: string;
-    phone: string;
-    passcode: string;
-    permissions?: Partial<StaffPermission>;
-  }) => {
-    const newStaff = await staffService.createStaffMember({
-      merchantId: merchant.id,
-      ...params,
-    });
-    setStaffList((prev) => [...prev, newStaff]);
-    return newStaff;
-  };
-
-  const updateMerchantSettings = async (
-    newSettings: Partial<MerchantConfig> & { businessName?: string; location?: string; upiId?: string }
-  ) => {
-    const updatedMerchant: Merchant = {
-      ...merchant,
-      businessName: newSettings.businessName ?? merchant.businessName,
-      location: newSettings.location ?? merchant.location,
-      upiId: newSettings.upiId ?? merchant.upiId,
-      configSettings: {
-        ...merchant.configSettings,
-        ...newSettings,
-      },
-      updatedAt: new Date().toISOString(),
-    };
-    setMerchant(updatedMerchant);
-    await AsyncStorage.setItem(STORAGE_KEY_MERCHANT, JSON.stringify(updatedMerchant));
-  };
-
-  return (
-    <AppContext.Provider
-      value={{
-        merchant,
-        currentUser,
-        staffList,
-        transactions,
-        stats,
-        selectedFilter,
-        isLoading,
-        setFilter,
-        switchUser,
-        refreshData,
-        createTransaction,
-        validateTicket,
-        updateStaffPermissions,
-        addNewStaff,
-        updateMerchantSettings,
-      }}
-    >
-      {children}
-    </AppContext.Provider>
+    },
+    [status, merchantId, range, canViewLedger]
   );
+
+  useEffect(() => {
+    if (status === 'signed-in') refresh();
+    else if (status !== 'loading') setIsLoading(false);
+  }, [status, refresh]);
+
+  // Flush anything scanned while offline, then top the offline cache back up.
+  // Runs on sign-in and whenever the merchant changes, which is when a device
+  // that was out of signal typically comes back.
+  useEffect(() => {
+    if (status !== 'signed-in' || !merchantId) return;
+    let cancelled = false;
+
+    (async () => {
+      const { synced, conflicts } = await scanService.syncQueued();
+      if (cancelled) return;
+      if (conflicts.length > 0) setSyncConflicts(conflicts);
+      if (synced > 0) refresh({ silent: true });
+      await scanService.refreshOfflineCache(merchantId);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [status, merchantId, refresh]);
+
+  // Live gate activity. Refreshes silently so the screen does not flash a
+  // spinner every time a pass is sold at the gate.
+  useEffect(() => {
+    if (status !== 'signed-in' || !merchantId) return;
+    return transactionService.subscribe(merchantId, () => {
+      refresh({ silent: true });
+    });
+  }, [status, merchantId, refresh]);
+
+  const applyOptimistic = useCallback(
+    (updater: (current: Transaction[]) => Transaction[]) => {
+      setTransactions((current) => updater(current));
+    },
+    []
+  );
+
+  const value = useMemo<AppContextValue>(
+    () => ({
+      transactions,
+      stats,
+      ticketTypes,
+      staff,
+      range,
+      isLoading,
+      isRefreshing,
+      error,
+      syncConflicts,
+      setRange,
+      refresh,
+      dismissConflicts: () => setSyncConflicts([]),
+      applyOptimistic,
+    }),
+    [
+      transactions,
+      stats,
+      ticketTypes,
+      staff,
+      range,
+      isLoading,
+      isRefreshing,
+      error,
+      syncConflicts,
+      refresh,
+      applyOptimistic,
+    ]
+  );
+
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 
-export const useApp = (): AppContextType => {
-  const context = useContext(AppContext);
-  if (!context) {
-    throw new Error('useApp must be used within an AppProvider');
-  }
-  return context;
-};
+export function useApp(): AppContextValue {
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error('useApp must be used inside AppProvider');
+  return ctx;
+}

@@ -1,184 +1,181 @@
-import React, { useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, Platform, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, Platform } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
-import { Download, Share2, Sparkles, CheckCircle2, Copy } from 'lucide-react-native';
-import { useApp } from '../../src/context/AppContext';
+import { Download, Copy, CheckCircle2, Sparkles, AlertTriangle } from 'lucide-react-native';
+import theme from '../../src/config/theme';
 import { Card } from './Card';
 import { Button } from './Button';
+import { checkoutUrl } from '../../src/utils/links';
+import { formatCurrency } from '../../src/utils/formatters';
+import type { Merchant } from '../../src/types';
+import type { TicketType } from '../../src/config/pricing';
 
 interface CustomBrandedQRProps {
-  amount?: number;
-  customPayload?: string;
+  merchant: Merchant;
+  ticketTypes?: TicketType[];
   size?: number;
   showDetails?: boolean;
 }
 
+/**
+ * The gate QR a customer scans.
+ *
+ * It encodes the checkout URL for THIS merchant - /pay/<merchantId> - which is
+ * what makes the app-less flow work: any phone camera opens a web page, picks a
+ * pass, pays, and gets a pass back. No install.
+ *
+ * It deliberately no longer encodes a upi:// intent. A bare UPI QR moves money
+ * but produces no pass, no ticket code and no record, so nothing could be
+ * scanned at the exit and none of it reached the ledger - which is the theft
+ * this product exists to stop.
+ */
 export const CustomBrandedQR: React.FC<CustomBrandedQRProps> = ({
-  amount,
-  customPayload,
+  merchant,
+  ticketTypes = [],
   size = 200,
   showDetails = true,
 }) => {
-  const { merchant } = useApp();
   const [copied, setCopied] = useState(false);
-  const qrRef = useRef<any>(null);
+  const url = checkoutUrl(merchant.id);
 
-  // Generate standard UPI payload or digital web-view link
-  const defaultUpiPayload = amount
-    ? `upi://pay?pa=${merchant.upiId}&pn=${encodeURIComponent(
-        merchant.businessName
-      )}&am=${amount}&cu=INR&tn=NoParchi%20Smart%20Pass`
-    : `upi://pay?pa=${merchant.upiId}&pn=${encodeURIComponent(
-        merchant.businessName
-      )}&cu=INR&tn=NoParchi%20Parking%20Pass`;
-
-  const payload = customPayload || defaultUpiPayload;
-  const merchantInitials = merchant.businessName
+  const initials = merchant.businessName
     .split(' ')
-    .map((w) => w[0])
+    .map((word) => word[0])
+    .filter(Boolean)
     .join('')
     .slice(0, 2)
     .toUpperCase();
 
-  const handleCopyUpi = () => {
-    if (Platform.OS === 'web' && typeof navigator !== 'undefined') {
-      navigator.clipboard.writeText(merchant.upiId);
+  const copyLink = async () => {
+    if (!url) return;
+    if (Platform.OS === 'web' && typeof navigator !== 'undefined' && navigator.clipboard) {
+      await navigator.clipboard.writeText(url);
     }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleDownloadQR = () => {
-    if (Platform.OS === 'web') {
-      // Direct Web SVG/Canvas download for laptop browsers
-      const svg = document.querySelector('.custom-branded-qr svg');
-      if (svg) {
-        const svgData = new XMLSerializer().serializeToString(svg);
-        const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-        const svgUrl = URL.createObjectURL(svgBlob);
-        const downloadLink = document.createElement('a');
-        downloadLink.href = svgUrl;
-        downloadLink.download = `${merchant.businessName.replace(/\s+/g, '_')}_NoParchi_QR.svg`;
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-      } else {
-        alert('QR ready for print / screenshot.');
-      }
-    } else {
-      Alert.alert('Download QR', 'QR Code saved to device gallery for printing.');
-    }
+  const downloadQr = () => {
+    // Web only: turn the rendered SVG into a file the owner can print and stick
+    // on the gate. On native this needs expo-file-system plus a share sheet,
+    // which is a separate piece of work.
+    if (Platform.OS !== 'web') return;
+    const svg = document.querySelector('.noparchi-gate-qr svg');
+    if (!svg) return;
+    const blob = new Blob([new XMLSerializer().serializeToString(svg)], {
+      type: 'image/svg+xml;charset=utf-8',
+    });
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = href;
+    link.download = `${merchant.businessName.replace(/\s+/g, '_')}_gate_qr.svg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(href);
   };
 
+  if (!url) {
+    return (
+      <Card className="w-full items-center p-6">
+        <AlertTriangle size={28} color={theme.semantic.warning} />
+        <Text className="text-sm font-bold text-slate-100 mt-3 text-center">
+          Gate QR not ready
+        </Text>
+        <Text className="text-xs text-slate-400 text-center mt-2 leading-4">
+          Set EXPO_PUBLIC_WEB_URL to the address customers will visit, so the QR points
+          somewhere their phone can actually open.
+        </Text>
+      </Card>
+    );
+  }
+
   return (
-    <Card className="w-full max-w-sm mx-auto items-center p-6 bg-slate-900 border-slate-800 shadow-2xl">
-      {/* Branding Header */}
+    <Card className="w-full max-w-sm mx-auto items-center p-6">
       <View className="items-center mb-4">
         <View className="flex-row items-center gap-1.5 mb-1">
-          <Sparkles size={14} color="#10B981" />
+          <Sparkles size={14} color={theme.semantic.accent} />
           <Text className="text-[11px] font-bold text-emerald-400 uppercase tracking-widest">
-            Smart UPI Checkout
+            Scan to enter
           </Text>
         </View>
         <Text className="text-lg font-extrabold text-slate-100 text-center">
           {merchant.businessName}
         </Text>
-        <Text className="text-xs text-slate-400 text-center">
-          {merchant.location}
-        </Text>
+        <Text className="text-xs text-slate-400 text-center">{merchant.location}</Text>
       </View>
 
-      {/* QR Code Frame with Dynamic Overlay */}
-      <View className="custom-branded-qr p-4 bg-white rounded-3xl items-center justify-center shadow-xl shadow-black/50 relative border-4 border-emerald-500/20">
+      <View className="noparchi-gate-qr p-4 bg-white rounded-3xl items-center justify-center relative border-4 border-emerald-500/20">
         <QRCode
-          value={payload}
+          value={url}
           size={size}
-          color="#0F172A"
-          backgroundColor="#FFFFFF"
-          getRef={(c) => (qrRef.current = c)}
+          color={theme.semantic.onPaper}
+          backgroundColor={theme.semantic.paper}
+          // Higher correction so the centre badge cannot make the code unreadable.
+          ecl="H"
         />
-
-        {/* Dynamic Center Branding Overlay */}
         <View
           style={{
             position: 'absolute',
-            width: size * 0.24,
-            height: size * 0.24,
-            borderRadius: (size * 0.24) / 2,
+            width: size * 0.22,
+            height: size * 0.22,
+            borderRadius: (size * 0.22) / 2,
           }}
-          className="bg-slate-950 border-2 border-emerald-400 items-center justify-center shadow-md shadow-black/60"
+          className="bg-slate-950 border-2 border-emerald-400 items-center justify-center"
         >
-          <Text className="text-emerald-400 font-extrabold text-xs sm:text-sm">
-            {merchantInitials || 'NP'}
-          </Text>
+          <Text className="text-emerald-400 font-extrabold text-xs">{initials || 'NP'}</Text>
         </View>
       </View>
 
-      {/* Instructions & UPI ID */}
       {showDetails && (
         <View className="w-full mt-5 pt-4 border-t border-slate-800 items-center">
-          <Text className="text-xs text-slate-300 font-medium text-center mb-2">
-            Scan with any UPI App (GPay, PhonePe, Paytm)
+          <Text className="text-xs text-slate-300 font-medium text-center mb-3">
+            Any phone camera. No app to install.
           </Text>
 
           <TouchableOpacity
-            onPress={handleCopyUpi}
+            onPress={copyLink}
             activeOpacity={0.7}
-            className="flex-row items-center gap-2 bg-slate-800/90 border border-slate-700/80 px-3 py-1.5 rounded-xl mb-4"
+            className="flex-row items-center gap-2 bg-slate-800/90 border border-slate-700/80 px-3 py-1.5 rounded-xl mb-4 max-w-full"
           >
-            <Text className="text-xs font-mono text-emerald-400 font-bold">
-              {merchant.upiId}
+            <Text numberOfLines={1} className="text-[11px] font-mono text-emerald-400 flex-shrink">
+              {url}
             </Text>
             {copied ? (
-              <CheckCircle2 size={12} color="#10B981" />
+              <CheckCircle2 size={12} color={theme.semantic.accent} />
             ) : (
-              <Copy size={12} color="#94A3B8" />
+              <Copy size={12} color={theme.semantic.textMuted} />
             )}
           </TouchableOpacity>
 
-          {/* Rates pill */}
-          <View className="flex-row items-center justify-center gap-3 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 w-full mb-4">
-            <View className="items-center">
-              <Text className="text-[10px] text-slate-400 uppercase font-semibold">2-Wheeler</Text>
-              <Text className="text-xs font-bold text-slate-200">
-                ₹{merchant.configSettings?.twoWheelerRate || 20}
-              </Text>
+          {ticketTypes.length > 0 && (
+            <View className="flex-row flex-wrap items-center justify-center gap-2 mb-4">
+              {ticketTypes.slice(0, 4).map((type) => (
+                <View
+                  key={type.id}
+                  className="px-2.5 py-1.5 rounded-xl bg-slate-950/60 border border-slate-800"
+                >
+                  <Text className="text-[10px] text-slate-400 uppercase font-semibold">
+                    {type.label}
+                  </Text>
+                  <Text className="text-xs font-bold text-slate-200 text-center">
+                    {formatCurrency(type.amount)}
+                  </Text>
+                </View>
+              ))}
             </View>
-            <View className="w-px h-6 bg-slate-800" />
-            <View className="items-center">
-              <Text className="text-[10px] text-slate-400 uppercase font-semibold">4-Wheeler</Text>
-              <Text className="text-xs font-bold text-slate-200">
-                ₹{merchant.configSettings?.fourWheelerRate || 50}
-              </Text>
-            </View>
-            <View className="w-px h-6 bg-slate-800" />
-            <View className="items-center">
-              <Text className="text-[10px] text-slate-400 uppercase font-semibold">Flat Rate</Text>
-              <Text className="text-xs font-bold text-slate-200">
-                ₹{merchant.configSettings?.flatRate || 40}
-              </Text>
-            </View>
-          </View>
+          )}
 
-          {/* Actions */}
-          <View className="flex-row gap-2 w-full">
+          {Platform.OS === 'web' && (
             <Button
-              title="Download QR"
+              title="Download QR to print"
               variant="secondary"
               size="sm"
-              className="flex-1"
-              icon={<Download size={14} color="#F1F5F9" />}
-              onPress={handleDownloadQR}
+              fullWidth
+              icon={<Download size={14} color={theme.semantic.text} />}
+              onPress={downloadQr}
             />
-            <Button
-              title="Share Link"
-              variant="outline"
-              size="sm"
-              className="flex-1"
-              icon={<Share2 size={14} color="#94A3B8" />}
-              onPress={handleCopyUpi}
-            />
-          </View>
+          )}
         </View>
       )}
     </Card>

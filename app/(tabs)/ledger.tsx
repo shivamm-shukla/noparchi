@@ -1,6 +1,8 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, RefreshControl, Platform } from 'react-native';
-import { Search, Download, BookOpen, Car, ShieldCheck, Clock, MessageSquare, CheckCircle2, AlertCircle } from 'lucide-react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, RefreshControl } from 'react-native';
+import { Search, BookOpen, ShieldCheck, Car, MessageSquare, CheckCircle2, AlertTriangle } from 'lucide-react-native';
+import theme from '../../src/config/theme';
+import { useAuth } from '../../src/context/AuthContext';
 import { useApp } from '../../src/context/AppContext';
 import { Header } from '../../components/ui/Header';
 import { Card } from '../../components/ui/Card';
@@ -8,267 +10,264 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { DateFilter } from '../../components/ui/DateFilter';
 import { RoleGate } from '../../components/ui/RoleGate';
-import { WhatsAppTicketModal } from '../../components/ui/WhatsAppTicketModal';
-import { Transaction } from '../../src/types';
+import { PassDeliveryModal } from '../../components/ui/PassDeliveryModal';
+import { transactionService } from '../../src/services/transactionService';
 import { formatCurrency, formatDateTime } from '../../src/utils/formatters';
+import type { Transaction } from '../../src/types';
 
 export default function LedgerScreen() {
-  const { transactions, selectedFilter, setFilter, refreshData, isLoading, merchant } = useApp();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [refreshing, setRefreshing] = useState(false);
-  const [selectedWhatsAppTx, setSelectedWhatsAppTx] = useState<Transaction | null>(null);
+  const { merchant, can } = useAuth();
+  const { transactions, range, setRange, isRefreshing, refresh, applyOptimistic } = useApp();
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await refreshData();
-    setRefreshing(false);
-  };
+  const [query, setQuery] = useState('');
+  const [deliverFor, setDeliverFor] = useState<Transaction | null>(null);
+  const [confirmingCode, setConfirmingCode] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredTransactions = useMemo(() => {
-    if (!searchQuery.trim()) return transactions;
-    const q = searchQuery.trim().toLowerCase();
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return transactions;
     return transactions.filter(
       (tx) =>
         tx.ticketCode.toLowerCase().includes(q) ||
-        (tx.vehicleNumber && tx.vehicleNumber.toLowerCase().includes(q)) ||
-        (tx.paymentRef && tx.paymentRef.toLowerCase().includes(q))
+        tx.vehicleNumber?.toLowerCase().includes(q) ||
+        tx.paymentRef?.toLowerCase().includes(q) ||
+        tx.ticketTypeLabel.toLowerCase().includes(q)
     );
-  }, [transactions, searchQuery]);
+  }, [transactions, query]);
 
-  const totalAmount = useMemo(() => {
-    return filteredTransactions
-      .filter((t) => t.status === 'SUCCESS')
-      .reduce((sum, t) => sum + t.amount, 0);
-  }, [filteredTransactions]);
+  const totals = useMemo(() => {
+    const paid = filtered.filter((tx) => tx.status === 'paid');
+    return {
+      count: filtered.length,
+      collected: paid.reduce((sum, tx) => sum + tx.amount, 0),
+      awaiting: filtered.filter((tx) => tx.status === 'pending').length,
+    };
+  }, [filtered]);
 
-  const handleExportCsv = () => {
-    if (Platform.OS === 'web') {
-      const csvHeader = 'Ticket Code,Vehicle Number,Vehicle Type,Amount,Status,Payment Ref,Created At,Exit Scanned\n';
-      const rows = filteredTransactions.map((tx) =>
-        `"${tx.ticketCode}","${tx.vehicleNumber || 'N/A'}","${tx.vehicleType}",${tx.amount},"${tx.status}","${tx.paymentRef || 'N/A'}","${tx.createdAt}","${tx.validation ? 'Yes' : 'No'}"`
-      ).join('\n');
-      const blob = new Blob([csvHeader + rows], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `noparchi_ledger_${selectedFilter}_${Date.now()}.csv`;
-      link.click();
-    } else {
-      alert('CSV export ready for download.');
+  /**
+   * Confirm that a customer's UPI payment landed.
+   *
+   * This is the step that keeps the honour-system hole closed: a customer's
+   * checkout leaves the pass pending and unscannable, and only a named staff
+   * member who has seen the money can promote it - recorded against their id.
+   */
+  const confirmPayment = async (tx: Transaction) => {
+    setConfirmingCode(tx.ticketCode);
+    setError(null);
+
+    // Optimistic: the row flips to paid immediately so the queue keeps moving,
+    // and the refresh below reconciles with whatever the server actually did.
+    applyOptimistic((current) =>
+      current.map((row) => (row.id === tx.id ? { ...row, status: 'paid' } : row))
+    );
+
+    try {
+      await transactionService.confirmPayment(tx.ticketCode);
+      await refresh({ silent: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not confirm the payment.');
+      await refresh({ silent: true });
+    } finally {
+      setConfirmingCode(null);
     }
   };
 
+  if (!merchant) return null;
+
   return (
     <View className="flex-1 bg-slate-950">
-      <Header
-        title="Transactions Ledger"
-        subtitle="Historical financial audit and ticket logs"
-        rightAction={
-          <Button
-            title="Export CSV"
-            size="sm"
-            variant="secondary"
-            icon={<Download size={14} color="#94A3B8" />}
-            onPress={handleExportCsv}
-          />
-        }
-      />
+      <Header title="Ledger" subtitle="Every pass, every rupee" />
 
-      <RoleGate
-        permissionKey="can_view_ledger"
-        fallbackTitle="Ledger Access Restricted"
-        fallbackMessage="Your gatekeeper role does not currently have permission to view revenue and ledger records. The Owner can enable 'can_view_ledger' in Settings."
-      >
+      <RoleGate permission="can_view_ledger" title="Ledger is off for your account">
         <ScrollView
           className="flex-1"
           contentContainerStyle={{ paddingBottom: 40 }}
           refreshControl={
             <RefreshControl
-              refreshing={refreshing || isLoading}
-              onRefresh={onRefresh}
-              tintColor="#10B981"
+              refreshing={isRefreshing}
+              onRefresh={() => refresh({ silent: true })}
+              tintColor={theme.semantic.accent}
+              colors={[theme.semantic.accent]}
             />
           }
         >
-          <View className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-5">
-            {/* Filter & Summary Header Card */}
-            <Card className="mb-6 bg-slate-900 border-slate-800">
-              <View className="flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-                <View>
-                  <Text className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                    Date Range Filter
-                  </Text>
-                  <DateFilter selected={selectedFilter} onSelect={setFilter} />
-                </View>
+          <View className="max-w-5xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-5">
+            <DateFilter selected={range} onSelect={setRange} />
 
-                {/* Summary Metrics */}
-                <View className="flex-row items-center gap-4 bg-slate-950/80 border border-slate-800 p-3 rounded-2xl">
-                  <View>
-                    <Text className="text-[10px] text-slate-400 font-semibold uppercase">
-                      Filtered Revenue
-                    </Text>
-                    <Text className="text-lg font-extrabold text-emerald-400">
-                      {formatCurrency(totalAmount)}
-                    </Text>
-                  </View>
-                  <View className="w-px h-8 bg-slate-800" />
-                  <View>
-                    <Text className="text-[10px] text-slate-400 font-semibold uppercase">
-                      Passes
-                    </Text>
-                    <Text className="text-lg font-extrabold text-slate-100">
-                      {filteredTransactions.length}
-                    </Text>
-                  </View>
-                </View>
-              </View>
+            <View className="flex-row items-center gap-2 bg-slate-900 border border-slate-800 rounded-2xl px-4 py-2.5 my-4">
+              <Search size={16} color={theme.semantic.textMuted} />
+              <TextInput
+                value={query}
+                onChangeText={setQuery}
+                placeholder="Search code, vehicle or payment reference"
+                placeholderTextColor={theme.semantic.textFaint}
+                className="flex-1 text-slate-100 text-sm"
+              />
+            </View>
 
-              {/* Search Bar */}
-              <View className="flex-row items-center bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5">
-                <Search size={16} color="#64748B" />
-                <TextInput
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  placeholder="Search by Vehicle Number, Ticket Code, or UPI Ref..."
-                  placeholderTextColor="#64748B"
-                  className="flex-1 ml-2.5 text-slate-100 text-sm"
-                />
-              </View>
-            </Card>
+            <View className="flex-row flex-wrap gap-3 mb-5">
+              <SummaryTile label="Collected" value={formatCurrency(totals.collected, merchant.currency)} accent />
+              <SummaryTile label="Passes" value={String(totals.count)} />
+              <SummaryTile label="Awaiting payment" value={String(totals.awaiting)} warn={totals.awaiting > 0} />
+            </View>
 
-            {/* Desktop Table View (Hidden on mobile, visible on md/lg screens) */}
-            <View className="hidden md:flex">
-              <Card className="bg-slate-900 border-slate-800 p-0 overflow-hidden">
-                <View className="flex-row bg-slate-950 px-6 py-3.5 border-b border-slate-800">
-                  <Text className="w-32 text-xs font-bold text-slate-400 uppercase">Ticket Code</Text>
-                  <Text className="w-36 text-xs font-bold text-slate-400 uppercase">Vehicle</Text>
-                  <Text className="w-32 text-xs font-bold text-slate-400 uppercase">Amount</Text>
-                  <Text className="w-32 text-xs font-bold text-slate-400 uppercase">Status</Text>
-                  <Text className="flex-1 text-xs font-bold text-slate-400 uppercase">Timestamp</Text>
-                  <Text className="w-28 text-xs font-bold text-slate-400 uppercase text-right">Actions</Text>
-                </View>
-
-                {filteredTransactions.length === 0 ? (
-                  <View className="py-12 items-center justify-center">
-                    <BookOpen size={36} color="#64748B" />
-                    <Text className="text-slate-400 font-semibold mt-2">No transactions found</Text>
-                  </View>
-                ) : (
-                  filteredTransactions.map((tx, idx) => {
-                    const isVerified = Boolean(tx.validation);
-                    return (
-                      <View
-                        key={tx.id}
-                        className={`flex-row items-center px-6 py-3.5 border-b border-slate-800/60 hover:bg-slate-800/40 transition-colors ${
-                          idx % 2 === 1 ? 'bg-slate-900/40' : 'bg-slate-900'
-                        }`}
-                      >
-                        <Text className="w-32 text-xs font-mono font-bold text-emerald-400 truncate">
-                          {tx.ticketCode}
-                        </Text>
-                        <View className="w-36 flex-row items-center gap-1.5">
-                          <Car size={14} color="#94A3B8" />
-                          <Text className="text-xs font-bold text-slate-200 uppercase truncate">
-                            {tx.vehicleNumber || 'Standard'}
-                          </Text>
-                        </View>
-                        <Text className="w-32 text-sm font-extrabold text-slate-100">
-                          {formatCurrency(tx.amount)}
-                        </Text>
-                        <View className="w-32">
-                          <Badge
-                            label={isVerified ? 'Exit Scanned' : 'Active Pass'}
-                            variant={isVerified ? 'success' : 'warning'}
-                            size="sm"
-                          />
-                        </View>
-                        <Text className="flex-1 text-xs text-slate-400">
-                          {formatDateTime(tx.createdAt)}
-                        </Text>
-                        <View className="w-28 flex-row items-center justify-end gap-2">
-                          <TouchableOpacity
-                            onPress={() => setSelectedWhatsAppTx(tx)}
-                            accessibilityLabel="Send WhatsApp"
-                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:bg-slate-600"
-                          >
-                            <MessageSquare size={14} color="#34D399" />
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    );
-                  })
-                )}
+            {error && (
+              <Card className="mb-4 border-rose-500/40 bg-rose-500/5">
+                <Text className="text-xs text-rose-300 leading-4">{error}</Text>
               </Card>
-            </View>
+            )}
 
-            {/* Mobile Card List View (Visible on mobile screens) */}
-            <View className="flex md:hidden gap-3">
-              {filteredTransactions.length === 0 ? (
-                <Card className="py-10 items-center justify-center bg-slate-900 border-slate-800">
-                  <BookOpen size={36} color="#64748B" />
-                  <Text className="text-slate-400 font-semibold mt-2">No transactions found</Text>
-                </Card>
-              ) : (
-                filteredTransactions.map((tx) => {
-                  const isVerified = Boolean(tx.validation);
-                  return (
-                    <Card
-                      key={tx.id}
-                      className="bg-slate-900 border-slate-800 p-4"
-                    >
-                      <View className="flex-row items-center justify-between mb-2">
-                        <Text className="text-xs font-mono font-bold text-emerald-400">
-                          {tx.ticketCode}
-                        </Text>
-                        <Badge
-                          label={isVerified ? 'Exit Scanned' : 'Active Pass'}
-                          variant={isVerified ? 'success' : 'warning'}
-                          size="sm"
-                        />
-                      </View>
-
-                      <View className="flex-row items-center justify-between mb-3">
-                        <View className="flex-row items-center gap-2">
-                          <Car size={16} color="#94A3B8" />
-                          <Text className="text-sm font-bold text-slate-100 uppercase">
-                            {tx.vehicleNumber || 'Standard Pass'}
-                          </Text>
-                        </View>
-                        <Text className="text-base font-extrabold text-slate-100">
-                          {formatCurrency(tx.amount)}
-                        </Text>
-                      </View>
-
-                      <View className="flex-row items-center justify-between pt-2 border-t border-slate-800">
-                        <Text className="text-[11px] text-slate-400">
-                          {formatDateTime(tx.createdAt)}
-                        </Text>
-
-                        <TouchableOpacity
-                          onPress={() => setSelectedWhatsAppTx(tx)}
-                          className="flex-row items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30"
-                        >
-                          <MessageSquare size={12} color="#10B981" />
-                          <Text className="text-[11px] font-bold text-emerald-400">
-                            WhatsApp Pass
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    </Card>
-                  );
-                })
-              )}
-            </View>
+            {filtered.length === 0 ? (
+              <Card className="items-center py-12">
+                <BookOpen size={34} color={theme.semantic.textFaint} />
+                <Text className="text-sm font-semibold text-slate-400 mt-3">
+                  Nothing in this period
+                </Text>
+                <Text className="text-xs text-slate-500 mt-1 text-center">
+                  Try a wider date range.
+                </Text>
+              </Card>
+            ) : (
+              <View className="gap-3">
+                {filtered.map((tx) => (
+                  <LedgerRow
+                    key={tx.id}
+                    transaction={tx}
+                    currency={merchant.currency}
+                    canConfirm={can('can_issue_passes')}
+                    confirming={confirmingCode === tx.ticketCode}
+                    onConfirm={() => confirmPayment(tx)}
+                    onDeliver={() => setDeliverFor(tx)}
+                  />
+                ))}
+              </View>
+            )}
           </View>
         </ScrollView>
       </RoleGate>
 
-      {/* WhatsApp Modal */}
-      <WhatsAppTicketModal
-        transaction={selectedWhatsAppTx}
-        visible={Boolean(selectedWhatsAppTx)}
-        onClose={() => setSelectedWhatsAppTx(null)}
+      <PassDeliveryModal
+        merchant={merchant}
+        transaction={deliverFor}
+        visible={Boolean(deliverFor)}
+        onClose={() => setDeliverFor(null)}
       />
     </View>
   );
 }
+
+const SummaryTile: React.FC<{ label: string; value: string; accent?: boolean; warn?: boolean }> = ({
+  label,
+  value,
+  accent,
+  warn,
+}) => (
+  <View
+    className={`flex-1 min-w-[130px] rounded-2xl border p-3.5 ${
+      accent
+        ? 'bg-emerald-500/10 border-emerald-500/30'
+        : warn
+          ? 'bg-amber-500/10 border-amber-500/30'
+          : 'bg-slate-900 border-slate-800'
+    }`}
+  >
+    <Text className="text-[11px] text-slate-400 uppercase font-semibold tracking-wider">
+      {label}
+    </Text>
+    <Text
+      className={`text-xl font-extrabold mt-1 ${
+        accent ? 'text-emerald-400' : warn ? 'text-amber-300' : 'text-slate-100'
+      }`}
+    >
+      {value}
+    </Text>
+  </View>
+);
+
+const LedgerRow: React.FC<{
+  transaction: Transaction;
+  currency: string;
+  canConfirm: boolean;
+  confirming: boolean;
+  onConfirm: () => void;
+  onDeliver: () => void;
+}> = ({ transaction, currency, canConfirm, confirming, onConfirm, onDeliver }) => {
+  const exited = Boolean(transaction.validation);
+  const pending = transaction.status === 'pending';
+
+  return (
+    <Card className="p-3.5">
+      <View className="flex-row items-start justify-between gap-3">
+        <View className="flex-row items-start gap-3 flex-1 min-w-0">
+          <View
+            className={`w-9 h-9 rounded-xl items-center justify-center shrink-0 border ${
+              pending
+                ? 'bg-amber-500/10 border-amber-500/30'
+                : exited
+                  ? 'bg-emerald-500/10 border-emerald-500/30'
+                  : 'bg-sky-500/10 border-sky-500/30'
+            }`}
+          >
+            {pending ? (
+              <AlertTriangle size={17} color={theme.semantic.warning} />
+            ) : exited ? (
+              <ShieldCheck size={17} color={theme.semantic.accent} />
+            ) : (
+              <Car size={17} color={theme.semantic.info} />
+            )}
+          </View>
+
+          <View className="flex-1 min-w-0">
+            <View className="flex-row items-center flex-wrap gap-2">
+              <Text className="text-sm font-bold text-slate-100 uppercase">
+                {transaction.vehicleNumber || transaction.ticketTypeLabel}
+              </Text>
+              <Badge
+                label={pending ? 'Unpaid' : exited ? 'Exited' : 'Inside'}
+                variant={pending ? 'warning' : exited ? 'success' : 'info'}
+                size="sm"
+              />
+            </View>
+            <Text className="text-[11px] font-mono text-slate-400 mt-0.5">
+              {transaction.ticketCode}
+            </Text>
+            <Text className="text-[11px] text-slate-500 mt-0.5">
+              {formatDateTime(transaction.createdAt)}
+              {transaction.validation
+                ? ` · exited ${formatDateTime(transaction.validation.scannedAt)}`
+                : ''}
+            </Text>
+          </View>
+        </View>
+
+        <View className="items-end shrink-0 gap-2">
+          <Text className="text-base font-extrabold text-emerald-400">
+            {formatCurrency(transaction.amount, currency)}
+          </Text>
+          <TouchableOpacity
+            onPress={onDeliver}
+            accessibilityLabel="Send pass on WhatsApp"
+            className="p-1.5 rounded-lg bg-slate-800 active:bg-slate-700"
+          >
+            <MessageSquare size={14} color={theme.semantic.accentSoft} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {pending && canConfirm && (
+        <View className="mt-3 pt-3 border-t border-slate-800">
+          <Button
+            title="Payment received — make pass valid"
+            variant="secondary"
+            size="sm"
+            fullWidth
+            loading={confirming}
+            icon={<CheckCircle2 size={14} color={theme.semantic.accent} />}
+            onPress={onConfirm}
+          />
+        </View>
+      )}
+    </Card>
+  );
+};

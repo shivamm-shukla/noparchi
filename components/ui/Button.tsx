@@ -1,5 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, ActivityIndicator, View } from 'react-native';
+import theme from '../../src/config/theme';
 
 interface ButtonProps {
   title: string;
@@ -82,7 +83,7 @@ export const Button: React.FC<ButtonProps> = ({
       {loading ? (
         <ActivityIndicator
           size="small"
-          color={variant === 'primary' ? '#0F172A' : '#10B981'}
+          color={variant === 'primary' ? theme.semantic.onAccent : theme.semantic.accent}
         />
       ) : (
         <View className="flex-row items-center justify-center gap-2">

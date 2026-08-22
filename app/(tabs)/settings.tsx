@@ -1,501 +1,771 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, TextInput, Switch, TouchableOpacity, Alert, Platform } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, ScrollView, TextInput, Switch, TouchableOpacity } from 'react-native';
 import {
-  Settings,
-  Users2,
   Building2,
-  QrCode,
-  MessageSquare,
-  Shield,
+  Users2,
+  Tag,
   Plus,
-  Trash2,
+  AlertCircle,
   CheckCircle2,
-  Smartphone,
-  Save,
   KeyRound,
-  Info,
-  Lock,
+  UserMinus,
+  CreditCard,
+  MessageSquare,
 } from 'lucide-react-native';
+import theme from '../../src/config/theme';
+import { useAuth } from '../../src/context/AuthContext';
 import { useApp } from '../../src/context/AppContext';
 import { Header } from '../../components/ui/Header';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { User, StaffPermission } from '../../src/types';
+import { Field } from '../../components/ui/Field';
+import { merchantService } from '../../src/services/merchantService';
+import {
+  PERMISSION_KEYS,
+  PERMISSION_REGISTRY,
+  defaultStaffPermissions,
+  type PermissionKey,
+  type PermissionSet,
+} from '../../src/config/permissions';
+import { PAYMENT_PROVIDERS, MESSAGING_PROVIDERS } from '../../src/config/providers';
+import { validateTicketTypeDraft } from '../../src/config/pricing';
+import { ticketTypeIcon } from '../../src/config/icons';
+import { formatCurrency } from '../../src/utils/formatters';
+import type { StaffMember } from '../../src/types';
 
 export default function SettingsScreen() {
-  const {
-    merchant,
-    currentUser,
-    staffList,
-    updateStaffPermissions,
-    addNewStaff,
-    updateMerchantSettings,
-  } = useApp();
+  const { merchant, user, can, refresh: refreshAuth } = useAuth();
+  const { ticketTypes, staff, refresh } = useApp();
 
-  // Merchant config state
-  const [businessName, setBusinessName] = useState(merchant.businessName);
-  const [location, setLocation] = useState(merchant.location);
-  const [upiId, setUpiId] = useState(merchant.upiId);
-  const [twoWheelerRate, setTwoWheelerRate] = useState(
-    (merchant.configSettings?.twoWheelerRate || 20).toString()
-  );
-  const [fourWheelerRate, setFourWheelerRate] = useState(
-    (merchant.configSettings?.fourWheelerRate || 50).toString()
-  );
-  const [flatRate, setFlatRate] = useState(
-    (merchant.configSettings?.flatRate || 40).toString()
-  );
-  const [savingSettings, setSavingSettings] = useState(false);
+  const canEdit = can('can_edit_settings');
+  const canManageStaff = can('can_manage_staff');
 
-  // New staff modal/form state
-  const [showAddStaff, setShowAddStaff] = useState(false);
-  const [newStaffName, setNewStaffName] = useState('');
-  const [newStaffPhone, setNewStaffPhone] = useState('');
-  const [newStaffPasscode, setNewStaffPasscode] = useState('');
-  const [addingStaff, setAddingStaff] = useState(false);
-
-  const isOwner = currentUser.isOwner;
-
-  const handleSaveMerchantConfig = async () => {
-    setSavingSettings(true);
-    try {
-      await updateMerchantSettings({
-        businessName,
-        location,
-        upiId,
-        twoWheelerRate: parseFloat(twoWheelerRate) || 20,
-        fourWheelerRate: parseFloat(fourWheelerRate) || 50,
-        flatRate: parseFloat(flatRate) || 40,
-      });
-      if (Platform.OS === 'web') alert('Settings saved successfully!');
-      else Alert.alert('Saved', 'Merchant configuration updated successfully.');
-    } catch {
-      if (Platform.OS === 'web') alert('Failed to save settings');
-      else Alert.alert('Error', 'Failed to save settings');
-    } finally {
-      setSavingSettings(false);
-    }
+  const [notice, setNotice] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const flash = (kind: 'ok' | 'error', text: string) => {
+    setNotice({ kind, text });
+    setTimeout(() => setNotice(null), 4000);
   };
 
-  const handleCreateStaff = async () => {
-    if (!newStaffName.trim() || !newStaffPhone.trim()) {
-      if (Platform.OS === 'web') alert('Please enter staff name and phone number');
-      else Alert.alert('Error', 'Please enter staff name and phone number');
-      return;
-    }
-
-    setAddingStaff(true);
-    try {
-      await addNewStaff({
-        name: newStaffName,
-        phone: newStaffPhone,
-        passcode: newStaffPasscode || '1234',
-        permissions: {
-          can_view_ledger: false,
-          can_verify_tickets: true,
-          can_edit_settings: false,
-          can_issue_refund: false,
-        },
-      });
-      setNewStaffName('');
-      setNewStaffPhone('');
-      setNewStaffPasscode('');
-      setShowAddStaff(false);
-      if (Platform.OS === 'web') alert('New staff member added successfully!');
-      else Alert.alert('Success', 'New staff member added successfully!');
-    } catch {
-      if (Platform.OS === 'web') alert('Failed to add staff member');
-      else Alert.alert('Error', 'Failed to add staff member');
-    } finally {
-      setAddingStaff(false);
-    }
-  };
-
-  const handleTogglePermission = async (
-    targetUser: User,
-    permKey: keyof StaffPermission,
-    value: boolean
-  ) => {
-    if (!isOwner) {
-      if (Platform.OS === 'web') alert('Only the Merchant Owner can modify staff permissions.');
-      else Alert.alert('Restricted', 'Only the Merchant Owner can modify staff permissions.');
-      return;
-    }
-
-    await updateStaffPermissions(targetUser.id, {
-      [permKey]: value,
-    });
-  };
+  if (!merchant || !user) return null;
 
   return (
     <View className="flex-1 bg-slate-950">
-      <Header
-        title="Settings & Staff RBAC"
-        subtitle="Facility profiles, rates, and role-based permissions"
-      />
+      <Header title="Settings" subtitle={merchant.businessName} />
 
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 50 }}>
-        <View className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-5">
-          {/* Main 2-Column Responsive Layout for Laptops & Desktops */}
-          <View className="flex-col lg:flex-row gap-6">
-            {/* Left Column: Merchant Profile, Rates & WhatsApp Engine Status */}
-            <View className="flex-1 gap-6">
-              {/* Merchant Facility Info */}
-              <Card className="bg-slate-900 border-slate-800">
-                <View className="flex-row items-center gap-2 mb-4 pb-3 border-b border-slate-800">
-                  <Building2 size={18} color="#10B981" />
-                  <Text className="text-base font-bold text-slate-100">
-                    Merchant Facility Profile
-                  </Text>
-                </View>
-
-                <View className="gap-3.5">
-                  <View>
-                    <Text className="text-xs font-semibold text-slate-300 mb-1">
-                      Business Name
-                    </Text>
-                    <TextInput
-                      value={businessName}
-                      onChangeText={setBusinessName}
-                      editable={isOwner}
-                      className="bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-slate-100 text-sm"
-                    />
-                  </View>
-
-                  <View>
-                    <Text className="text-xs font-semibold text-slate-300 mb-1">
-                      Location / Address
-                    </Text>
-                    <TextInput
-                      value={location}
-                      onChangeText={setLocation}
-                      editable={isOwner}
-                      className="bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-slate-100 text-sm"
-                    />
-                  </View>
-
-                  <View>
-                    <Text className="text-xs font-semibold text-slate-300 mb-1">
-                      Merchant UPI ID (For Direct Customer Payments)
-                    </Text>
-                    <TextInput
-                      value={upiId}
-                      onChangeText={setUpiId}
-                      editable={isOwner}
-                      className="bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-emerald-400 font-mono text-sm font-bold"
-                    />
-                  </View>
-
-                  {/* Pricing Configuration */}
-                  <View className="pt-3 border-t border-slate-800">
-                    <Text className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2.5">
-                      Parking Rates Configuration (₹)
-                    </Text>
-                    <View className="grid grid-cols-3 gap-2.5">
-                      <View>
-                        <Text className="text-[11px] text-slate-400 mb-1">2-Wheeler</Text>
-                        <TextInput
-                          value={twoWheelerRate}
-                          onChangeText={setTwoWheelerRate}
-                          editable={isOwner}
-                          keyboardType="numeric"
-                          className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 text-sm font-bold"
-                        />
-                      </View>
-                      <View>
-                        <Text className="text-[11px] text-slate-400 mb-1">4-Wheeler</Text>
-                        <TextInput
-                          value={fourWheelerRate}
-                          onChangeText={setFourWheelerRate}
-                          editable={isOwner}
-                          keyboardType="numeric"
-                          className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 text-sm font-bold"
-                        />
-                      </View>
-                      <View>
-                        <Text className="text-[11px] text-slate-400 mb-1">Flat Rate</Text>
-                        <TextInput
-                          value={flatRate}
-                          onChangeText={setFlatRate}
-                          editable={isOwner}
-                          keyboardType="numeric"
-                          className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 text-sm font-bold"
-                        />
-                      </View>
-                    </View>
-                  </View>
-
-                  {isOwner && (
-                    <Button
-                      title="Save Facility Settings"
-                      variant="primary"
-                      loading={savingSettings}
-                      icon={<Save size={14} color="#0F172A" />}
-                      onPress={handleSaveMerchantConfig}
-                      className="mt-2"
-                    />
-                  )}
-                </View>
-              </Card>
-
-              {/* WhatsApp Ticketing Engine Status (Phase 4 Integration) */}
-              <Card className="bg-slate-900 border-slate-800">
-                <View className="flex-row items-center justify-between mb-3 pb-2.5 border-b border-slate-800">
-                  <View className="flex-row items-center gap-2">
-                    <MessageSquare size={18} color="#10B981" />
-                    <Text className="text-base font-bold text-slate-100">
-                      WhatsApp Dispatch Engine
-                    </Text>
-                  </View>
-                  <Badge label="Connected (Meta API)" variant="emerald" size="sm" />
-                </View>
-
-                <View className="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 mb-3 gap-1.5">
-                  <View className="flex-row items-center justify-between">
-                    <Text className="text-xs text-slate-400">Meta Cloud API Version</Text>
-                    <Text className="text-xs font-mono font-bold text-slate-200">v20.0</Text>
-                  </View>
-                  <View className="flex-row items-center justify-between">
-                    <Text className="text-xs text-slate-400">Template</Text>
-                    <Text className="text-xs font-mono text-emerald-400">digital_parking_pass_v1</Text>
-                  </View>
-                  <View className="flex-row items-center justify-between">
-                    <Text className="text-xs text-slate-400">Auto Delivery</Text>
-                    <Text className="text-xs font-bold text-emerald-400">Active (Instant PDF/QR)</Text>
-                  </View>
-                </View>
-
-                <Text className="text-[11px] text-slate-400 leading-4">
-                  Customer digital passes are dispatched immediately upon payment confirmation via Meta WhatsApp Cloud API webhooks.
-                </Text>
-              </Card>
-            </View>
-
-            {/* Right Column: Dynamic Staff Management & RBAC Module */}
-            <View className="flex-1">
-              <Card className="bg-slate-900 border-slate-800">
-                <View className="flex-row items-center justify-between mb-4 pb-3 border-b border-slate-800">
-                  <View className="flex-row items-center gap-2">
-                    <Users2 size={18} color="#38BDF8" />
-                    <View>
-                      <Text className="text-base font-bold text-slate-100">
-                        Staff RBAC Permissions
-                      </Text>
-                      <Text className="text-[11px] text-slate-400">
-                        Dynamically toggle staff capabilities
-                      </Text>
-                    </View>
-                  </View>
-
-                  {isOwner && (
-                    <Button
-                      title={showAddStaff ? 'Cancel' : 'Add Staff'}
-                      size="sm"
-                      variant={showAddStaff ? 'secondary' : 'primary'}
-                      icon={showAddStaff ? undefined : <Plus size={14} color="#0F172A" />}
-                      onPress={() => setShowAddStaff(!showAddStaff)}
-                    />
-                  )}
-                </View>
-
-                {/* Add New Staff Form */}
-                {showAddStaff && (
-                  <View className="bg-slate-950 border border-slate-800 rounded-2xl p-4 mb-4 gap-3">
-                    <Text className="text-xs font-bold text-slate-200 uppercase tracking-wider">
-                      Add New Gatekeeper Staff
-                    </Text>
-
-                    <TextInput
-                      value={newStaffName}
-                      onChangeText={setNewStaffName}
-                      placeholder="Staff Full Name (e.g. Suresh Patel)"
-                      placeholderTextColor="#64748B"
-                      className="bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-slate-100 text-sm"
-                    />
-
-                    <TextInput
-                      value={newStaffPhone}
-                      onChangeText={setNewStaffPhone}
-                      placeholder="Phone Number (e.g. +91 98123 45678)"
-                      placeholderTextColor="#64748B"
-                      keyboardType="phone-pad"
-                      className="bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-slate-100 text-sm"
-                    />
-
-                    <TextInput
-                      value={newStaffPasscode}
-                      onChangeText={setNewStaffPasscode}
-                      placeholder="4-Digit Gate PIN (e.g. 1234)"
-                      placeholderTextColor="#64748B"
-                      keyboardType="numeric"
-                      maxLength={4}
-                      className="bg-slate-900 border border-slate-800 rounded-xl px-3.5 py-2 text-slate-100 text-sm font-mono"
-                    />
-
-                    <Button
-                      title="Confirm & Add Staff"
-                      variant="primary"
-                      size="sm"
-                      loading={addingStaff}
-                      onPress={handleCreateStaff}
-                    />
-                  </View>
+      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 48 }}>
+        <View className="max-w-3xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-5 gap-6">
+          {notice && (
+            <Card
+              className={
+                notice.kind === 'ok'
+                  ? 'border-emerald-500/40 bg-emerald-500/5'
+                  : 'border-rose-500/40 bg-rose-500/5'
+              }
+            >
+              <View className="flex-row items-center gap-2">
+                {notice.kind === 'ok' ? (
+                  <CheckCircle2 size={15} color={theme.semantic.accent} />
+                ) : (
+                  <AlertCircle size={15} color={theme.semantic.danger} />
                 )}
+                <Text
+                  className={`text-xs flex-1 leading-4 ${
+                    notice.kind === 'ok' ? 'text-emerald-300' : 'text-rose-300'
+                  }`}
+                >
+                  {notice.text}
+                </Text>
+              </View>
+            </Card>
+          )}
 
-                {/* Staff List & RBAC Toggles */}
-                <View className="gap-4">
-                  {staffList.map((staff) => {
-                    const isStaffOwner = staff.isOwner;
-                    const perms = staff.permission || {
-                      userId: staff.id,
-                      can_view_ledger: false,
-                      can_verify_tickets: true,
-                      can_edit_settings: false,
-                      can_issue_refund: false,
-                    };
+          <BusinessSection
+            merchant={merchant}
+            canEdit={canEdit}
+            onSaved={async () => {
+              await refreshAuth();
+              flash('ok', 'Business details saved.');
+            }}
+            onError={(m) => flash('error', m)}
+          />
 
-                    return (
-                      <View
-                        key={staff.id}
-                        className="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-4"
-                      >
-                        {/* Staff Header */}
-                        <View className="flex-row items-center justify-between mb-3 pb-2.5 border-b border-slate-800/60">
-                          <View className="flex-row items-center gap-2.5">
-                            <View
-                              className={`w-9 h-9 rounded-xl items-center justify-center border ${
-                                isStaffOwner
-                                  ? 'bg-emerald-500/10 border-emerald-500/30'
-                                  : 'bg-slate-800 border-slate-700'
-                              }`}
-                            >
-                              {isStaffOwner ? (
-                                <Shield size={18} color="#10B981" />
-                              ) : (
-                                <KeyRound size={16} color="#94A3B8" />
-                              )}
-                            </View>
-                            <View>
-                              <Text className="text-sm font-bold text-slate-100">
-                                {staff.name}
-                              </Text>
-                              <Text className="text-xs text-slate-400 font-mono">
-                                {staff.phone}
-                              </Text>
-                            </View>
-                          </View>
+          <ProvidersSection
+            merchant={merchant}
+            canEdit={canEdit}
+            onSaved={async () => {
+              await refreshAuth();
+              flash('ok', 'Payment and delivery settings saved.');
+            }}
+            onError={(m) => flash('error', m)}
+          />
 
-                          <Badge
-                            label={isStaffOwner ? 'Root Owner' : 'Gatekeeper'}
-                            variant={isStaffOwner ? 'emerald' : 'info'}
-                            size="sm"
-                          />
-                        </View>
+          <TicketTypesSection
+            merchantId={merchant.id}
+            currency={merchant.currency}
+            types={ticketTypes}
+            canEdit={canEdit}
+            onChanged={async () => {
+              await refresh({ silent: true });
+              flash('ok', 'Pass types updated.');
+            }}
+            onError={(m) => flash('error', m)}
+          />
 
-                        {/* RBAC Permission Toggles */}
-                        {isStaffOwner ? (
-                          <View className="p-2.5 bg-emerald-950/20 rounded-xl border border-emerald-500/20">
-                            <Text className="text-xs text-emerald-400 font-medium">
-                              Root privileges active: Unrestricted access across all modules.
-                            </Text>
-                          </View>
-                        ) : (
-                          <View className="gap-2.5">
-                            {/* Toggle 1: can_verify_tickets */}
-                            <View className="flex-row items-center justify-between">
-                              <View className="flex-1 pr-2">
-                                <Text className="text-xs font-bold text-slate-200">
-                                  Verify Exit Tickets (Scanner)
-                                </Text>
-                                <Text className="text-[10px] text-slate-400">
-                                  Allows scanning and clearing customer passes
-                                </Text>
-                              </View>
-                              <Switch
-                                value={perms.can_verify_tickets}
-                                onValueChange={(val) =>
-                                  handleTogglePermission(staff, 'can_verify_tickets', val)
-                                }
-                                disabled={!isOwner}
-                                trackColor={{ false: '#334155', true: '#10B981' }}
-                                thumbColor="#FFFFFF"
-                              />
-                            </View>
-
-                            {/* Toggle 2: can_view_ledger */}
-                            <View className="flex-row items-center justify-between pt-2 border-t border-slate-800/40">
-                              <View className="flex-1 pr-2">
-                                <Text className="text-xs font-bold text-slate-200">
-                                  View Financial Ledger
-                                </Text>
-                                <Text className="text-[10px] text-slate-400">
-                                  Access to revenue totals and transaction history
-                                </Text>
-                              </View>
-                              <Switch
-                                value={perms.can_view_ledger}
-                                onValueChange={(val) =>
-                                  handleTogglePermission(staff, 'can_view_ledger', val)
-                                }
-                                disabled={!isOwner}
-                                trackColor={{ false: '#334155', true: '#10B981' }}
-                                thumbColor="#FFFFFF"
-                              />
-                            </View>
-
-                            {/* Toggle 3: can_edit_settings */}
-                            <View className="flex-row items-center justify-between pt-2 border-t border-slate-800/40">
-                              <View className="flex-1 pr-2">
-                                <Text className="text-xs font-bold text-slate-200">
-                                  Edit Facility Settings
-                                </Text>
-                                <Text className="text-[10px] text-slate-400">
-                                  Modify pricing rates and merchant profile
-                                </Text>
-                              </View>
-                              <Switch
-                                value={perms.can_edit_settings}
-                                onValueChange={(val) =>
-                                  handleTogglePermission(staff, 'can_edit_settings', val)
-                                }
-                                disabled={!isOwner}
-                                trackColor={{ false: '#334155', true: '#10B981' }}
-                                thumbColor="#FFFFFF"
-                              />
-                            </View>
-
-                            {/* Toggle 4: can_issue_refund */}
-                            <View className="flex-row items-center justify-between pt-2 border-t border-slate-800/40">
-                              <View className="flex-1 pr-2">
-                                <Text className="text-xs font-bold text-slate-200">
-                                  Issue Pass Refunds
-                                </Text>
-                                <Text className="text-[10px] text-slate-400">
-                                  Authorize transaction cancellations and refunds
-                                </Text>
-                              </View>
-                              <Switch
-                                value={perms.can_issue_refund}
-                                onValueChange={(val) =>
-                                  handleTogglePermission(staff, 'can_issue_refund', val)
-                                }
-                                disabled={!isOwner}
-                                trackColor={{ false: '#334155', true: '#10B981' }}
-                                thumbColor="#FFFFFF"
-                              />
-                            </View>
-                          </View>
-                        )}
-                      </View>
-                    );
-                  })}
-                </View>
-              </Card>
-            </View>
-          </View>
+          <StaffSection
+            staff={staff}
+            canManage={canManageStaff}
+            currentUserId={user.id}
+            onChanged={async (message) => {
+              await refresh({ silent: true });
+              flash('ok', message);
+            }}
+            onError={(m) => flash('error', m)}
+          />
         </View>
       </ScrollView>
     </View>
   );
 }
+
+// -----------------------------------------------------------------------------
+
+const SectionHeader: React.FC<{ icon: React.ReactNode; title: string; subtitle: string }> = ({
+  icon,
+  title,
+  subtitle,
+}) => (
+  <View className="flex-row items-center gap-3 mb-4 pb-3 border-b border-slate-800">
+    <View className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 items-center justify-center">
+      {icon}
+    </View>
+    <View className="flex-1">
+      <Text className="text-base font-bold text-slate-100">{title}</Text>
+      <Text className="text-xs text-slate-400">{subtitle}</Text>
+    </View>
+  </View>
+);
+
+const ReadOnlyNote: React.FC = () => (
+  <Text className="text-[11px] text-slate-500 leading-4">
+    You can see this but not change it. Ask the owner for the matching permission.
+  </Text>
+);
+
+// -----------------------------------------------------------------------------
+
+const BusinessSection: React.FC<{
+  merchant: NonNullable<ReturnType<typeof useAuth>['merchant']>;
+  canEdit: boolean;
+  onSaved: () => void;
+  onError: (message: string) => void;
+}> = ({ merchant, canEdit, onSaved, onError }) => {
+  const [businessName, setBusinessName] = useState(merchant.businessName);
+  const [location, setLocation] = useState(merchant.location);
+  const [upiId, setUpiId] = useState(merchant.upiId);
+  const [busy, setBusy] = useState(false);
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      // Persisted to the database, not just to device storage. The previous
+      // build saved merchant settings to AsyncStorage only, so a rate change on
+      // one phone never reached the gate device or the customer checkout.
+      await merchantService.updateMerchant(merchant.id, { businessName, location, upiId });
+      onSaved();
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Could not save.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card>
+      <SectionHeader
+        icon={<Building2 size={18} color={theme.semantic.accent} />}
+        title="Business"
+        subtitle="What customers see at checkout"
+      />
+
+      <Field label="Business name">
+        <TextInput
+          value={businessName}
+          onChangeText={setBusinessName}
+          editable={canEdit}
+          placeholderTextColor={theme.semantic.textFaint}
+          className="text-slate-100 text-base"
+        />
+      </Field>
+
+      <Field label="Location">
+        <TextInput
+          value={location}
+          onChangeText={setLocation}
+          editable={canEdit}
+          placeholderTextColor={theme.semantic.textFaint}
+          className="text-slate-100 text-base"
+        />
+      </Field>
+
+      <Field label="UPI ID" hint="Where customer payments land.">
+        <TextInput
+          value={upiId}
+          onChangeText={setUpiId}
+          editable={canEdit}
+          autoCapitalize="none"
+          placeholderTextColor={theme.semantic.textFaint}
+          className="text-slate-100 text-base"
+        />
+      </Field>
+
+      {canEdit ? (
+        <Button title="Save business details" variant="primary" fullWidth loading={busy} onPress={save} />
+      ) : (
+        <ReadOnlyNote />
+      )}
+    </Card>
+  );
+};
+
+// -----------------------------------------------------------------------------
+
+const ProvidersSection: React.FC<{
+  merchant: NonNullable<ReturnType<typeof useAuth>['merchant']>;
+  canEdit: boolean;
+  onSaved: () => void;
+  onError: (message: string) => void;
+}> = ({ merchant, canEdit, onSaved, onError }) => {
+  const [payment, setPayment] = useState(merchant.paymentProvider);
+  const [messaging, setMessaging] = useState(merchant.messagingProvider);
+  const [busy, setBusy] = useState(false);
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      await merchantService.updateMerchant(merchant.id, {
+        paymentProvider: payment,
+        messagingProvider: messaging,
+      });
+      onSaved();
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Could not save.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card>
+      <SectionHeader
+        icon={<CreditCard size={18} color={theme.semantic.accent} />}
+        title="Payments & delivery"
+        subtitle="Swappable — switching one does not affect the rest of the app"
+      />
+
+      <Text className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+        How customers pay
+      </Text>
+      <View className="gap-2.5 mb-5">
+        {Object.entries(PAYMENT_PROVIDERS).map(([id, meta]) => (
+          <ChoiceRow
+            key={id}
+            selected={payment === id}
+            disabled={!canEdit}
+            label={meta.label}
+            note={meta.note}
+            onPress={() => setPayment(id)}
+          />
+        ))}
+      </View>
+
+      <View className="flex-row items-center gap-1.5 mb-2">
+        <MessageSquare size={12} color={theme.semantic.textMuted} />
+        <Text className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+          How passes reach customers
+        </Text>
+      </View>
+      <View className="gap-2.5 mb-5">
+        {Object.entries(MESSAGING_PROVIDERS).map(([id, meta]) => (
+          <ChoiceRow
+            key={id}
+            selected={messaging === id}
+            disabled={!canEdit}
+            label={meta.label}
+            note={meta.note}
+            onPress={() => setMessaging(id)}
+          />
+        ))}
+      </View>
+
+      {canEdit ? (
+        <Button title="Save" variant="primary" fullWidth loading={busy} onPress={save} />
+      ) : (
+        <ReadOnlyNote />
+      )}
+    </Card>
+  );
+};
+
+const ChoiceRow: React.FC<{
+  selected: boolean;
+  disabled: boolean;
+  label: string;
+  note: string;
+  onPress: () => void;
+}> = ({ selected, disabled, label, note, onPress }) => (
+  <TouchableOpacity
+    onPress={disabled ? undefined : onPress}
+    activeOpacity={disabled ? 1 : 0.7}
+    className={`p-3.5 rounded-2xl border ${
+      selected ? 'bg-emerald-500/10 border-emerald-500/50' : 'bg-slate-950/60 border-slate-800'
+    } ${disabled ? 'opacity-60' : ''}`}
+  >
+    <View className="flex-row items-center justify-between mb-1">
+      <Text className="text-sm font-bold text-slate-100">{label}</Text>
+      {selected && <CheckCircle2 size={15} color={theme.semantic.accent} />}
+    </View>
+    <Text className="text-[11px] text-slate-400 leading-4">{note}</Text>
+  </TouchableOpacity>
+);
+
+// -----------------------------------------------------------------------------
+
+const TicketTypesSection: React.FC<{
+  merchantId: string;
+  currency: string;
+  types: ReturnType<typeof useApp>['ticketTypes'];
+  canEdit: boolean;
+  onChanged: () => void;
+  onError: (message: string) => void;
+}> = ({ merchantId, currency, types, canEdit, onChanged, onError }) => {
+  const [adding, setAdding] = useState(false);
+  const [code, setCode] = useState('');
+  const [label, setLabel] = useState('');
+  const [amount, setAmount] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const add = async () => {
+    const draft = {
+      code: code.trim().toUpperCase().replace(/\s+/g, '_'),
+      label: label.trim(),
+      icon: 'ticket' as const,
+      amount: Number(amount),
+      sortOrder: types.length + 1,
+      isActive: true,
+    };
+
+    const problem = validateTicketTypeDraft(draft);
+    if (problem) {
+      onError(problem);
+      return;
+    }
+
+    setBusy(true);
+    try {
+      await merchantService.createTicketType(merchantId, draft);
+      setCode('');
+      setLabel('');
+      setAmount('');
+      setAdding(false);
+      onChanged();
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Could not add the pass type.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggleActive = async (id: string, isActive: boolean) => {
+    try {
+      await merchantService.updateTicketType(id, { isActive });
+      onChanged();
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Could not update the pass type.');
+    }
+  };
+
+  return (
+    <Card>
+      <SectionHeader
+        icon={<Tag size={18} color={theme.semantic.accent} />}
+        title="Pass types & prices"
+        subtitle="Add a new type any time — no update needed"
+      />
+
+      <View className="gap-2.5">
+        {types.map((type) => {
+          const Icon = ticketTypeIcon(type.icon);
+          return (
+            <View
+              key={type.id}
+              className="flex-row items-center gap-3 p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800"
+            >
+              <Icon size={18} color={type.isActive ? theme.semantic.accent : theme.semantic.textFaint} />
+              <View className="flex-1 min-w-0">
+                <Text className="text-sm font-bold text-slate-100">{type.label}</Text>
+                <Text className="text-[11px] font-mono text-slate-500">{type.code}</Text>
+              </View>
+              <Text className="text-sm font-extrabold text-emerald-400">
+                {formatCurrency(type.amount, currency)}
+              </Text>
+              {canEdit && (
+                <Switch
+                  value={type.isActive}
+                  onValueChange={(value) => toggleActive(type.id, value)}
+                  trackColor={{ false: theme.semantic.surfaceRaised, true: theme.semantic.accentDeep }}
+                  thumbColor={type.isActive ? theme.semantic.accentSoft : theme.semantic.textMuted}
+                />
+              )}
+            </View>
+          );
+        })}
+      </View>
+
+      {/*
+        Retiring rather than deleting: transactions reference the type, and a
+        pass sold last month must keep reporting under the type it was sold as.
+      */}
+      <Text className="text-[11px] text-slate-500 mt-3 leading-4">
+        Switching a type off hides it from checkout. Past passes keep their original type
+        and price.
+      </Text>
+
+      {canEdit &&
+        (adding ? (
+          <View className="mt-4 pt-4 border-t border-slate-800">
+            <Field label="Name">
+              <TextInput
+                value={label}
+                onChangeText={(text) => {
+                  setLabel(text);
+                  if (!code) setCode(text.toUpperCase().replace(/[^A-Z0-9]+/g, '_').slice(0, 32));
+                }}
+                placeholder="Cycle / VIP Pass / Night Rate"
+                placeholderTextColor={theme.semantic.textFaint}
+                className="text-slate-100 text-base"
+              />
+            </Field>
+            <Field label="Code" hint="Used internally. Letters, numbers and underscore.">
+              <TextInput
+                value={code}
+                onChangeText={(text) => setCode(text.toUpperCase())}
+                placeholder="VIP_PASS"
+                placeholderTextColor={theme.semantic.textFaint}
+                autoCapitalize="characters"
+                className="text-slate-100 text-base font-mono"
+              />
+            </Field>
+            <Field label="Price">
+              <TextInput
+                value={amount}
+                onChangeText={setAmount}
+                placeholder="50"
+                placeholderTextColor={theme.semantic.textFaint}
+                keyboardType="number-pad"
+                className="text-slate-100 text-base"
+              />
+            </Field>
+            <View className="flex-row gap-2">
+              <Button title="Cancel" variant="secondary" className="flex-1" onPress={() => setAdding(false)} />
+              <Button title="Add" variant="primary" className="flex-1" loading={busy} onPress={add} />
+            </View>
+          </View>
+        ) : (
+          <Button
+            title="Add a pass type"
+            variant="secondary"
+            fullWidth
+            className="mt-4"
+            icon={<Plus size={15} color={theme.semantic.text} />}
+            onPress={() => setAdding(true)}
+          />
+        ))}
+    </Card>
+  );
+};
+
+// -----------------------------------------------------------------------------
+
+const StaffSection: React.FC<{
+  staff: StaffMember[];
+  canManage: boolean;
+  currentUserId: string;
+  onChanged: (message: string) => void;
+  onError: (message: string) => void;
+}> = ({ staff, canManage, currentUserId, onChanged, onError }) => {
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [pin, setPin] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const addStaff = async () => {
+    setBusy(true);
+    try {
+      await merchantService.createStaff({
+        name,
+        phone,
+        pin,
+        // Scanner access only, until the owner grants more. Defaults come from
+        // the registry, so a permission added later starts off correctly too.
+        permissions: defaultStaffPermissions(),
+      });
+      setName('');
+      setPhone('');
+      setPin('');
+      setAdding(false);
+      onChanged('Gatekeeper added. Share their PIN with them.');
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Could not add the gatekeeper.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card>
+      <SectionHeader
+        icon={<Users2 size={18} color={theme.semantic.accent} />}
+        title="Gatekeepers"
+        subtitle="Who works here, and what each of them can do"
+      />
+
+      <View className="gap-3">
+        {staff.map((member) => (
+          <StaffRow
+            key={member.id}
+            member={member}
+            canManage={canManage}
+            isSelf={member.id === currentUserId}
+            onChanged={onChanged}
+            onError={onError}
+          />
+        ))}
+      </View>
+
+      {canManage &&
+        (adding ? (
+          <View className="mt-4 pt-4 border-t border-slate-800">
+            <Field label="Name">
+              <TextInput
+                value={name}
+                onChangeText={setName}
+                placeholder="Amit Kumar"
+                placeholderTextColor={theme.semantic.textFaint}
+                className="text-slate-100 text-base"
+              />
+            </Field>
+            <Field label="Phone" hint="They sign in with this number and their PIN.">
+              <TextInput
+                value={phone}
+                onChangeText={setPhone}
+                placeholder="98111 22233"
+                placeholderTextColor={theme.semantic.textFaint}
+                keyboardType="phone-pad"
+                className="text-slate-100 text-base"
+              />
+            </Field>
+            <Field label="PIN" hint="4 to 8 digits. You can change it any time.">
+              <TextInput
+                value={pin}
+                onChangeText={setPin}
+                placeholder="0000"
+                placeholderTextColor={theme.semantic.textFaint}
+                keyboardType="number-pad"
+                maxLength={8}
+                className="text-slate-100 text-xl font-bold tracking-[0.3em]"
+              />
+            </Field>
+            <View className="flex-row gap-2">
+              <Button title="Cancel" variant="secondary" className="flex-1" onPress={() => setAdding(false)} />
+              <Button title="Add" variant="primary" className="flex-1" loading={busy} onPress={addStaff} />
+            </View>
+          </View>
+        ) : (
+          <Button
+            title="Add a gatekeeper"
+            variant="secondary"
+            fullWidth
+            className="mt-4"
+            icon={<Plus size={15} color={theme.semantic.text} />}
+            onPress={() => setAdding(true)}
+          />
+        ))}
+    </Card>
+  );
+};
+
+const StaffRow: React.FC<{
+  member: StaffMember;
+  canManage: boolean;
+  isSelf: boolean;
+  onChanged: (message: string) => void;
+  onError: (message: string) => void;
+}> = ({ member, canManage, isSelf, onChanged, onError }) => {
+  const [permissions, setPermissions] = useState<PermissionSet>(member.permissions);
+  const [expanded, setExpanded] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [newPin, setNewPin] = useState('');
+
+  // Keep local toggles in step with a refresh that happened elsewhere.
+  useEffect(() => setPermissions(member.permissions), [member.permissions]);
+
+  const toggle = async (key: PermissionKey, value: boolean) => {
+    const next = { ...permissions, [key]: value };
+    setPermissions(next); // optimistic
+    try {
+      // The whole set is written, not a patch: the column is JSONB and a partial
+      // write would drop every key it omits.
+      await merchantService.setStaffPermissions(member.id, next);
+    } catch (err) {
+      setPermissions(permissions);
+      onError(err instanceof Error ? err.message : 'Could not change access.');
+    }
+  };
+
+  const resetPin = async () => {
+    try {
+      await merchantService.resetStaffPin(member.id, newPin);
+      setNewPin('');
+      setResetting(false);
+      onChanged(`New PIN set for ${member.name}.`);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Could not reset the PIN.');
+    }
+  };
+
+  const deactivate = async () => {
+    try {
+      await merchantService.deactivateStaff(member.id);
+      onChanged(`${member.name} can no longer sign in.`);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'Could not remove them.');
+    }
+  };
+
+  return (
+    <View className="rounded-2xl bg-slate-950/60 border border-slate-800 p-3.5">
+      <TouchableOpacity
+        onPress={() => setExpanded((v) => !v)}
+        activeOpacity={0.8}
+        className="flex-row items-center justify-between gap-3"
+      >
+        <View className="flex-1 min-w-0">
+          <View className="flex-row items-center gap-2 flex-wrap">
+            <Text className="text-sm font-bold text-slate-100">{member.name}</Text>
+            <Badge
+              label={member.isOwner ? 'Owner' : member.isActive ? 'Gatekeeper' : 'Removed'}
+              variant={member.isOwner ? 'emerald' : member.isActive ? 'info' : 'neutral'}
+              size="sm"
+            />
+            {isSelf && <Badge label="You" variant="neutral" size="sm" />}
+          </View>
+          <Text className="text-[11px] text-slate-400 mt-0.5">{member.phone}</Text>
+        </View>
+        <Text className="text-[11px] font-bold text-emerald-400">
+          {expanded ? 'Hide' : 'Access'}
+        </Text>
+      </TouchableOpacity>
+
+      {expanded && (
+        <View className="mt-3 pt-3 border-t border-slate-800">
+          {member.isOwner ? (
+            <Text className="text-[11px] text-slate-500 leading-4">
+              The owner always has every permission, including any added later.
+            </Text>
+          ) : (
+            <>
+              {/*
+                Rendered from the registry, so adding a permission in
+                src/config/permissions.ts makes it appear here with no change to
+                this screen and no migration.
+              */}
+              <View className="gap-3">
+                {PERMISSION_KEYS.map((key) => (
+                  <View key={key} className="flex-row items-start justify-between gap-3">
+                    <View className="flex-1">
+                      <Text className="text-xs font-bold text-slate-200">
+                        {PERMISSION_REGISTRY[key].label}
+                      </Text>
+                      <Text className="text-[11px] text-slate-500 leading-4">
+                        {PERMISSION_REGISTRY[key].description}
+                      </Text>
+                    </View>
+                    <Switch
+                      value={permissions[key]}
+                      onValueChange={(value) => toggle(key, value)}
+                      disabled={!canManage}
+                      trackColor={{
+                        false: theme.semantic.surfaceRaised,
+                        true: theme.semantic.accentDeep,
+                      }}
+                      thumbColor={permissions[key] ? theme.semantic.accentSoft : theme.semantic.textMuted}
+                    />
+                  </View>
+                ))}
+              </View>
+
+              {canManage && (
+                <View className="mt-4 pt-3 border-t border-slate-800 gap-2">
+                  {resetting ? (
+                    <>
+                      <View className="bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5">
+                        <TextInput
+                          value={newPin}
+                          onChangeText={setNewPin}
+                          placeholder="New PIN"
+                          placeholderTextColor={theme.semantic.textFaint}
+                          keyboardType="number-pad"
+                          maxLength={8}
+                          className="text-slate-100 text-base font-bold tracking-[0.3em]"
+                        />
+                      </View>
+                      <View className="flex-row gap-2">
+                        <Button
+                          title="Cancel"
+                          variant="ghost"
+                          size="sm"
+                          className="flex-1"
+                          onPress={() => setResetting(false)}
+                        />
+                        <Button
+                          title="Set PIN"
+                          variant="primary"
+                          size="sm"
+                          className="flex-1"
+                          onPress={resetPin}
+                        />
+                      </View>
+                    </>
+                  ) : (
+                    <View className="flex-row gap-2">
+                      <Button
+                        title="Change PIN"
+                        variant="secondary"
+                        size="sm"
+                        className="flex-1"
+                        icon={<KeyRound size={13} color={theme.semantic.text} />}
+                        onPress={() => setResetting(true)}
+                      />
+                      {member.isActive && (
+                        <Button
+                          title="Remove"
+                          variant="danger"
+                          size="sm"
+                          className="flex-1"
+                          icon={<UserMinus size={13} color={theme.palette.white} />}
+                          onPress={deactivate}
+                        />
+                      )}
+                    </View>
+                  )}
+                </View>
+              )}
+            </>
+          )}
+        </View>
+      )}
+    </View>
+  );
+};
