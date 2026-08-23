@@ -268,6 +268,7 @@ export function previewTicket(ticketCode: string): PublicTicket {
       upiId: previewMerchant.upiId,
       currency: 'INR',
       paymentProvider: 'upi_intent',
+      branding: previewMerchant.branding,
     },
   };
 }

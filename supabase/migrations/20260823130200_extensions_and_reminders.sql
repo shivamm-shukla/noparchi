@@ -589,7 +589,10 @@ begin
     'merchant', jsonb_build_object(
       'id', v_m.id, 'businessName', v_m.business_name, 'location', v_m.location,
       'upiId', v_m.upi_id, 'currency', v_m.currency,
-      'paymentProvider', v_m.payment_provider)
+      'paymentProvider', v_m.payment_provider,
+      -- The customer looking at their pass should see whose business it is.
+      -- Same shape public_checkout_info returns, so one component renders both.
+      'branding', coalesce(v_m.settings -> 'branding', '{}'::jsonb))
   );
 end;
 $$;

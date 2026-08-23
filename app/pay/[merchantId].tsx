@@ -2,9 +2,10 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import QRCode from 'react-native-qrcode-svg';
-import { ShieldCheck, Sparkles, AlertCircle, Smartphone, CheckCircle2 } from 'lucide-react-native';
+import { ShieldCheck, AlertCircle, Smartphone, CheckCircle2 } from 'lucide-react-native';
 import { useThemeColors } from '../../src/context/ThemeContext';
 import { Card } from '../../components/ui/Card';
+import { MerchantLogo } from '../../components/ui/MerchantLogo';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { checkoutService, type CheckoutInfo } from '../../src/services/checkoutService';
@@ -138,9 +139,11 @@ export default function CheckoutScreen() {
       <View className="bg-brand-surface border-b border-brand-border px-4 py-4">
         <View className="max-w-lg mx-auto w-full flex-row items-center justify-between">
           <View className="flex-row items-center gap-2.5 flex-1 min-w-0">
-            <View className="w-9 h-9 rounded-xl bg-brand-accent/10 border border-brand-accent/30 items-center justify-center">
-              <Sparkles size={18} color={colors['accent']} />
-            </View>
+            <MerchantLogo
+              name={merchant.businessName}
+              logoUrl={merchant.branding?.logoUrl}
+              size={36}
+            />
             <View className="flex-1 min-w-0">
               <Text numberOfLines={1} className="text-base font-extrabold text-brand-text">
                 {merchant.businessName}

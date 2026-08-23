@@ -206,5 +206,6 @@ export interface PublicTicket {
     upiId: string;
     currency: string;
     paymentProvider: string;
+    branding: MerchantBranding;
   };
 }

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react-native';
 import { useThemeColors } from '../../src/context/ThemeContext';
 import { Card } from '../../components/ui/Card';
+import { MerchantLogo } from '../../components/ui/MerchantLogo';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { checkoutService } from '../../src/services/checkoutService';
@@ -182,9 +183,16 @@ export default function TicketScreen() {
               <state.Icon size={30} color={state.color} />
             </View>
 
-            <Text className="text-xl font-extrabold text-brand-text text-center">
-              {ticket.merchant.businessName}
-            </Text>
+            <View className="flex-row items-center gap-2 mb-0.5">
+              <MerchantLogo
+                name={ticket.merchant.businessName}
+                logoUrl={ticket.merchant.branding?.logoUrl}
+                size={26}
+              />
+              <Text className="text-xl font-extrabold text-brand-text text-center">
+                {ticket.merchant.businessName}
+              </Text>
+            </View>
             <Text className="text-xs text-brand-text-muted text-center mb-1">
               {ticket.merchant.location}
             </Text>
