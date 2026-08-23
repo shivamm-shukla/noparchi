@@ -11,7 +11,14 @@
  * Server-side enforcement lives in the SQL policies and RPCs (see
  * supabase/migrations). This file is the shared vocabulary both sides use; it
  * is NOT itself a security boundary.
+ *
+ * The English label and description on each entry are the fallback wording, not
+ * the wording the app shows. Screens read permissionLabel()/permissionDescription()
+ * below, which prefer the translation and fall back to what is written here - so
+ * a permission added to the registry appears immediately in English and is
+ * translated afterwards, rather than blocking on a locale edit.
  */
+import i18n from '../i18n';
 
 export const PERMISSION_REGISTRY = {
   can_verify_tickets: {
@@ -88,6 +95,25 @@ export function normalizePermissions(raw: unknown, isOwner: boolean): Permission
     acc[key] = typeof value === 'boolean' ? value : PERMISSION_REGISTRY[key].staffDefault;
     return acc;
   }, {} as PermissionSet);
+}
+
+/**
+ * The wording a person sees for a permission, in the language they are reading.
+ *
+ * The Settings toggles and the access-denied screen previously rendered the
+ * registry's English strings directly, so switching the app to Hindi left the
+ * one screen that decides what a gatekeeper may do sitting in English.
+ */
+export function permissionLabel(key: PermissionKey): string {
+  return i18n.t(`permissions.${key}.label`, {
+    defaultValue: PERMISSION_REGISTRY[key].label,
+  });
+}
+
+export function permissionDescription(key: PermissionKey): string {
+  return i18n.t(`permissions.${key}.description`, {
+    defaultValue: PERMISSION_REGISTRY[key].description,
+  });
 }
 
 /** Client-side convenience check. Never the only check - the server re-verifies. */

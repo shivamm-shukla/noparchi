@@ -41,8 +41,9 @@ import { MerchantLogo } from '../../../components/ui/MerchantLogo';
 import { merchantService } from '../../../src/services/merchantService';
 import {
   PERMISSION_KEYS,
-  PERMISSION_REGISTRY,
   defaultStaffPermissions,
+  permissionDescription,
+  permissionLabel,
   type PermissionKey,
   type PermissionSet,
 } from '../../../src/config/permissions';
@@ -1358,10 +1359,10 @@ const StaffRow: React.FC<{
                   <View key={key} className="flex-row items-start justify-between gap-3">
                     <View className="flex-1">
                       <Text font="body-bold" className="text-xs text-brand-text">
-                        {PERMISSION_REGISTRY[key].label}
+                        {permissionLabel(key)}
                       </Text>
                       <Text font="body" className="text-[11px] text-brand-text-faint leading-4">
-                        {PERMISSION_REGISTRY[key].description}
+                        {permissionDescription(key)}
                       </Text>
                     </View>
                     <Switch

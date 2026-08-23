@@ -380,5 +380,35 @@
       "themeNote": "Automatic follows your phone's own setting. This choice is saved on this device only.",
       "langNote": "Changes every screen in the app, including the customer's pass page when they open it from your gate."
     }
+  },
+  "permissions": {
+    "can_verify_tickets": {
+      "label": "Verify exit passes",
+      "description": "Scan customer QR passes at the gate and clear vehicles for exit."
+    },
+    "can_view_ledger": {
+      "label": "View ledger & revenue",
+      "description": "See transaction history, daily revenue totals and payment references."
+    },
+    "can_issue_passes": {
+      "label": "Issue passes manually",
+      "description": "Create an entry pass from the merchant app for walk-in cash customers."
+    },
+    "can_edit_settings": {
+      "label": "Edit business settings",
+      "description": "Change business profile, UPI ID, pricing and ticket types."
+    },
+    "can_manage_staff": {
+      "label": "Manage staff",
+      "description": "Add or remove gatekeepers and change what they are allowed to do."
+    },
+    "can_issue_refund": {
+      "label": "Issue refunds",
+      "description": "Reverse a completed transaction and mark it refunded."
+    }
+  },
+  "roleGate": {
+    "title": "Not available on your account",
+    "askOwner": "Ask the business owner to switch on “{{permission}}” for you in Settings → Staff."
   }
 }

@@ -2,10 +2,15 @@ import React from 'react';
 import { View } from 'react-native';
 import { Text } from './Text';
 import { ShieldAlert } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { Card } from './Card';
 import { useThemeColors } from '../../src/context/ThemeContext';
 import { useAuth } from '../../src/context/AuthContext';
-import { PERMISSION_REGISTRY, type PermissionKey } from '../../src/config/permissions';
+import {
+  permissionDescription,
+  permissionLabel,
+  type PermissionKey,
+} from '../../src/config/permissions';
 
 interface RoleGateProps {
   permission: PermissionKey;
@@ -27,11 +32,10 @@ interface RoleGateProps {
  */
 export const RoleGate: React.FC<RoleGateProps> = ({ permission, children, title }) => {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const { can } = useAuth();
 
   if (can(permission)) return <>{children}</>;
-
-  const meta = PERMISSION_REGISTRY[permission];
 
   return (
     <View className="flex-1 items-center justify-center p-6">
@@ -41,15 +45,15 @@ export const RoleGate: React.FC<RoleGateProps> = ({ permission, children, title 
         </View>
 
         <Text font="display-bold" className="mb-2 text-center text-xl text-brand-text">
-          {title ?? 'Not available on your account'}
+          {title ?? t('roleGate.title')}
         </Text>
 
         <Text font="body" className="text-center text-sm leading-5 text-brand-text-muted">
-          {meta.description}
+          {permissionDescription(permission)}
         </Text>
 
         <Text font="body" className="mt-4 text-center text-xs leading-5 text-brand-text-faint">
-          Ask the business owner to switch on “{meta.label}” for you in Settings → Staff.
+          {t('roleGate.askOwner', { permission: permissionLabel(permission) })}
         </Text>
       </Card>
     </View>
