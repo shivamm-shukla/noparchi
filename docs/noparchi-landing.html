@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NoParchi — Scan. Pay. Enter.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #FBFBFD;
+    --bg-elev: #FFFFFF;
+    --card: #FFFFFF;
+    --card-border: rgba(15, 23, 42, 0.08);
+    --text-primary: #0F172A;
+    --text-secondary: #52586B;
+    --text-muted: #8A8F9E;
+    --accent: #0FA968;
+    --accent-soft: rgba(16, 185, 129, 0.10);
+    --accent-border: rgba(16, 185, 129, 0.28);
+    --divider: rgba(15, 23, 42, 0.07);
+    --shadow-card: 0 1px 2px rgba(15,23,42,0.04), 0 8px 24px rgba(15,23,42,0.05);
+    --shadow-hero: 0 20px 60px rgba(15,23,42,0.10);
+    --radius-lg: 22px;
+    --radius-md: 16px;
+    --radius-sm: 10px;
+    --nav-blur: saturate(180%) blur(20px);
+    --nav-bg: rgba(251, 251, 253, 0.72);
+  }
+
+  [data-theme="dark"] {
+    --bg: #08090D;
+    --bg-elev: #0E1016;
+    --card: #12141C;
+    --card-border: rgba(255, 255, 255, 0.08);
+    --text-primary: #F2F3F5;
+    --text-secondary: #9BA0AE;
+    --text-muted: #6B7080;
+    --accent: #22C98A;
+    --accent-soft: rgba(34, 201, 138, 0.12);
+    --accent-border: rgba(34, 201, 138, 0.30);
+    --divider: rgba(255, 255, 255, 0.07);
+    --shadow-card: 0 1px 2px rgba(0,0,0,0.3), 0 8px 30px rgba(0,0,0,0.35);
+    --shadow-hero: 0 30px 80px rgba(0,0,0,0.55);
+    --nav-bg: rgba(8, 9, 13, 0.66);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+    background: var(--bg);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    transition: background 0.35s ease, color 0.35s ease;
+    overflow-x: hidden;
+  }
+
+  [data-lang="hi"] body,
+  [data-i18n-hi] {
+    font-family: 'Noto Sans Devanagari', 'Inter', sans-serif;
+  }
+
+  h1, h2, h3, .display {
+    font-family: 'Manrope', 'Inter', sans-serif;
+    letter-spacing: -0.02em;
+    font-weight: 700;
+  }
+
+  [data-lang="hi"] h1[data-i18n-hi],
+  [data-lang="hi"] h2[data-i18n-hi],
+  [data-lang="hi"] h3[data-i18n-hi],
+  [data-lang="hi"] h4[data-i18n-hi],
+  span[data-i18n-hi], p[data-i18n-hi], a[data-i18n-hi], button[data-i18n-hi] {
+    font-family: 'Noto Sans Devanagari', 'Inter', sans-serif;
+    letter-spacing: 0;
+  }
+  h1[data-i18n-hi], h2[data-i18n-hi], h3[data-i18n-hi], h4[data-i18n-hi] {
+    font-weight: 600;
+  }
+
+  a { color: inherit; text-decoration: none; }
+
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0 32px;
+  }
+
+  /* ---------- NAV ---------- */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--nav-bg);
+    backdrop-filter: var(--nav-blur);
+    -webkit-backdrop-filter: var(--nav-blur);
+    border-bottom: 1px solid var(--divider);
+  }
+  .nav-inner {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 14px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .brand-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    border: 1.6px solid var(--text-primary);
+    position: relative;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .brand-name {
+    font-family: 'Manrope', sans-serif;
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: -0.02em;
+  }
+  .brand-name .accent-word { color: var(--accent); }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+  }
+  .nav-links a {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    transition: color 0.2s ease;
+  }
+  .nav-links a:hover { color: var(--text-primary); }
+
+  .nav-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid var(--card-border);
+    background: var(--card);
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+  }
+  .icon-btn:hover {
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+  }
+
+  .lang-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 12px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid var(--card-border);
+    background: var(--card);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+  }
+  .lang-btn:hover { color: var(--text-primary); border-color: var(--text-muted); }
+
+  .cta-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 20px;
+    height: 38px;
+    border-radius: 10px;
+    background: var(--text-primary);
+    color: var(--bg);
+    font-size: 14px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+  }
+  .cta-btn:hover { opacity: 0.85; }
+  .cta-btn:active { transform: scale(0.97); }
+
+  .cta-btn.accent {
+    background: var(--accent);
+    color: #ffffff;
+  }
+
+  /* ---------- HERO ---------- */
+  .hero {
+    padding: 96px 32px 60px;
+    text-align: center;
+    position: relative;
+  }
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 100px;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-border);
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 28px;
+  }
+  .hero h1 {
+    font-size: 60px;
+    line-height: 1.06;
+    max-width: 780px;
+    margin: 0 auto 22px;
+  }
+  .hero h1 .accent-word { color: var(--accent); }
+  .hero p.sub {
+    font-size: 19px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    max-width: 560px;
+    margin: 0 auto 36px;
+    font-weight: 400;
+  }
+  .hero-ctas {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .cta-btn.large {
+    height: 48px;
+    padding: 0 26px;
+    font-size: 15px;
+    border-radius: 12px;
+  }
+  .hero-note {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  /* ---------- HERO VISUAL (macOS-style floating card window) ---------- */
+  .hero-visual {
+    margin: 64px auto 0;
+    max-width: 760px;
+    position: relative;
+  }
+  .device-window {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-hero);
+    overflow: hidden;
+  }
+  .window-bar {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--divider);
+  }
+  .dot { width: 11px; height: 11px; border-radius: 50%; }
+  .dot.red { background: #FF5F57; }
+  .dot.yellow { background: #FEBC2E; }
+  .dot.green { background: #28C840; }
+
+  .window-body {
+    padding: 40px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    align-items: center;
+  }
+  .scan-visual {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .qr-frame {
+    width: 168px;
+    height: 168px;
+    border-radius: 20px;
+    background: #FFFFFF;
+    border: 1px solid var(--card-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    box-shadow: var(--shadow-card);
+  }
+  .qr-frame svg { width: 132px; height: 132px; display: block; }
+  .qr-logo {
+    position: absolute;
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    background: #0F172A;
+    border: 3px solid #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+  }
+  .qr-logo span {
+    color: #10B981;
+    font-family: 'Manrope', sans-serif;
+    font-weight: 800;
+    font-size: 15px;
+    letter-spacing: -0.01em;
+  }
+  .pulse-ring {
+    position: absolute;
+    inset: -14px;
+    border-radius: 26px;
+    border: 2px solid var(--accent);
+    opacity: 0;
+    animation: pulseRing 2.4s ease-out infinite;
+  }
+  @keyframes pulseRing {
+    0% { opacity: 0.55; transform: scale(0.94); }
+    70% { opacity: 0; transform: scale(1.08); }
+    100% { opacity: 0; transform: scale(1.08); }
+  }
+
+  .flow-steps { display: flex; flex-direction: column; gap: 18px; text-align: left; }
+  .flow-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .flow-num {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .flow-step h4 { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
+  .flow-step p { font-size: 13.5px; color: var(--text-secondary); line-height: 1.5; }
+
+  /* ---------- SECTION SHELL ---------- */
+  section { padding: 100px 32px; }
+  .section-head {
+    text-align: center;
+    max-width: 620px;
+    margin: 0 auto 56px;
+  }
+  .section-tag {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 14px;
+  }
+  .section-head h2 { font-size: 38px; line-height: 1.2; margin-bottom: 14px; }
+  .section-head p { font-size: 16.5px; color: var(--text-secondary); line-height: 1.6; }
+
+  /* ---------- FEATURES (macOS settings-pane style separated cards) ---------- */
+  .features-grid {
+    max-width: 1120px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+  }
+  .feature-card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-md);
+    padding: 30px 26px;
+    box-shadow: var(--shadow-card);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+  .feature-card:hover {
+    transform: translateY(-3px);
+  }
+  .feature-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: var(--accent-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+  }
+  .feature-icon svg { width: 22px; height: 22px; stroke: var(--accent); }
+  .feature-card h3 { font-size: 16.5px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.01em; }
+  .feature-card p { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+
+  /* ---------- HOW IT WORKS ---------- */
+  .steps-row {
+    max-width: 1120px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    position: relative;
+  }
+  .step-col {
+    text-align: center;
+    padding: 0 18px;
+    position: relative;
+  }
+  .step-col:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 27px;
+    right: -8%;
+    width: 16%;
+    height: 1px;
+    background: var(--divider);
+  }
+  .step-circle {
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    box-shadow: var(--shadow-card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 20px;
+    font-family: 'Manrope', sans-serif;
+    font-weight: 700;
+    font-size: 17px;
+    color: var(--accent);
+    position: relative;
+    z-index: 2;
+  }
+  .step-col h4 { font-size: 15.5px; font-weight: 600; margin-bottom: 8px; }
+  .step-col p { font-size: 13.5px; color: var(--text-secondary); line-height: 1.55; }
+
+  /* ---------- USE CASES (vertical-agnostic proof) ---------- */
+  .usecase-row {
+    max-width: 1120px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+  }
+  .usecase-card {
+    border-radius: var(--radius-md);
+    border: 1px solid var(--card-border);
+    background: var(--card);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+  }
+  .usecase-top {
+    height: 130px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-elev);
+    border-bottom: 1px solid var(--divider);
+  }
+  .usecase-top svg { width: 48px; height: 48px; stroke: var(--text-primary); }
+  .usecase-body { padding: 22px 24px 26px; }
+  .usecase-body h4 { font-size: 15.5px; font-weight: 600; margin-bottom: 6px; }
+  .usecase-body p { font-size: 13.5px; color: var(--text-secondary); line-height: 1.55; }
+
+  /* ---------- CTA BAND ---------- */
+  .cta-band {
+    max-width: 1120px;
+    margin: 0 auto;
+    background: var(--text-primary);
+    border-radius: 28px;
+    padding: 70px 40px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  [data-theme="dark"] .cta-band { background: var(--card); border: 1px solid var(--card-border); }
+  .cta-band h2 {
+    color: var(--bg);
+    font-size: 34px;
+    margin-bottom: 14px;
+  }
+  [data-theme="dark"] .cta-band h2 { color: var(--text-primary); }
+  .cta-band p {
+    color: rgba(251,251,253,0.65);
+    font-size: 16px;
+    margin-bottom: 32px;
+  }
+  [data-theme="dark"] .cta-band p { color: var(--text-secondary); }
+
+  /* ---------- FOOTER ---------- */
+  footer {
+    border-top: 1px solid var(--divider);
+    padding: 50px 32px 36px;
+  }
+  .footer-inner {
+    max-width: 1120px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 30px;
+  }
+  .footer-brand p {
+    font-size: 13.5px;
+    color: var(--text-muted);
+    margin-top: 10px;
+    max-width: 260px;
+    line-height: 1.6;
+  }
+  .footer-cols {
+    display: flex;
+    gap: 60px;
+  }
+  .footer-col h5 {
+    font-size: 12.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+  }
+  .footer-col a {
+    display: block;
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+    transition: color 0.2s ease;
+  }
+  .footer-col a:hover { color: var(--text-primary); }
+  .footer-bottom {
+    max-width: 1120px;
+    margin: 40px auto 0;
+    padding-top: 24px;
+    border-top: 1px solid var(--divider);
+    font-size: 12.5px;
+    color: var(--text-muted);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* ---------- RESPONSIVE ---------- */
+  @media (max-width: 860px) {
+    .nav-links { display: none; }
+    .hero h1 { font-size: 40px; }
+    .window-body { grid-template-columns: 1fr; }
+    .features-grid { grid-template-columns: 1fr; }
+    .steps-row { grid-template-columns: 1fr 1fr; row-gap: 40px; }
+    .step-col:not(:last-child)::after { display: none; }
+    .usecase-row { grid-template-columns: 1fr; }
+    .footer-inner { flex-direction: column; }
+    .footer-cols { gap: 40px; }
+  }
+
+  [data-i18n-hi] { display: none; }
+</style>
+</head>
+<body data-theme="light" data-lang="en">
+
+<nav>
+  <div class="nav-inner">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg viewBox="0 0 100 100" width="100%" height="100%">
+          <rect x="0" y="0" width="100" height="100" fill="none"/>
+          <g id="navQr"></g>
+        </svg>
+      </div>
+      <span class="brand-name">No<span class="accent-word">Parchi</span></span>
+    </div>
+    <div class="nav-links">
+      <a href="#features" data-i18n-en>Features</a>
+      <a href="#features" data-i18n-hi>सुविधाएं</a>
+      <a href="#how" data-i18n-en>How it works</a>
+      <a href="#how" data-i18n-hi>कैसे काम करता है</a>
+      <a href="#usecases" data-i18n-en>Use cases</a>
+      <a href="#usecases" data-i18n-hi>उपयोग</a>
+    </div>
+    <div class="nav-controls">
+      <button class="lang-btn" id="langToggle" aria-label="Switch language">
+        <span data-i18n-en>EN</span><span data-i18n-hi>हिं</span>
+      </button>
+      <button class="icon-btn" id="themeToggle" aria-label="Toggle theme">
+        <svg id="themeIcon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+      </button>
+      <button class="cta-btn" data-i18n-en>Get started</button>
+      <button class="cta-btn" data-i18n-hi>शुरू करें</button>
+    </div>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="eyebrow">
+    <span data-i18n-en>Now live for parking, melas &amp; street stalls</span>
+    <span data-i18n-hi>पार्किंग, मेलों और स्ट्रीट स्टॉल के लिए उपलब्ध</span>
+  </div>
+  <h1>
+    <span data-i18n-en>The paper ticket ends<br>at <span class="accent-word">this</span> gate.</span>
+    <span data-i18n-hi>कागज़ की पर्ची यहीं<br><span class="accent-word">खत्म</span> होती है।</span>
+  </h1>
+  <p class="sub">
+    <span data-i18n-en>NoParchi turns any entry point into a smart QR gate — customers scan, pay, and get a WhatsApp ticket in seconds. No app, no paper, no leakage.</span>
+    <span data-i18n-hi>NoParchi किसी भी एंट्री पॉइंट को स्मार्ट QR गेट बना देता है — ग्राहक स्कैन करें, पेमेंट करें, और सेकंडों में WhatsApp पर टिकट पाएं। न ऐप, न पर्ची, न चोरी।</span>
+  </p>
+  <div class="hero-ctas">
+    <button class="cta-btn accent large" data-i18n-en>Start free trial</button>
+    <button class="cta-btn accent large" data-i18n-hi>मुफ़्त ट्रायल शुरू करें</button>
+    <button class="cta-btn large" style="background:transparent;color:var(--text-primary);border:1px solid var(--card-border);" data-i18n-en>See how it works</button>
+    <button class="cta-btn large" style="background:transparent;color:var(--text-primary);border:1px solid var(--card-border);" data-i18n-hi>देखें कैसे काम करता है</button>
+  </div>
+  <p class="hero-note" data-i18n-en>No credit card needed · Setup in one afternoon</p>
+  <p class="hero-note" data-i18n-hi>क्रेडिट कार्ड की ज़रूरत नहीं · एक दिन में सेटअप</p>
+
+  <div class="hero-visual">
+    <div class="device-window">
+      <div class="window-bar">
+        <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+      </div>
+      <div class="window-body">
+        <div class="scan-visual">
+          <div class="qr-frame">
+            <div class="pulse-ring"></div>
+            <svg viewBox="0 0 100 100" id="heroQr"></svg>
+            <div class="qr-logo"><span>NP</span></div>
+          </div>
+        </div>
+        <div class="flow-steps">
+          <div class="flow-step">
+            <div class="flow-num">1</div>
+            <div>
+              <h4 data-i18n-en>Scan the gate QR</h4>
+              <h4 data-i18n-hi>गेट का QR स्कैन करें</h4>
+              <p data-i18n-en>Customer points their phone camera at your branded QR — no app download.</p>
+              <p data-i18n-hi>ग्राहक अपने फोन के कैमरे से आपके ब्रांडेड QR को स्कैन करता है — कोई ऐप डाउनलोड नहीं।</p>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-num">2</div>
+            <div>
+              <h4 data-i18n-en>Pick a slot &amp; pay</h4>
+              <h4 data-i18n-hi>स्लॉट चुनें और पेमेंट करें</h4>
+              <p data-i18n-en>A lightweight web page opens — pick what's needed, pay in one tap.</p>
+              <p data-i18n-hi>एक हल्का वेब पेज खुलता है — ज़रूरत चुनें, एक टैप में पेमेंट करें।</p>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-num">3</div>
+            <div>
+              <h4 data-i18n-en>Ticket lands on WhatsApp</h4>
+              <h4 data-i18n-hi>टिकट WhatsApp पर आता है</h4>
+              <p data-i18n-en>A verified PDF ticket arrives instantly — ready to be scanned at exit.</p>
+              <p data-i18n-hi>एक सत्यापित PDF टिकट तुरंत आता है — एग्ज़िट पर स्कैन के लिए तैयार।</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="section-head">
+    <div class="section-tag" data-i18n-en>Why NoParchi</div>
+    <div class="section-tag" data-i18n-hi>क्यों NoParchi</div>
+    <h2 data-i18n-en>Built for the counter, not the boardroom</h2>
+    <h2 data-i18n-hi>काउंटर के लिए बना, बोर्डरूम के लिए नहीं</h2>
+    <p data-i18n-en>Every feature exists to stop revenue leakage and speed up the line at the gate.</p>
+    <p data-i18n-hi>हर फीचर का मकसद है राजस्व की चोरी रोकना और गेट पर लाइन तेज़ करना।</p>
+  </div>
+  <div class="features-grid">
+
+    <div class="feature-card">
+      <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg></div>
+      <h3 data-i18n-en>Fraud-proof scanning</h3>
+      <h3 data-i18n-hi>फ्रॉड-प्रूफ स्कैनिंग</h3>
+      <p data-i18n-en>Every ticket locks the instant it's scanned. A second attempt is flagged red on the spot — no double entries, no reused tickets.</p>
+      <p data-i18n-hi>टिकट स्कैन होते ही लॉक हो जाता है। दोबारा कोशिश तुरंत लाल दिखती है — कोई डबल एंट्री नहीं।</p>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></div>
+      <h3 data-i18n-en>Real-time ledger</h3>
+      <h3 data-i18n-hi>रीयल-टाइम लेजर</h3>
+      <p data-i18n-en>Every rupee collected shows up on your dashboard the second it's paid — visible to you, invisible to skimming.</p>
+      <p data-i18n-hi>हर रुपया पेमेंट होते ही आपके डैशबोर्ड पर दिखता है — आपके लिए साफ, चोरी के लिए बंद।</p>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m9-2.13a4 4 0 10-8 0M12 12a4 4 0 100-8 4 4 0 000 8z"/></svg></div>
+      <h3 data-i18n-en>Staff you can trust — by design</h3>
+      <h3 data-i18n-hi>स्टाफ पर भरोसा — डिज़ाइन से</h3>
+      <p data-i18n-en>Give gatekeepers scanner-only access. Ledger and pricing stay with the owner unless you say otherwise.</p>
+      <p data-i18n-hi>गेटकीपर को सिर्फ स्कैनर एक्सेस दें। लेजर और प्राइसिंग मालिक के पास ही रहती है, जब तक आप न बदलें।</p>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
+      <h3 data-i18n-en>Tickets on WhatsApp</h3>
+      <h3 data-i18n-hi>WhatsApp पर टिकट</h3>
+      <p data-i18n-en>No app to install. Your customer already has WhatsApp — that's where their ticket shows up.</p>
+      <p data-i18n-hi>कोई ऐप इंस्टॉल नहीं करना। ग्राहक के पास पहले से WhatsApp है — टिकट वहीं आता है।</p>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+      <h3 data-i18n-en>Works on patchy networks</h3>
+      <h3 data-i18n-hi>कमज़ोर नेटवर्क पर भी चलता है</h3>
+      <p data-i18n-en>Optimistic updates mean scans feel instant even in basements and crowded melas with weak signal.</p>
+      <p data-i18n-hi>ऑप्टिमिस्टिक अपडेट्स की वजह से स्कैन तुरंत महसूस होता है, चाहे बेसमेंट हो या भीड़भाड़ वाला मेला।</p>
+    </div>
+
+    <div class="feature-card">
+      <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M18 17V9M13 17V5M8 17v-3"/></svg></div>
+      <h3 data-i18n-en>One QR, every vertical</h3>
+      <h3 data-i18n-hi>एक QR, हर तरह का काम</h3>
+      <p data-i18n-en>Parking today, a mela stall tomorrow. The same gate engine adapts to what you're selling.</p>
+      <p data-i18n-hi>आज पार्किंग, कल मेले का स्टॉल। वही गेट इंजन आपके काम के हिसाब से ढल जाता है।</p>
+    </div>
+
+  </div>
+</section>
+
+<section id="how" style="background: var(--bg-elev); border-top: 1px solid var(--divider); border-bottom: 1px solid var(--divider);">
+  <div class="section-head">
+    <div class="section-tag" data-i18n-en>The flow</div>
+    <div class="section-tag" data-i18n-hi>प्रक्रिया</div>
+    <h2 data-i18n-en>Four steps. No queue.</h2>
+    <h2 data-i18n-hi>चार कदम। कोई लाइन नहीं।</h2>
+  </div>
+  <div class="steps-row">
+    <div class="step-col">
+      <div class="step-circle">1</div>
+      <h4 data-i18n-en>Put up your QR</h4>
+      <h4 data-i18n-hi>अपना QR लगाएं</h4>
+      <p data-i18n-en>One branded QR per gate, printed once, done.</p>
+      <p data-i18n-hi>हर गेट पर एक ब्रांडेड QR, एक बार प्रिंट, हो गया।</p>
+    </div>
+    <div class="step-col">
+      <div class="step-circle">2</div>
+      <h4 data-i18n-en>Customer scans &amp; pays</h4>
+      <h4 data-i18n-hi>ग्राहक स्कैन और पेमेंट करता है</h4>
+      <p data-i18n-en>Right from their phone browser, no install.</p>
+      <p data-i18n-hi>सीधे फोन के ब्राउज़र से, कोई इंस्टॉल नहीं।</p>
+    </div>
+    <div class="step-col">
+      <div class="step-circle">3</div>
+      <h4 data-i18n-en>Ticket hits WhatsApp</h4>
+      <h4 data-i18n-hi>टिकट WhatsApp पर पहुंचता है</h4>
+      <p data-i18n-en>A signed PDF pass, generated instantly.</p>
+      <p data-i18n-hi>एक साइन किया PDF पास, तुरंत तैयार।</p>
+    </div>
+    <div class="step-col">
+      <div class="step-circle">4</div>
+      <h4 data-i18n-en>Staff scans at exit</h4>
+      <h4 data-i18n-hi>स्टाफ एग्ज़िट पर स्कैन करता है</h4>
+      <p data-i18n-en>Big green tick or big red flag — nothing in between.</p>
+      <p data-i18n-hi>बड़ा हरा टिक या बड़ा लाल निशान — बीच में कुछ नहीं।</p>
+    </div>
+  </div>
+</section>
+
+<section id="usecases">
+  <div class="section-head">
+    <div class="section-tag" data-i18n-en>One engine, many gates</div>
+    <div class="section-tag" data-i18n-hi>एक इंजन, कई गेट</div>
+    <h2 data-i18n-en>Wherever there's a line and a ticket</h2>
+    <h2 data-i18n-hi>जहां भी लाइन और टिकट हो</h2>
+  </div>
+  <div class="usecase-row">
+    <div class="usecase-card">
+      <div class="usecase-top">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M7 7V5a2 2 0 012-2h6a2 2 0 012 2v2M3 12h18"/></svg>
+      </div>
+      <div class="usecase-body">
+        <h4 data-i18n-en>Parking lots</h4>
+        <h4 data-i18n-hi>पार्किंग लॉट</h4>
+        <p data-i18n-en>Scan in, pay by duration, scan out — no boom-barrier arguments.</p>
+        <p data-i18n-hi>स्कैन करके अंदर, समय के हिसाब से पेमेंट, स्कैन करके बाहर — कोई झगड़ा नहीं।</p>
+      </div>
+    </div>
+    <div class="usecase-card">
+      <div class="usecase-top">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7a8 8 0 0116 0v7M2 21h20M9 14v-3M15 14v-3"/></svg>
+      </div>
+      <div class="usecase-body">
+        <h4 data-i18n-en>Melas &amp; events</h4>
+        <h4 data-i18n-hi>मेले और आयोजन</h4>
+        <p data-i18n-hi>एंट्री टिकट, राइड कूपन, स्टॉल पेमेंट — एक ही QR गेट से सब कुछ।</p>
+        <p data-i18n-en>Entry passes, ride coupons, stall payments — all through one QR gate.</p>
+      </div>
+    </div>
+    <div class="usecase-card">
+      <div class="usecase-top">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l1.5-6h15L21 11M3 11v8a1 1 0 001 1h1a1 1 0 001-1v-1h12v1a1 1 0 001 1h1a1 1 0 001-1v-8M3 11h18"/></svg>
+      </div>
+      <div class="usecase-body">
+        <h4 data-i18n-en>Street food stalls</h4>
+        <h4 data-i18n-hi>स्ट्रीट फूड स्टॉल</h4>
+        <p data-i18n-en>Order, pay, get a token on WhatsApp — no cash counter chaos.</p>
+        <p data-i18n-hi>ऑर्डर करें, पेमेंट करें, WhatsApp पर टोकन पाएं — कैश काउंटर की भीड़ नहीं।</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="cta-band">
+    <h2 data-i18n-en>Stop losing the count at the gate.</h2>
+    <h2 data-i18n-hi>गेट पर हिसाब खोना बंद करें।</h2>
+    <p data-i18n-en>Set up your first QR gate this week — no paperwork, no upfront cost.</p>
+    <p data-i18n-hi>इस हफ्ते अपना पहला QR गेट लगाएं — कोई कागज़ी कार्रवाई नहीं, कोई अग्रिम लागत नहीं।</p>
+    <button class="cta-btn accent large" data-i18n-en>Start free trial</button>
+    <button class="cta-btn accent large" data-i18n-hi>मुफ़्त ट्रायल शुरू करें</button>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 100 100" width="100%" height="100%"><g id="footQr"></g></svg>
+        </div>
+        <span class="brand-name">No<span class="accent-word">Parchi</span></span>
+      </div>
+      <p data-i18n-en>The smart QR gate for parking, events, and street stalls across India.</p>
+      <p data-i18n-hi>भारत भर में पार्किंग, आयोजनों और स्ट्रीट स्टॉल के लिए स्मार्ट QR गेट।</p>
+    </div>
+    <div class="footer-cols">
+      <div class="footer-col">
+        <h5 data-i18n-en>Product</h5>
+        <h5 data-i18n-hi>प्रोडक्ट</h5>
+        <a href="#features" data-i18n-en data-display-type="block">Features</a>
+        <a href="#features" data-i18n-hi data-display-type="block">सुविधाएं</a>
+        <a href="#how" data-i18n-en data-display-type="block">How it works</a>
+        <a href="#how" data-i18n-hi data-display-type="block">कैसे काम करता है</a>
+        <a href="#usecases" data-i18n-en data-display-type="block">Use cases</a>
+        <a href="#usecases" data-i18n-hi data-display-type="block">उपयोग</a>
+      </div>
+      <div class="footer-col">
+        <h5 data-i18n-en>Company</h5>
+        <h5 data-i18n-hi>कंपनी</h5>
+        <a href="#" data-i18n-en data-display-type="block">About</a>
+        <a href="#" data-i18n-hi data-display-type="block">हमारे बारे में</a>
+        <a href="#" data-i18n-en data-display-type="block">Contact</a>
+        <a href="#" data-i18n-hi data-display-type="block">संपर्क करें</a>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span data-i18n-en>© 2026 NoParchi. All rights reserved.</span>
+    <span data-i18n-hi>© 2026 NoParchi. सर्वाधिकार सुरक्षित।</span>
+    <span data-i18n-en>Made in India</span>
+    <span data-i18n-hi>भारत में निर्मित</span>
+  </div>
+</footer>
+
+<script>
+  // ---- Build a real QR-looking matrix once, reuse across nav/hero/footer icons ----
+  function buildQrSvg(targetId, moduleColor, cellPx, gridN, reserveCenter) {
+    const el = document.getElementById(targetId);
+    if (!el) return;
+    const n = gridN || 21;
+    const cell = 100 / n;
+    let html = '';
+    let seed = 42;
+    function rnd() { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
+    const finderSize = 7;
+    function inFinder(i, j) {
+      const zones = [[0,0],[n-finderSize,0],[0,n-finderSize]];
+      return zones.some(([fx,fy]) => i >= fx && i < fx+finderSize && j >= fy && j < fy+finderSize);
+    }
+    const centerLo = Math.floor(n/2) - 3.1;
+    const centerHi = Math.floor(n/2) + 3.1;
+    function inCenter(i, j) {
+      return reserveCenter && i >= centerLo && i <= centerHi && j >= centerLo && j <= centerHi;
+    }
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        if (inFinder(i,j) || inCenter(i,j)) continue;
+        if (rnd() < 0.42) {
+          html += `<rect x="${(i*cell).toFixed(2)}" y="${(j*cell).toFixed(2)}" width="${cell.toFixed(2)}" height="${cell.toFixed(2)}" fill="${moduleColor}"/>`;
+        }
+      }
+    }
+    const zones = [[0,0],[n-finderSize,0],[0,n-finderSize]];
+    zones.forEach(([fx,fy]) => {
+      const ox = fx*cell, oy = fy*cell, outer = finderSize*cell, sw = cell;
+      html += `<rect x="${(ox+sw/2).toFixed(2)}" y="${(oy+sw/2).toFixed(2)}" width="${(outer-sw).toFixed(2)}" height="${(outer-sw).toFixed(2)}" fill="none" stroke="${moduleColor}" stroke-width="${sw.toFixed(2)}"/>`;
+      const inner = 3*cell, ix = ox+2*cell, iy = oy+2*cell;
+      html += `<rect x="${ix.toFixed(2)}" y="${iy.toFixed(2)}" width="${inner.toFixed(2)}" height="${inner.toFixed(2)}" fill="${moduleColor}"/>`;
+    });
+    el.innerHTML = html;
+  }
+
+  function paintAllQr() {
+    const dark = document.body.getAttribute('data-theme') === 'dark';
+    const navColor = dark ? '#F2F3F5' : '#0F172A';
+    buildQrSvg('navQr', navColor, 100, 21, false);
+    buildQrSvg('footQr', navColor, 100, 21, false);
+    buildQrSvg('heroQr', '#0F172A', 100, 21, true);
+  }
+
+  // ---- Theme toggle ----
+  const themeToggle = document.getElementById('themeToggle');
+  const themeIcon = document.getElementById('themeIcon');
+  const SUN = '<circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>';
+  const MOON = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>';
+
+  function applyTheme(theme) {
+    document.body.setAttribute('data-theme', theme);
+    themeIcon.innerHTML = theme === 'dark' ? SUN : MOON;
+    localStorage.setItem('noparchi-theme', theme);
+    paintAllQr();
+  }
+
+  const savedTheme = localStorage.getItem('noparchi-theme') ||
+    (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  applyTheme(savedTheme);
+
+  themeToggle.addEventListener('click', () => {
+    const current = document.body.getAttribute('data-theme');
+    applyTheme(current === 'dark' ? 'light' : 'dark');
+  });
+
+  // ---- Language toggle ----
+  const langToggle = document.getElementById('langToggle');
+  const enNodes = Array.from(document.querySelectorAll('[data-i18n-en]'));
+  const hiNodes = Array.from(document.querySelectorAll('[data-i18n-hi]'));
+
+  function naturalDisplay(el) {
+    if (el.dataset.displayType) return el.dataset.displayType;
+    const tag = el.tagName.toLowerCase();
+    if (tag === 'button') return 'inline-flex';
+    if (tag === 'span') return 'inline';
+    if (tag === 'a') return 'inline';
+    return 'block';
+  }
+
+  function applyLang(lang) {
+    document.body.setAttribute('data-lang', lang);
+    if (lang === 'hi') {
+      enNodes.forEach(el => { el.style.display = 'none'; });
+      hiNodes.forEach(el => { el.style.display = naturalDisplay(el); });
+    } else {
+      hiNodes.forEach(el => { el.style.display = 'none'; });
+      enNodes.forEach(el => { el.style.display = naturalDisplay(el); });
+    }
+    localStorage.setItem('noparchi-lang', lang);
+  }
+  applyLang(localStorage.getItem('noparchi-lang') || 'en');
+  langToggle.addEventListener('click', () => {
+    const current = document.body.getAttribute('data-lang');
+    applyLang(current === 'en' ? 'hi' : 'en');
+  });
+</script>
+
+</body>
+</html>
