@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import QRCode from 'react-native-qrcode-svg';
 import { ShieldCheck, AlertCircle, Smartphone, CheckCircle2 } from 'lucide-react-native';
 import { useThemeColors } from '../../src/context/ThemeContext';
@@ -24,9 +25,15 @@ import { formatCurrency } from '../../src/utils/formatters';
  * It also no longer issues a valid pass from a button. Checkout creates the
  * pass as pending; it is worthless at the gate until payment is confirmed. What
  * the customer gets here is a pass code to show, not a cleared entry.
+ *
+ * Every string is a translation key. This page and the pass page are the only
+ * two a customer ever sees, and they were the last screens still hardcoded in
+ * English - which is the wrong half of the product to leave untranslated when
+ * the merchant app speaks Hindi and the customer is standing at a mela gate.
  */
 export default function CheckoutScreen() {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const { merchantId } = useLocalSearchParams<{ merchantId: string }>();
   const router = useRouter();
 
@@ -50,11 +57,11 @@ export default function CheckoutScreen() {
       setInfo(result);
       setSelectedCode(result.ticketTypes[0]?.code ?? null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'This gate QR is not active.');
+      setError(err instanceof Error ? err.message : t('checkout.notActive'));
     } finally {
       setLoading(false);
     }
-  }, [merchantId]);
+  }, [merchantId, t]);
 
   useEffect(() => {
     load();
@@ -88,7 +95,7 @@ export default function CheckoutScreen() {
       });
 
       if (result.outcome === 'failed') {
-        setError(result.error ?? 'Could not start the payment.');
+        setError(result.error ?? t('checkout.paymentFailed'));
         return;
       }
 
@@ -102,7 +109,7 @@ export default function CheckoutScreen() {
         router.replace(`/ticket/${started.ticketCode}`);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not start the payment.');
+      setError(err instanceof Error ? err.message : t('checkout.paymentFailed'));
     } finally {
       setBusy(false);
     }
@@ -122,10 +129,10 @@ export default function CheckoutScreen() {
         <Card className="w-full max-w-md items-center p-6">
           <AlertCircle size={28} color={colors['warning']} />
           <Text className="text-base font-bold text-brand-text mt-3 text-center">
-            {error ?? 'This gate QR is not active.'}
+            {error ?? t('checkout.notActive')}
           </Text>
           <Text className="text-xs text-brand-text-muted mt-2 text-center leading-4">
-            Ask the staff at the counter for help.
+            {t('checkout.notActiveHelp')}
           </Text>
         </Card>
       </View>
@@ -153,7 +160,7 @@ export default function CheckoutScreen() {
               </Text>
             </View>
           </View>
-          <Badge label="No app needed" variant="success" size="sm" />
+          <Badge label={t('checkout.noApp')} variant="success" size="sm" />
         </View>
       </View>
 
@@ -171,18 +178,18 @@ export default function CheckoutScreen() {
             <>
               <Card className="mb-5 items-center p-5">
                 <Text className="text-xs font-bold text-brand-accent uppercase tracking-widest mb-1">
-                  Entry pass
+                  {t('checkout.eyebrow')}
                 </Text>
                 <Text className="text-2xl font-extrabold text-brand-text text-center">
-                  Pay and get your pass
+                  {t('checkout.title')}
                 </Text>
                 <Text className="text-xs text-brand-text-muted text-center mt-1 leading-4">
-                  Show it at the exit. Nothing to install, nothing to print.
+                  {t('checkout.subtitle')}
                 </Text>
               </Card>
 
               <Text className="text-xs font-bold text-brand-text-subtle uppercase tracking-wider mb-2.5">
-                1. Choose your pass
+                {t('checkout.step1')}
               </Text>
               <View className="flex-row flex-wrap gap-2.5 mb-5">
                 {ticketTypes.map((type) => {
@@ -215,13 +222,13 @@ export default function CheckoutScreen() {
               </View>
 
               <Text className="text-xs font-bold text-brand-text-subtle uppercase tracking-wider mb-2">
-                2. Vehicle number (optional)
+                {t('checkout.step2')}
               </Text>
               <View className="bg-brand-surface border border-brand-border rounded-2xl px-4 py-3 mb-5">
                 <TextInput
                   value={vehicleNumber}
                   onChangeText={setVehicleNumber}
-                  placeholder="DL 01 AB 1234"
+                  placeholder={t('checkout.vehiclePlaceholder')}
                   placeholderTextColor={colors['text-faint']}
                   autoCapitalize="characters"
                   className="text-brand-text text-base font-bold uppercase tracking-wider"
@@ -229,13 +236,13 @@ export default function CheckoutScreen() {
               </View>
 
               <Text className="text-xs font-bold text-brand-text-subtle uppercase tracking-wider mb-2">
-                3. WhatsApp number (optional)
+                {t('checkout.step3')}
               </Text>
               <View className="bg-brand-surface border border-brand-border rounded-2xl px-4 py-3 mb-6">
                 <TextInput
                   value={phone}
                   onChangeText={setPhone}
-                  placeholder="98765 43210"
+                  placeholder={t('checkout.phonePlaceholder')}
                   placeholderTextColor={colors['text-faint']}
                   keyboardType="phone-pad"
                   className="text-brand-text text-sm font-semibold"
@@ -244,20 +251,22 @@ export default function CheckoutScreen() {
 
               <Card className="p-5">
                 <View className="flex-row items-center justify-between pb-3 border-b border-brand-border mb-3">
-                  <Text className="text-xs text-brand-text-muted">Paying to</Text>
+                  <Text className="text-xs text-brand-text-muted">{t('checkout.payingTo')}</Text>
                   <Text className="text-xs font-mono font-bold text-brand-accent">
                     {merchant.upiId || '—'}
                   </Text>
                 </View>
                 <View className="flex-row items-center justify-between mb-4">
-                  <Text className="text-sm font-bold text-brand-text">Total</Text>
+                  <Text className="text-sm font-bold text-brand-text">{t('checkout.total')}</Text>
                   <Text className="text-2xl font-extrabold text-brand-accent">
                     {formatCurrency(chosen?.amount ?? 0, merchant.currency)}
                   </Text>
                 </View>
 
                 <Button
-                  title={`Pay ${formatCurrency(chosen?.amount ?? 0, merchant.currency)}`}
+                  title={t('checkout.pay', {
+                    amount: formatCurrency(chosen?.amount ?? 0, merchant.currency),
+                  })}
                   variant="primary"
                   size="lg"
                   fullWidth
@@ -279,7 +288,9 @@ export default function CheckoutScreen() {
 
           <View className="flex-row items-center justify-center gap-2 mt-6">
             <ShieldCheck size={14} color={colors['accent']} />
-            <Text className="text-[11px] text-brand-text-faint text-center">Secured by NoParchi</Text>
+            <Text className="text-[11px] text-brand-text-faint text-center">
+              {t('checkout.secured')}
+            </Text>
           </View>
         </View>
       </ScrollView>
@@ -302,17 +313,17 @@ const PendingPass: React.FC<{
   onOpenPass: () => void;
 }> = ({ ticketCode, amount, currency, payUrl, onOpenPass }) => {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   return (
   <Card className="items-center p-6">
     <View className="w-14 h-14 rounded-full bg-brand-warning/10 border border-brand-warning/30 items-center justify-center mb-3">
       <CheckCircle2 size={28} color={colors['warning']} />
     </View>
     <Text className="text-xl font-extrabold text-brand-text text-center">
-      Pay {formatCurrency(amount, currency)} to finish
+      {t('checkout.pendingTitle', { amount: formatCurrency(amount, currency) })}
     </Text>
     <Text className="text-xs text-brand-text-muted text-center mt-2 leading-4 mb-5">
-      Scan this with any UPI app, or use the payment app that just opened. Then show the
-      code below to the staff — they will activate your pass.
+      {t('checkout.pendingBody')}
     </Text>
 
     {payUrl && (
@@ -328,14 +339,20 @@ const PendingPass: React.FC<{
 
     <View className="w-full rounded-2xl bg-brand-bg border border-brand-border p-4 items-center mb-5">
       <Text className="text-[11px] text-brand-text-muted uppercase font-semibold tracking-wider mb-1">
-        Your pass code
+        {t('checkout.codeLabel')}
       </Text>
       <Text className="text-2xl font-mono font-extrabold text-brand-text tracking-widest">
         {ticketCode}
       </Text>
     </View>
 
-    <Button title="Open my pass" variant="primary" size="lg" fullWidth onPress={onOpenPass} />
+    <Button
+      title={t('checkout.openPass')}
+      variant="primary"
+      size="lg"
+      fullWidth
+      onPress={onOpenPass}
+    />
   </Card>
   );
 };

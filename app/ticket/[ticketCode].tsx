@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, Platform, Share } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import QRCode from 'react-native-qrcode-svg';
 import {
   CheckCircle2,
@@ -32,9 +34,14 @@ import type { PublicTicket } from '../../src/types';
  * here, so the countdown and the Extend button have to be the first things a
  * customer sees - they arrive already knowing their time is nearly up and
  * wanting one decision, not a receipt to read.
+ *
+ * Every string is a translation key, including the ones passState builds - it
+ * takes `t` rather than reading i18next itself, so the state wording stays a
+ * pure function of the ticket and the language.
  */
 export default function TicketScreen() {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const { ticketCode } = useLocalSearchParams<{ ticketCode: string }>();
   const [ticket, setTicket] = useState<PublicTicket | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,11 +55,11 @@ export default function TicketScreen() {
       setError(null);
       setTicket(await checkoutService.loadTicket(ticketCode));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Pass not found.');
+      setError(err instanceof Error ? err.message : t('pass.notFound'));
     } finally {
       setLoading(false);
     }
-  }, [ticketCode]);
+  }, [ticketCode, t]);
 
   useEffect(() => {
     load();
@@ -80,10 +87,14 @@ export default function TicketScreen() {
   const share = async () => {
     if (!ticket) return;
     const url = passUrl(ticket.ticketCode);
-    const message = `${ticket.merchant.businessName} pass\nCode: ${ticket.ticketCode}\n${url ?? ''}`;
+    const message = t('pass.shareMessage', {
+      business: ticket.merchant.businessName,
+      code: ticket.ticketCode,
+      url: url ?? '',
+    });
     if (Platform.OS === 'web') {
       if (typeof navigator !== 'undefined' && navigator.share) {
-        await navigator.share({ title: 'NoParchi pass', text: message }).catch(() => {});
+        await navigator.share({ title: t('pass.shareTitle'), text: message }).catch(() => {});
       } else if (typeof navigator !== 'undefined' && navigator.clipboard) {
         await navigator.clipboard.writeText(message);
       }
@@ -112,13 +123,13 @@ export default function TicketScreen() {
       });
 
       if (result.outcome === 'failed') {
-        setError(result.error ?? 'Could not start the payment.');
+        setError(result.error ?? t('pass.paymentFailed'));
         return;
       }
       setExtendPayUrl(result.payUrl ?? null);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not extend the pass.');
+      setError(err instanceof Error ? err.message : t('pass.extendFailed'));
     } finally {
       setExtending(false);
     }
@@ -138,23 +149,23 @@ export default function TicketScreen() {
         <Card className="w-full max-w-md items-center p-6">
           <AlertCircle size={28} color={colors['warning']} />
           <Text className="text-base font-bold text-brand-text mt-3 text-center">
-            {error ?? 'Pass not found.'}
+            {error ?? t('pass.notFound')}
           </Text>
           <Text className="text-xs text-brand-text-muted mt-2 text-center leading-4">
-            Check the code, or ask the staff at the counter.
+            {t('pass.notFoundHelp')}
           </Text>
         </Card>
       </View>
     );
   }
 
-  const state = passState(ticket, remaining, colors);
+  const state = passState(ticket, remaining, colors, t);
 
   return (
     <View className="flex-1 bg-brand-bg">
       <View className="bg-brand-surface border-b border-brand-border px-4 py-4">
         <View className="max-w-lg mx-auto w-full flex-row items-center justify-between">
-          <Text className="text-sm font-bold text-brand-text">Your pass</Text>
+          <Text className="text-sm font-bold text-brand-text">{t('pass.header')}</Text>
           <Badge label={state.badge} variant={state.badgeVariant} size="sm" />
         </View>
       </View>
@@ -217,36 +228,40 @@ export default function TicketScreen() {
             </Text>
 
             <View className="w-full rounded-2xl bg-brand-bg/80 border border-brand-border p-4 gap-3">
-              <Row label="Pass type" value={ticket.typeLabel} />
-              {ticket.vehicleNumber ? <Row label="Vehicle" value={ticket.vehicleNumber} /> : null}
-              <Row label="Amount" value={formatCurrency(ticket.amount)} highlight />
+              <Row label={t('pass.rowType')} value={ticket.typeLabel} />
+              {ticket.vehicleNumber ? (
+                <Row label={t('pass.rowVehicle')} value={ticket.vehicleNumber} />
+              ) : null}
+              <Row label={t('pass.rowAmount')} value={formatCurrency(ticket.amount)} highlight />
               {ticket.extensionCount > 0 && (
                 <Row
-                  label="Extended"
-                  value={`${ticket.extensionCount} time${ticket.extensionCount > 1 ? 's' : ''}`}
+                  label={t('pass.rowExtended')}
+                  value={t('pass.times', { count: ticket.extensionCount })}
                 />
               )}
               <Row
-                label="Issued"
+                label={t('pass.rowIssued')}
                 value={formatDateTime(ticket.issuedAt)}
                 icon={<Clock size={13} color={colors['text-muted']} />}
               />
               {ticket.expiresAt ? (
-                <Row label="Valid until" value={formatDateTime(ticket.expiresAt)} />
+                <Row label={t('pass.rowValidUntil')} value={formatDateTime(ticket.expiresAt)} />
               ) : null}
-              {ticket.usedAt ? <Row label="Exited" value={formatDateTime(ticket.usedAt)} /> : null}
+              {ticket.usedAt ? (
+                <Row label={t('pass.rowExited')} value={formatDateTime(ticket.usedAt)} />
+              ) : null}
             </View>
 
             <View className="flex-row gap-3 w-full mt-5">
               <Button
-                title="Share"
+                title={t('pass.share')}
                 variant="secondary"
                 className="flex-1"
                 icon={<Share2 size={15} color={colors['text']} />}
                 onPress={share}
               />
               <Button
-                title="Refresh"
+                title={t('pass.refresh')}
                 variant="outline"
                 className="flex-1"
                 icon={<RefreshCw size={15} color={colors['text-muted']} />}
@@ -264,7 +279,9 @@ export default function TicketScreen() {
 
           <View className="flex-row items-center justify-center gap-2">
             <ShieldCheck size={14} color={colors['accent']} />
-            <Text className="text-xs text-brand-text-faint text-center">Powered by NoParchi</Text>
+            <Text className="text-xs text-brand-text-faint text-center">
+              {t('pass.poweredBy')}
+            </Text>
           </View>
         </View>
       </ScrollView>
@@ -288,6 +305,7 @@ interface Remaining {
  * instead of however far its own counter got.
  */
 function useCountdown(expiresAt: string | null): Remaining | null {
+  const { t, i18n } = useTranslation();
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -306,13 +324,20 @@ function useCountdown(expiresAt: string | null): Remaining | null {
     const minutes = Math.floor((abs % 3600000) / 60000);
     const seconds = Math.floor((abs % 60000) / 1000);
 
+    // The hour form carries unit letters and has to be translated; the
+    // mm:ss form is the same in any language, so it is built here.
     const label =
       hours > 0
-        ? `${hours}h ${String(minutes).padStart(2, '0')}m`
+        ? t('pass.countdownHoursMinutes', {
+            hours,
+            minutes: String(minutes).padStart(2, '0'),
+          })
         : `${minutes}:${String(seconds).padStart(2, '0')}`;
 
     return { totalMs, expired, label };
-  }, [expiresAt, now]);
+    // i18n.language is a dependency because t() is stable across a language
+    // change but its output is not.
+  }, [expiresAt, now, t, i18n.language]);
 }
 
 const CountdownCard: React.FC<{
@@ -323,6 +348,7 @@ const CountdownCard: React.FC<{
   onExtend: () => void;
 }> = ({ ticket, remaining, extending, payUrl, onExtend }) => {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   if (!remaining) return null;
 
   const pending = ticket.pendingExtension;
@@ -339,13 +365,15 @@ const CountdownCard: React.FC<{
   return (
     <Card className={`${tone.border} ${tone.bg} p-5 mb-5 items-center`}>
       <Text className="text-[11px] font-bold uppercase tracking-widest text-brand-text-muted">
-        {remaining.expired ? 'Time over by' : 'Time left'}
+        {t(remaining.expired ? 'pass.timeOverBy' : 'pass.timeLeft')}
       </Text>
       <Text className={`text-5xl font-extrabold tracking-tight mt-1 ${tone.text}`}>
         {remaining.label}
       </Text>
       <Text className="text-[11px] text-brand-text-muted mt-1">
-        {remaining.expired ? 'Expired' : 'Valid until'} {formatDateTime(ticket.expiresAt!)}
+        {t(remaining.expired ? 'pass.expiredAt' : 'pass.validUntilAt', {
+          time: formatDateTime(ticket.expiresAt!),
+        })}
       </Text>
 
       {/* An expired pass owes money at the gate. Say the number plainly here so
@@ -354,7 +382,7 @@ const CountdownCard: React.FC<{
         <View className="flex-row items-center gap-1.5 mt-3 px-3 py-2 rounded-xl bg-brand-danger/15 border border-brand-danger/40">
           <IndianRupee size={14} color={colors['danger']} />
           <Text className="text-xs font-bold text-brand-danger">
-            {formatCurrency(ticket.overstayDue)} due at the exit
+            {t('pass.overstayDue', { amount: formatCurrency(ticket.overstayDue) })}
           </Text>
         </View>
       )}
@@ -362,11 +390,13 @@ const CountdownCard: React.FC<{
       {pending ? (
         <View className="w-full mt-5 items-center">
           <Text className="text-xs font-bold text-brand-text text-center mb-1">
-            Pay {formatCurrency(pending.amount)} for {formatDuration(pending.minutes)} more
+            {t('pass.extendPendingTitle', {
+              amount: formatCurrency(pending.amount),
+              duration: formatDuration(pending.minutes),
+            })}
           </Text>
           <Text className="text-[11px] text-brand-text-muted text-center mb-4 leading-4">
-            Your extra time starts once the staff confirm the payment. This page updates on its
-            own.
+            {t('pass.extendPendingBody')}
           </Text>
 
           {payUrl && (
@@ -383,7 +413,7 @@ const CountdownCard: React.FC<{
           <View className="flex-row items-center gap-2 px-3 py-2 rounded-xl bg-brand-bg/70 border border-brand-border">
             <Clock size={12} color={colors['warning']} />
             <Text className="text-[11px] font-semibold text-brand-text-subtle">
-              Waiting for payment confirmation
+              {t('pass.awaitingConfirmation')}
             </Text>
           </View>
         </View>
@@ -392,8 +422,11 @@ const CountdownCard: React.FC<{
           <Button
             title={
               ticket.extensionAmount !== null && ticket.extensionMinutes !== null
-                ? `Extend ${formatDuration(ticket.extensionMinutes)} · ${formatCurrency(ticket.extensionAmount)}`
-                : 'Extend my time'
+                ? t('pass.extendWithTerms', {
+                    duration: formatDuration(ticket.extensionMinutes),
+                    amount: formatCurrency(ticket.extensionAmount),
+                  })
+                : t('pass.extend')
             }
             variant="primary"
             size="lg"
@@ -404,7 +437,7 @@ const CountdownCard: React.FC<{
           />
           {!remaining.expired && (
             <Text className="text-[11px] text-brand-text-faint text-center mt-2 leading-4">
-              Extending now costs the same as the overstay would — never more.
+              {t('pass.sameAsOverstay')}
             </Text>
           )}
         </View>
@@ -416,14 +449,15 @@ const CountdownCard: React.FC<{
 function passState(
   ticket: PublicTicket,
   remaining: Remaining | null,
-  colors: Record<string, string>
+  colors: Record<string, string>,
+  t: TFunction
 ) {
   if (ticket.isUsed) {
     return {
-      badge: 'Exited',
+      badge: t('pass.usedBadge'),
       badgeVariant: 'neutral' as const,
-      headline: 'Already used',
-      instruction: 'This pass has been scanned at the exit and cannot be used again.',
+      headline: t('pass.usedHeadline'),
+      instruction: t('pass.usedInstruction'),
       Icon: XCircle,
       color: colors['text-muted'],
       ringClass: 'bg-brand-surface-raised border-brand-border-strong',
@@ -432,13 +466,12 @@ function passState(
   }
   if (ticket.status === 'paid' && remaining?.expired) {
     return {
-      badge: 'Time over',
+      badge: t('pass.overBadge'),
       badgeVariant: 'warning' as const,
-      headline: 'Your time has run out',
-      instruction:
-        ticket.overstayDue > 0
-          ? 'Extend above, or pay the overstay to the gatekeeper on your way out.'
-          : 'Extend above, or show this at the exit.',
+      headline: t('pass.overHeadline'),
+      instruction: t(
+        ticket.overstayDue > 0 ? 'pass.overInstructionDue' : 'pass.overInstruction'
+      ),
       Icon: Clock,
       color: colors['warning'],
       ringClass: 'bg-brand-warning/10 border-brand-warning/30',
@@ -447,10 +480,10 @@ function passState(
   }
   if (ticket.status === 'paid') {
     return {
-      badge: 'Valid',
+      badge: t('pass.validBadge'),
       badgeVariant: 'success' as const,
-      headline: 'Ready to use',
-      instruction: 'Show this QR code to the gatekeeper on your way out.',
+      headline: t('pass.validHeadline'),
+      instruction: t('pass.validInstruction'),
       Icon: CheckCircle2,
       color: colors['accent'],
       ringClass: 'bg-brand-accent/10 border-brand-accent/30',
@@ -459,22 +492,24 @@ function passState(
   }
   if (ticket.status === 'pending') {
     return {
-      badge: 'Awaiting payment',
+      badge: t('pass.unpaidBadge'),
       badgeVariant: 'warning' as const,
-      headline: 'Not valid yet',
-      instruction:
-        'Show this code to the staff once you have paid. They will activate it, and this page will update on its own.',
+      headline: t('pass.unpaidHeadline'),
+      instruction: t('pass.unpaidInstruction'),
       Icon: Clock,
       color: colors['warning'],
       ringClass: 'bg-brand-warning/10 border-brand-warning/30',
       textClass: 'text-brand-warning',
     };
   }
+  // Anything else is a status the customer should not be reading anyway - the
+  // raw value is left in the badge deliberately, so a refunded or cancelled
+  // pass is at least identifiable to the staff member they are told to ask.
   return {
     badge: ticket.status,
     badgeVariant: 'danger' as const,
-    headline: 'This pass is not valid',
-    instruction: 'Please speak to the staff at the counter.',
+    headline: t('pass.invalidHeadline'),
+    instruction: t('pass.invalidInstruction'),
     Icon: XCircle,
     color: colors['danger'],
     ringClass: 'bg-brand-danger/10 border-brand-danger/30',
