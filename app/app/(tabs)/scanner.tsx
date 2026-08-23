@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, Platform, TextInput, Pressable, ScrollView } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { ScanLine, WifiOff, Camera as CameraIcon } from 'lucide-react-native';
@@ -30,6 +30,19 @@ export default function ScannerScreen() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<ScanResult | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+
+  /*
+    Keep the selected gate inside the merchant's own list.
+
+    exitGate is seeded once, on first render. An owner who renames a gate or
+    removes one in Settings left the scanner holding a name that no longer
+    exists: no button read as selected, and every scan was still recorded
+    against the old gate - which is the field the owner uses to work out where
+    the money went missing.
+  */
+  useEffect(() => {
+    if (gates.length > 0 && !gates.includes(exitGate)) setExitGate(gates[0]);
+  }, [gates, exitGate]);
 
   /**
    * The camera fires onBarcodeScanned continuously while a code is in frame -
