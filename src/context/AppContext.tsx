@@ -102,12 +102,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // Ticket types and staff are cheap and rarely change, but they are what
         // the Settings and checkout screens are built from, so they load with
         // everything else rather than per-screen.
-        // Always today, never `range`. The dashboard is the only screen that
-        // reads these figures and every one of its labels says so - "Revenue
-        // today", "vs yesterday", "paid, not yet exited". `range` belongs to
-        // the ledger's date filter, so passing it here meant an owner who
-        // looked at last month in the ledger came back to a dashboard quietly
-        // showing last month's revenue under a label that said today.
+        //
+        // The stats call is fixed to today rather than `range`. The dashboard
+        // is the only screen that reads these figures and every one of its
+        // labels says today - "Revenue today", "vs yesterday", "paid, not yet
+        // exited". `range` belongs to the ledger's date filter, so passing it
+        // here meant an owner who looked at last month in the ledger came back
+        // to a dashboard showing last month's revenue captioned as today's.
         const [statsResult, typesResult, staffResult] = await Promise.all([
           transactionService.stats('today'),
           merchantService.listTicketTypes(merchantId, true),
@@ -152,6 +153,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     else if (status !== 'loading') setIsLoading(false);
   }, [status, refresh]);
 
+  /**
+   * A stable handle on the latest refresh.
+   *
+   * refresh is rebuilt whenever `range` or the ledger permission changes. The
+   * two effects below only ever call it - they do not care which version they
+   * get - but listing it as a dependency made them tear down and rebuild on
+   * every tap of the ledger's date filter: the realtime channel was
+   * unsubscribed and resubscribed, and the offline queue was replayed again.
+   */
+  const refreshRef = useRef(refresh);
+  useEffect(() => {
+    refreshRef.current = refresh;
+  }, [refresh]);
+
   // Flush anything scanned while offline, then top the offline cache back up.
   // Runs on sign-in and whenever the merchant changes, which is when a device
   // that was out of signal typically comes back.
@@ -163,23 +178,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const { synced, conflicts } = await scanService.syncQueued();
       if (cancelled) return;
       if (conflicts.length > 0) setSyncConflicts(conflicts);
-      if (synced > 0) refresh({ silent: true });
+      if (synced > 0) refreshRef.current({ silent: true });
       await scanService.refreshOfflineCache(merchantId);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [status, merchantId, refresh]);
+  }, [status, merchantId]);
 
   // Live gate activity. Refreshes silently so the screen does not flash a
   // spinner every time a pass is sold at the gate.
   useEffect(() => {
     if (isPreview || status !== 'signed-in' || !merchantId) return;
     return transactionService.subscribe(merchantId, () => {
-      refresh({ silent: true });
+      refreshRef.current({ silent: true });
     });
-  }, [status, merchantId, refresh]);
+  }, [status, merchantId]);
 
   const applyOptimistic = useCallback(
     (updater: (current: Transaction[]) => Transaction[]) => {
