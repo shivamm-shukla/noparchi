@@ -8,7 +8,6 @@ import { useIsExpanded } from '../../src/hooks/useLayoutMode';
 import { elevation } from '../../src/config/elevation';
 import { Text } from '../ui/Text';
 import { Logo } from '../ui/Logo';
-import { ThemeControl, LanguageControl } from './Controls';
 
 const SIDEBAR_WIDTH = 244;
 
@@ -178,15 +177,6 @@ function Sidebar(props: BottomTabBarProps) {
         })}
       </View>
 
-      {/*
-        Appearance controls live at the foot of the sidebar on wide layouts,
-        where there is room for them to be permanently visible. On narrow ones
-        the top bar carries them instead - see TopBar.
-      */}
-      <View className="gap-2 border-t border-brand-border pt-3">
-        <ThemeControl variant="row" />
-        <LanguageControl variant="row" />
-      </View>
     </View>
   );
 }

@@ -270,5 +270,114 @@
       "confirmFailed": "Could not confirm the payment.",
       "extensionFailed": "Could not confirm the extension."
     }
+  },
+  "settings": {
+    "title": "Settings",
+    "readOnly": "You can see this but not change it. Ask the owner for the matching permission.",
+    "saved": "Saved.",
+    "panes": {
+      "business": "Business",
+      "businessSub": "What customers see at checkout",
+      "brand": "Brand",
+      "brandSub": "Your mark on the customer's pages",
+      "gates": "Exit gates",
+      "gatesSub": "Where your staff stand",
+      "providers": "Payments & delivery",
+      "providersSub": "How money and passes move",
+      "passTypes": "Pass types & prices",
+      "passTypesSub": "What you sell, and for how long",
+      "staff": "Gatekeepers",
+      "staffSub": "Who works here, and what they can do",
+      "appearance": "Appearance",
+      "appearanceSub": "Theme and language on this device"
+    },
+    "business": {
+      "name": "Business name",
+      "location": "Location",
+      "upi": "UPI ID",
+      "upiHint": "Where customer payments land.",
+      "save": "Save business details",
+      "failed": "Could not save."
+    },
+    "brand": {
+      "current": "Your mark",
+      "noneTitle": "No logo yet",
+      "noneBody": "Your customers see your initials until you upload one. It appears on the checkout page, on their pass, and above your gate QR.",
+      "uploadBtn": "Upload logo",
+      "changeBtn": "Change logo",
+      "removeBtn": "Remove logo",
+      "uploading": "Uploading logo...",
+      "uploadSuccess": "Logo updated successfully.",
+      "removeSuccess": "Logo removed.",
+      "uploadFailed": "Could not upload the logo.",
+      "removeFailed": "Could not remove the logo.",
+      "sizeHint": "PNG, JPG, SVG or WEBP up to 5MB. Square works best.",
+      "preview": "This is how it looks to a customer"
+    },
+    "gates": {
+      "intro": "Every scan is recorded against the gate it happened at. Name them the way your staff say them out loud.",
+      "placeholder": "Main Exit",
+      "add": "Add a gate",
+      "remove": "Remove {{gate}}",
+      "save": "Save gates",
+      "atLeastOne": "Keep at least one gate.",
+      "failed": "Could not save the gates."
+    },
+    "providers": {
+      "payTitle": "How customers pay",
+      "deliverTitle": "How passes reach customers",
+      "swappable": "Swappable — switching one does not affect the rest of the app.",
+      "save": "Save",
+      "failed": "Could not save."
+    },
+    "passTypes": {
+      "retireNote": "Switching a type off hides it from checkout. Past passes keep their original type and price.",
+      "add": "Add a pass type",
+      "name": "Name",
+      "namePlaceholder": "Cycle / VIP Pass / Night Rate",
+      "code": "Code",
+      "codeHint": "Used internally. Letters, numbers and underscore.",
+      "price": "Price",
+      "validFor": "Valid for",
+      "clockNote": "The clock starts when the pass is paid for, not when it is created.",
+      "extension": "Extension",
+      "extensionPlaceholder": "Leave blank for the same price ({{amount}})",
+      "extensionNote": "Leave both blank to charge the same price for the same length again. Overstay is billed in whole extensions, so extending in advance is never more expensive than being late.",
+      "perExtension": "+{{amount}} per {{duration}}",
+      "addFailed": "Could not add the pass type.",
+      "updateFailed": "Could not update the pass type.",
+      "updated": "Pass types updated."
+    },
+    "staff": {
+      "owner": "Owner",
+      "gatekeeper": "Gatekeeper",
+      "removed": "Removed",
+      "you": "You",
+      "access": "Access",
+      "hide": "Hide",
+      "ownerNote": "The owner always has every permission, including any added later.",
+      "add": "Add a gatekeeper",
+      "name": "Name",
+      "namePlaceholder": "Amit Kumar",
+      "phone": "Phone",
+      "phoneHint": "They sign in with this number and their PIN.",
+      "pin": "PIN",
+      "pinHint": "4 to 8 digits. You can change it any time.",
+      "newPin": "New PIN",
+      "changePin": "Change PIN",
+      "setPin": "Set PIN",
+      "remove": "Remove",
+      "added": "Gatekeeper added. Share their PIN with them.",
+      "addFailed": "Could not add the gatekeeper.",
+      "pinSet": "New PIN set for {{name}}.",
+      "pinFailed": "Could not reset the PIN.",
+      "removed_toast": "{{name}} can no longer sign in.",
+      "removeFailed": "Could not remove them.",
+      "accessFailed": "Could not change access."
+    },
+    "appearance": {
+      "themeNote": "Automatic follows your phone's own setting. This choice is saved on this device only.",
+      "langNote": "Changes every screen in the app, including the customer's pass page when they open it from your gate."
+    }
   }
 }

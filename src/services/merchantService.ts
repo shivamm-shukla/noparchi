@@ -95,6 +95,46 @@ class MerchantService {
     return toMerchant(data as MerchantRow);
   }
 
+  async uploadLogo(merchantId: string, uri: string, mimeType?: string): Promise<Merchant> {
+    if (isPreview) {
+      previewMerchant.branding = { ...previewMerchant.branding, logoUrl: uri };
+      return previewMerchant;
+    }
+    const client = requireSupabase();
+    const ext = mimeType?.split('/')[1]?.replace('svg+xml', 'svg') || 'jpg';
+    const filePath = `${merchantId}/logo-${Date.now()}.${ext}`;
+
+    const res = await fetch(uri);
+    const blob = await res.blob();
+
+    const { error: uploadError } = await client.storage
+      .from('merchant-assets')
+      .upload(filePath, blob, {
+        contentType: mimeType || 'image/jpeg',
+        upsert: true,
+      });
+
+    if (uploadError) throw uploadError;
+
+    const { data: { publicUrl } } = client.storage
+      .from('merchant-assets')
+      .getPublicUrl(filePath);
+
+    return this.updateMerchant(merchantId, {
+      branding: { ...previewMerchant.branding, logoUrl: publicUrl },
+    });
+  }
+
+  async removeLogo(merchantId: string): Promise<Merchant> {
+    if (isPreview) {
+      previewMerchant.branding = { ...previewMerchant.branding, logoUrl: undefined };
+      return previewMerchant;
+    }
+    return this.updateMerchant(merchantId, {
+      branding: { logoUrl: undefined },
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // Ticket types
   // ---------------------------------------------------------------------------

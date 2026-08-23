@@ -1,28 +1,43 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TextInput, Switch, TouchableOpacity } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, ScrollView, TextInput, Switch, TouchableOpacity, Pressable } from 'react-native';
 import {
   Building2,
-  Users2,
+  Sparkles,
+  DoorOpen,
+  CreditCard,
   Tag,
+  Users2,
+  SunMoon,
+  Sun,
+  Moon,
+  Languages,
   Plus,
+  Trash2,
+  Upload,
   AlertCircle,
   CheckCircle2,
   KeyRound,
   UserMinus,
-  CreditCard,
   MessageSquare,
-  Sun,
-  Moon,
-  SunMoon,
+  ChevronRight,
+  ArrowLeft,
+  type LucideIcon,
 } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { useTranslation } from 'react-i18next';
 import { useThemeColors, useTheme, type ThemePreference } from '../../../src/context/ThemeContext';
+import { useLanguage, type LanguagePreference } from '../../../src/context/LanguageContext';
 import { useAuth } from '../../../src/context/AuthContext';
 import { useApp } from '../../../src/context/AppContext';
+import { useIsExpanded } from '../../../src/hooks/useLayoutMode';
 import { TopBar } from '../../../components/nav/TopBar';
 import { Card } from '../../../components/ui/Card';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { Field } from '../../../components/ui/Field';
+import { Text } from '../../../components/ui/Text';
+import { SectionHeader } from '../../../components/ui/SectionHeader';
+import { MerchantLogo } from '../../../components/ui/MerchantLogo';
 import { merchantService } from '../../../src/services/merchantService';
 import {
   PERMISSION_KEYS,
@@ -40,17 +55,47 @@ import {
 } from '../../../src/config/pricing';
 import { ticketTypeIcon } from '../../../src/config/icons';
 import { formatCurrency } from '../../../src/utils/formatters';
-import type { StaffMember } from '../../../src/types';
+import type { Merchant, StaffMember, TicketType } from '../../../src/types';
+
+export type SettingsPaneId =
+  | 'business'
+  | 'brand'
+  | 'gates'
+  | 'providers'
+  | 'passTypes'
+  | 'staff'
+  | 'appearance';
+
+interface PaneMeta {
+  id: SettingsPaneId;
+  labelKey: string;
+  subKey: string;
+  icon: LucideIcon;
+}
+
+const PANES: PaneMeta[] = [
+  { id: 'business', labelKey: 'settings.panes.business', subKey: 'settings.panes.businessSub', icon: Building2 },
+  { id: 'brand', labelKey: 'settings.panes.brand', subKey: 'settings.panes.brandSub', icon: Sparkles },
+  { id: 'gates', labelKey: 'settings.panes.gates', subKey: 'settings.panes.gatesSub', icon: DoorOpen },
+  { id: 'providers', labelKey: 'settings.panes.providers', subKey: 'settings.panes.providersSub', icon: CreditCard },
+  { id: 'passTypes', labelKey: 'settings.panes.passTypes', subKey: 'settings.panes.passTypesSub', icon: Tag },
+  { id: 'staff', labelKey: 'settings.panes.staff', subKey: 'settings.panes.staffSub', icon: Users2 },
+  { id: 'appearance', labelKey: 'settings.panes.appearance', subKey: 'settings.panes.appearanceSub', icon: SunMoon },
+];
 
 export default function SettingsScreen() {
   const colors = useThemeColors();
+  const { t } = useTranslation();
+  const isExpanded = useIsExpanded();
   const { merchant, user, can, refresh: refreshAuth } = useAuth();
   const { ticketTypes, staff, refresh } = useApp();
 
   const canEdit = can('can_edit_settings');
   const canManageStaff = can('can_manage_staff');
 
+  const [selectedPane, setSelectedPane] = useState<SettingsPaneId | null>(null);
   const [notice, setNotice] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+
   const flash = (kind: 'ok' | 'error', text: string) => {
     setNotice({ kind, text });
     setTimeout(() => setNotice(null), 4000);
@@ -58,188 +103,314 @@ export default function SettingsScreen() {
 
   if (!merchant || !user) return null;
 
-  return (
-    <View className="flex-1 bg-brand-bg">
-      <TopBar title="Settings" subtitle={merchant.businessName} />
+  // On expanded layout, default to 'business' if none explicitly chosen
+  const activePane: SettingsPaneId = isExpanded
+    ? selectedPane ?? 'business'
+    : (selectedPane ?? 'business');
 
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 48 }}>
-        <View className="max-w-3xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-5 gap-6">
-          {notice && (
-            <Card
-              className={
-                notice.kind === 'ok'
-                  ? 'border-brand-accent/40 bg-brand-accent/5'
-                  : 'border-brand-danger/40 bg-brand-danger/5'
-              }
-            >
-              <View className="flex-row items-center gap-2">
-                {notice.kind === 'ok' ? (
-                  <CheckCircle2 size={15} color={colors['accent']} />
-                ) : (
-                  <AlertCircle size={15} color={colors['danger']} />
-                )}
-                <Text
-                  className={`text-xs flex-1 leading-4 ${
-                    notice.kind === 'ok' ? 'text-brand-accent' : 'text-brand-danger'
-                  }`}
-                >
-                  {notice.text}
-                </Text>
-              </View>
-            </Card>
+  const renderNoticeBanner = () => {
+    if (!notice) return null;
+    return (
+      <Card
+        className={`mb-5 ${
+          notice.kind === 'ok'
+            ? 'border-brand-accent/40 bg-brand-accent/5'
+            : 'border-brand-danger/40 bg-brand-danger/5'
+        }`}
+      >
+        <View className="flex-row items-center gap-2.5">
+          {notice.kind === 'ok' ? (
+            <CheckCircle2 size={16} color={colors['accent']} />
+          ) : (
+            <AlertCircle size={16} color={colors['danger']} />
           )}
+          <Text
+            font="body-medium"
+            className={`text-xs flex-1 leading-4 ${
+              notice.kind === 'ok' ? 'text-brand-accent' : 'text-brand-danger'
+            }`}
+          >
+            {notice.text}
+          </Text>
+        </View>
+      </Card>
+    );
+  };
 
-          <BusinessSection
+  const renderDetailContent = () => {
+    switch (activePane) {
+      case 'business':
+        return (
+          <BusinessPane
             merchant={merchant}
             canEdit={canEdit}
             onSaved={async () => {
               await refreshAuth();
-              flash('ok', 'Business details saved.');
+              flash('ok', t('settings.saved'));
             }}
             onError={(m) => flash('error', m)}
           />
-
-          <ProvidersSection
+        );
+      case 'brand':
+        return (
+          <BrandPane
+            merchant={merchant}
+            canEdit={canEdit}
+            onSaved={async (msg) => {
+              await refreshAuth();
+              flash('ok', msg);
+            }}
+            onError={(m) => flash('error', m)}
+          />
+        );
+      case 'gates':
+        return (
+          <GatesPane
             merchant={merchant}
             canEdit={canEdit}
             onSaved={async () => {
               await refreshAuth();
-              flash('ok', 'Payment and delivery settings saved.');
+              flash('ok', t('settings.saved'));
             }}
             onError={(m) => flash('error', m)}
           />
-
-          <TicketTypesSection
+        );
+      case 'providers':
+        return (
+          <ProvidersPane
+            merchant={merchant}
+            canEdit={canEdit}
+            onSaved={async () => {
+              await refreshAuth();
+              flash('ok', t('settings.saved'));
+            }}
+            onError={(m) => flash('error', m)}
+          />
+        );
+      case 'passTypes':
+        return (
+          <PassTypesPane
             merchantId={merchant.id}
             currency={merchant.currency}
             types={ticketTypes}
             canEdit={canEdit}
             onChanged={async () => {
               await refresh({ silent: true });
-              flash('ok', 'Pass types updated.');
+              flash('ok', t('settings.passTypes.updated'));
             }}
             onError={(m) => flash('error', m)}
           />
-
-          <AppearanceSection />
-
-          <StaffSection
+        );
+      case 'staff':
+        return (
+          <StaffPane
             staff={staff}
             canManage={canManageStaff}
             currentUserId={user.id}
-            onChanged={async (message) => {
+            onChanged={async (msg) => {
               await refresh({ silent: true });
-              flash('ok', message);
+              flash('ok', msg);
             }}
             onError={(m) => flash('error', m)}
           />
+        );
+      case 'appearance':
+        return <AppearancePane />;
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <View className="flex-1 bg-brand-bg">
+      <TopBar title={t('settings.title')} subtitle={merchant.businessName} />
+
+      {isExpanded ? (
+        // Expanded Master-Detail Layout (Desktop / Tablet)
+        <View className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 flex-row gap-6">
+          {/* Left Master Sidebar */}
+          <View className="w-72 sm:w-80 shrink-0">
+            <Card className="p-2.5 gap-1.5">
+              {PANES.map((pane) => {
+                const Icon = pane.icon;
+                const isSelected = activePane === pane.id;
+                return (
+                  <Pressable
+                    key={pane.id}
+                    onPress={() => setSelectedPane(pane.id)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isSelected }}
+                    className={`flex-row items-center gap-3 p-3 rounded-xl border transition-all ${
+                      isSelected
+                        ? 'bg-brand-accent/10 border-brand-accent/40'
+                        : 'bg-transparent border-transparent active:bg-brand-surface-raised'
+                    }`}
+                  >
+                    <View
+                      className={`w-9 h-9 rounded-xl items-center justify-center border ${
+                        isSelected
+                          ? 'bg-brand-accent/20 border-brand-accent/40'
+                          : 'bg-brand-surface-raised border-brand-border'
+                      }`}
+                    >
+                      <Icon
+                        size={17}
+                        color={isSelected ? colors['accent'] : colors['text-muted']}
+                      />
+                    </View>
+                    <View className="flex-1 min-w-0">
+                      <Text
+                        font={isSelected ? 'display-bold' : 'body-semibold'}
+                        numberOfLines={1}
+                        className={`text-sm ${
+                          isSelected ? 'text-brand-accent' : 'text-brand-text'
+                        }`}
+                      >
+                        {t(pane.labelKey)}
+                      </Text>
+                      <Text
+                        font="body"
+                        numberOfLines={1}
+                        className="text-[11px] text-brand-text-muted mt-0.5"
+                      >
+                        {t(pane.subKey)}
+                      </Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </Card>
+          </View>
+
+          {/* Right Detail Pane */}
+          <ScrollView
+            className="flex-1 min-w-0"
+            contentContainerStyle={{ paddingBottom: 56 }}
+            showsVerticalScrollIndicator={false}
+          >
+            {renderNoticeBanner()}
+            {renderDetailContent()}
+          </ScrollView>
         </View>
-      </ScrollView>
+      ) : (
+        // Compact Drill-Down Layout (Mobile)
+        <ScrollView
+          className="flex-1"
+          contentContainerStyle={{ paddingBottom: 56 }}
+          showsVerticalScrollIndicator={false}
+        >
+          <View className="max-w-xl mx-auto w-full px-4 py-4 gap-4">
+            {selectedPane !== null ? (
+              // Active Pane Detail View with Back navigation
+              <View className="gap-4">
+                <Pressable
+                  onPress={() => setSelectedPane(null)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('settings.title')}
+                  className="self-start flex-row items-center gap-2 py-1.5 px-3 rounded-xl bg-brand-surface border border-brand-border active:bg-brand-surface-raised"
+                >
+                  <ArrowLeft size={15} color={colors['accent']} />
+                  <Text font="body-semibold" className="text-xs text-brand-text">
+                    {t('settings.title')}
+                  </Text>
+                </Pressable>
+
+                {renderNoticeBanner()}
+                {renderDetailContent()}
+              </View>
+            ) : (
+              // Master Settings Menu List
+              <Card className="p-2 gap-1">
+                {PANES.map((pane, index) => {
+                  const Icon = pane.icon;
+                  const isLast = index === PANES.length - 1;
+                  return (
+                    <Pressable
+                      key={pane.id}
+                      onPress={() => setSelectedPane(pane.id)}
+                      accessibilityRole="button"
+                      className={`flex-row items-center gap-3.5 p-3 rounded-xl active:bg-brand-surface-raised ${
+                        !isLast ? 'border-b border-brand-border/60' : ''
+                      }`}
+                    >
+                      <View className="w-10 h-10 rounded-xl bg-brand-surface-raised border border-brand-border-strong items-center justify-center">
+                        <Icon size={18} color={colors['accent']} />
+                      </View>
+                      <View className="flex-1 min-w-0">
+                        <Text font="display-bold" numberOfLines={1} className="text-sm text-brand-text">
+                          {t(pane.labelKey)}
+                        </Text>
+                        <Text font="body" numberOfLines={1} className="text-xs text-brand-text-muted mt-0.5">
+                          {t(pane.subKey)}
+                        </Text>
+                      </View>
+                      <ChevronRight size={18} color={colors['text-faint']} />
+                    </Pressable>
+                  );
+                })}
+              </Card>
+            )}
+          </View>
+        </ScrollView>
+      )}
     </View>
   );
 }
 
 // -----------------------------------------------------------------------------
+// Shared Subcomponents
+// -----------------------------------------------------------------------------
 
-/**
- * Light, dark, or follow the device.
- *
- * Worth having rather than picking one: a gate device sits in daylight all day,
- * where the dark theme washes out, while an owner checking takings at night
- * wants the opposite. The choice is per device and remembered, because the
- * phone at the gate and the phone in the owner's pocket are different problems.
- */
-const APPEARANCE_OPTIONS: {
-  value: ThemePreference;
-  label: string;
-  Icon: typeof Sun;
-}[] = [
-  { value: 'system', label: 'Automatic', Icon: SunMoon },
-  { value: 'light', label: 'Light', Icon: Sun },
-  { value: 'dark', label: 'Dark', Icon: Moon },
-];
-
-const AppearanceSection: React.FC = () => {
-  const colors = useThemeColors();
-  const { preference, setPreference } = useTheme();
-
+const ReadOnlyNote: React.FC = () => {
+  const { t } = useTranslation();
   return (
-    <Card>
-      <SectionHeader
-        icon={<SunMoon size={18} color={colors['accent']} />}
-        title="Appearance"
-        subtitle="Light for daylight at the gate, dark for indoors"
-      />
-
-      <View className="flex-row gap-2.5">
-        {APPEARANCE_OPTIONS.map((option) => {
-          const active = preference === option.value;
-          return (
-            <TouchableOpacity
-              key={option.value}
-              onPress={() => setPreference(option.value)}
-              activeOpacity={0.7}
-              className={`flex-1 items-center gap-2 p-3.5 rounded-2xl border ${
-                active
-                  ? 'bg-brand-accent/10 border-brand-accent/60'
-                  : 'bg-brand-bg/60 border-brand-border'
-              }`}
-            >
-              <option.Icon
-                size={20}
-                color={active ? colors['accent'] : colors['text-muted']}
-              />
-              <Text
-                className={`text-xs font-bold ${
-                  active ? 'text-brand-accent' : 'text-brand-text-muted'
-                }`}
-              >
-                {option.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      <Text className="text-[11px] text-brand-text-faint mt-3 leading-4">
-        Automatic follows your phone's own setting. This choice is saved on this device
-        only.
-      </Text>
-    </Card>
+    <Text font="body" className="text-[11px] text-brand-text-faint leading-4 mt-2">
+      {t('settings.readOnly')}
+    </Text>
   );
 };
 
-const SectionHeader: React.FC<{ icon: React.ReactNode; title: string; subtitle: string }> = ({
-  icon,
-  title,
-  subtitle,
-}) => (
-  <View className="flex-row items-center gap-3 mb-4 pb-3 border-b border-brand-border">
-    <View className="w-9 h-9 rounded-xl bg-brand-surface-raised border border-brand-border-strong items-center justify-center">
-      {icon}
-    </View>
-    <View className="flex-1">
-      <Text className="text-base font-bold text-brand-text">{title}</Text>
-      <Text className="text-xs text-brand-text-muted">{subtitle}</Text>
-    </View>
-  </View>
-);
-
-const ReadOnlyNote: React.FC = () => (
-  <Text className="text-[11px] text-brand-text-faint leading-4">
-    You can see this but not change it. Ask the owner for the matching permission.
-  </Text>
-);
+const ChoiceRow: React.FC<{
+  selected: boolean;
+  disabled: boolean;
+  label: string;
+  note: string;
+  onPress: () => void;
+}> = ({ selected, disabled, label, note, onPress }) => {
+  const colors = useThemeColors();
+  return (
+    <TouchableOpacity
+      onPress={disabled ? undefined : onPress}
+      activeOpacity={disabled ? 1 : 0.7}
+      className={`p-3.5 rounded-2xl border ${
+        selected ? 'bg-brand-accent/10 border-brand-accent/50' : 'bg-brand-bg/60 border-brand-border'
+      } ${disabled ? 'opacity-60' : ''}`}
+    >
+      <View className="flex-row items-center justify-between mb-1">
+        <Text font="body-bold" className="text-sm text-brand-text">
+          {label}
+        </Text>
+        {selected && <CheckCircle2 size={16} color={colors['accent']} />}
+      </View>
+      <Text font="body" className="text-xs text-brand-text-muted leading-4">
+        {note}
+      </Text>
+    </TouchableOpacity>
+  );
+};
 
 // -----------------------------------------------------------------------------
+// Pane 1: Business Details
+// -----------------------------------------------------------------------------
 
-const BusinessSection: React.FC<{
-  merchant: NonNullable<ReturnType<typeof useAuth>['merchant']>;
+const BusinessPane: React.FC<{
+  merchant: Merchant;
   canEdit: boolean;
   onSaved: () => void;
   onError: (message: string) => void;
 }> = ({ merchant, canEdit, onSaved, onError }) => {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const [businessName, setBusinessName] = useState(merchant.businessName);
   const [location, setLocation] = useState(merchant.location);
   const [upiId, setUpiId] = useState(merchant.upiId);
@@ -248,13 +419,10 @@ const BusinessSection: React.FC<{
   const save = async () => {
     setBusy(true);
     try {
-      // Persisted to the database, not just to device storage. The previous
-      // build saved merchant settings to AsyncStorage only, so a rate change on
-      // one phone never reached the gate device or the customer checkout.
       await merchantService.updateMerchant(merchant.id, { businessName, location, upiId });
       onSaved();
     } catch (err) {
-      onError(err instanceof Error ? err.message : 'Could not save.');
+      onError(err instanceof Error ? err.message : t('settings.business.failed'));
     } finally {
       setBusy(false);
     }
@@ -264,11 +432,12 @@ const BusinessSection: React.FC<{
     <Card>
       <SectionHeader
         icon={<Building2 size={18} color={colors['accent']} />}
-        title="Business"
-        subtitle="What customers see at checkout"
+        title={t('settings.panes.business')}
+        subtitle={t('settings.panes.businessSub')}
+        className="mb-5 pb-3.5 border-b border-brand-border"
       />
 
-      <Field label="Business name">
+      <Field label={t('settings.business.name')}>
         <TextInput
           value={businessName}
           onChangeText={setBusinessName}
@@ -278,7 +447,7 @@ const BusinessSection: React.FC<{
         />
       </Field>
 
-      <Field label="Location">
+      <Field label={t('settings.business.location')}>
         <TextInput
           value={location}
           onChangeText={setLocation}
@@ -288,7 +457,7 @@ const BusinessSection: React.FC<{
         />
       </Field>
 
-      <Field label="UPI ID" hint="Where customer payments land.">
+      <Field label={t('settings.business.upi')} hint={t('settings.business.upiHint')}>
         <TextInput
           value={upiId}
           onChangeText={setUpiId}
@@ -300,7 +469,13 @@ const BusinessSection: React.FC<{
       </Field>
 
       {canEdit ? (
-        <Button title="Save business details" variant="primary" fullWidth loading={busy} onPress={save} />
+        <Button
+          title={t('settings.business.save')}
+          variant="primary"
+          fullWidth
+          loading={busy}
+          onPress={save}
+        />
       ) : (
         <ReadOnlyNote />
       )}
@@ -309,14 +484,305 @@ const BusinessSection: React.FC<{
 };
 
 // -----------------------------------------------------------------------------
+// Pane 2: Brand & Logo
+// -----------------------------------------------------------------------------
 
-const ProvidersSection: React.FC<{
-  merchant: NonNullable<ReturnType<typeof useAuth>['merchant']>;
+const BrandPane: React.FC<{
+  merchant: Merchant;
+  canEdit: boolean;
+  onSaved: (msg: string) => void;
+  onError: (message: string) => void;
+}> = ({ merchant, canEdit, onSaved, onError }) => {
+  const colors = useThemeColors();
+  const { t } = useTranslation();
+  const [busy, setBusy] = useState(false);
+  const hasLogo = Boolean(merchant.branding?.logoUrl);
+
+  const pickAndUpload = async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted && permission.canAskAgain) {
+        onError('Permission to access photos is required.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.85,
+      });
+
+      if (result.canceled || !result.assets?.[0]) return;
+
+      const asset = result.assets[0];
+      setBusy(true);
+      await merchantService.uploadLogo(merchant.id, asset.uri, asset.mimeType);
+      onSaved(t('settings.brand.uploadSuccess'));
+    } catch (err) {
+      onError(err instanceof Error ? err.message : t('settings.brand.uploadFailed'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    setBusy(true);
+    try {
+      await merchantService.removeLogo(merchant.id);
+      onSaved(t('settings.brand.removeSuccess'));
+    } catch (err) {
+      onError(err instanceof Error ? err.message : t('settings.brand.removeFailed'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card className="gap-5">
+      <SectionHeader
+        icon={<Sparkles size={18} color={colors['accent']} />}
+        title={t('settings.panes.brand')}
+        subtitle={t('settings.panes.brandSub')}
+        className="pb-3.5 border-b border-brand-border"
+      />
+
+      {/* Current Mark Card */}
+      <View className="p-4 rounded-2xl bg-brand-bg/60 border border-brand-border gap-4">
+        <View className="flex-row items-center gap-4">
+          <MerchantLogo
+            name={merchant.businessName}
+            logoUrl={merchant.branding?.logoUrl}
+            size={56}
+          />
+          <View className="flex-1 min-w-0">
+            <Text font="display-bold" className="text-sm text-brand-text">
+              {hasLogo ? t('settings.brand.current') : t('settings.brand.noneTitle')}
+            </Text>
+            <Text font="body" className="text-xs text-brand-text-muted mt-1 leading-4">
+              {hasLogo
+                ? merchant.branding?.logoUrl
+                : t('settings.brand.noneBody')}
+            </Text>
+          </View>
+        </View>
+
+        {canEdit && (
+          <View className="gap-2 pt-2 border-t border-brand-border/60">
+            <View className="flex-row gap-2.5">
+              <Button
+                title={hasLogo ? t('settings.brand.changeBtn') : t('settings.brand.uploadBtn')}
+                variant="primary"
+                size="md"
+                className="flex-1"
+                loading={busy}
+                icon={<Upload size={15} color={colors['on-accent']} />}
+                onPress={pickAndUpload}
+              />
+              {hasLogo && (
+                <Button
+                  title={t('settings.brand.removeBtn')}
+                  variant="outline"
+                  size="md"
+                  disabled={busy}
+                  icon={<Trash2 size={15} color={colors['danger']} />}
+                  onPress={remove}
+                />
+              )}
+            </View>
+            <Text font="body" className="text-[11px] text-brand-text-faint leading-4">
+              {t('settings.brand.sizeHint')}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* Customer Preview Card */}
+      <View>
+        <Text font="body-semibold" className="text-xs uppercase tracking-wider text-brand-text-subtle mb-3">
+          {t('settings.brand.preview')}
+        </Text>
+
+        <View className="p-4 sm:p-5 rounded-2xl bg-brand-surface-raised border border-brand-border gap-3.5">
+          <View className="flex-row items-center justify-between gap-3">
+            <View className="flex-row items-center gap-3 flex-1 min-w-0">
+              <MerchantLogo
+                name={merchant.businessName}
+                logoUrl={merchant.branding?.logoUrl}
+                size={40}
+              />
+              <View className="flex-1 min-w-0">
+                <Text font="display-bold" numberOfLines={1} className="text-base text-brand-text">
+                  {merchant.businessName}
+                </Text>
+                <Text font="body" numberOfLines={1} className="text-xs text-brand-text-muted">
+                  {merchant.location || 'Connaught Place, New Delhi'}
+                </Text>
+              </View>
+            </View>
+            <Badge label="Valid" variant="success" size="sm" />
+          </View>
+
+          <View className="p-3 rounded-xl bg-brand-bg/80 border border-brand-border/60 flex-row items-center justify-between">
+            <Text font="body-medium" className="text-xs text-brand-text-muted">
+              UPI: {merchant.upiId}
+            </Text>
+            <Text font="body-bold" className="text-xs text-brand-accent">
+              {formatCurrency(50, merchant.currency)}
+            </Text>
+          </View>
+        </View>
+      </View>
+    </Card>
+  );
+};
+
+// -----------------------------------------------------------------------------
+// Pane 3: Exit Gates
+// -----------------------------------------------------------------------------
+
+const GatesPane: React.FC<{
+  merchant: Merchant;
   canEdit: boolean;
   onSaved: () => void;
   onError: (message: string) => void;
 }> = ({ merchant, canEdit, onSaved, onError }) => {
   const colors = useThemeColors();
+  const { t } = useTranslation();
+  const [gates, setGates] = useState<string[]>(merchant.exitGates?.length ? merchant.exitGates : ['Main Exit']);
+  const [newGate, setNewGate] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (merchant.exitGates?.length) {
+      setGates(merchant.exitGates);
+    }
+  }, [merchant.exitGates]);
+
+  const addGate = () => {
+    const trimmed = newGate.trim();
+    if (!trimmed) return;
+    if (gates.includes(trimmed)) {
+      setNewGate('');
+      return;
+    }
+    setGates([...gates, trimmed]);
+    setNewGate('');
+  };
+
+  const removeGate = (indexToRemove: number) => {
+    if (gates.length <= 1) {
+      onError(t('settings.gates.atLeastOne'));
+      return;
+    }
+    setGates(gates.filter((_, idx) => idx !== indexToRemove));
+  };
+
+  const save = async () => {
+    if (gates.length === 0) {
+      onError(t('settings.gates.atLeastOne'));
+      return;
+    }
+    setBusy(true);
+    try {
+      await merchantService.updateMerchant(merchant.id, { exitGates: gates });
+      onSaved();
+    } catch (err) {
+      onError(err instanceof Error ? err.message : t('settings.gates.failed'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card>
+      <SectionHeader
+        icon={<DoorOpen size={18} color={colors['accent']} />}
+        title={t('settings.panes.gates')}
+        subtitle={t('settings.panes.gatesSub')}
+        className="mb-4 pb-3.5 border-b border-brand-border"
+      />
+
+      <Text font="body" className="text-xs text-brand-text-muted mb-4 leading-4">
+        {t('settings.gates.intro')}
+      </Text>
+
+      <View className="gap-2 mb-4">
+        {gates.map((gate, index) => (
+          <View
+            key={`${gate}-${index}`}
+            className="flex-row items-center justify-between p-3.5 rounded-2xl bg-brand-bg/60 border border-brand-border gap-3"
+          >
+            <View className="flex-row items-center gap-2.5 flex-1 min-w-0">
+              <DoorOpen size={16} color={colors['accent']} />
+              <Text font="body-bold" numberOfLines={1} className="text-sm text-brand-text">
+                {gate}
+              </Text>
+            </View>
+
+            {canEdit && gates.length > 1 && (
+              <Pressable
+                onPress={() => removeGate(index)}
+                accessibilityRole="button"
+                accessibilityLabel={t('settings.gates.remove', { gate })}
+                className="p-1.5 rounded-lg active:bg-brand-surface-raised"
+              >
+                <Trash2 size={15} color={colors['danger']} />
+              </Pressable>
+            )}
+          </View>
+        ))}
+      </View>
+
+      {canEdit && (
+        <View className="flex-row items-center gap-2 mb-4">
+          <View className="flex-1 bg-brand-bg border border-brand-border rounded-xl px-3.5 py-2.5">
+            <TextInput
+              value={newGate}
+              onChangeText={setNewGate}
+              placeholder={t('settings.gates.placeholder')}
+              placeholderTextColor={colors['text-faint']}
+              className="text-brand-text text-sm"
+              onSubmitEditing={addGate}
+            />
+          </View>
+          <Button
+            title={t('settings.gates.add')}
+            variant="secondary"
+            size="md"
+            icon={<Plus size={15} color={colors['text']} />}
+            onPress={addGate}
+          />
+        </View>
+      )}
+
+      {canEdit ? (
+        <Button
+          title={t('settings.gates.save')}
+          variant="primary"
+          fullWidth
+          loading={busy}
+          onPress={save}
+        />
+      ) : (
+        <ReadOnlyNote />
+      )}
+    </Card>
+  );
+};
+
+// -----------------------------------------------------------------------------
+// Pane 4: Payment & Delivery Providers
+// -----------------------------------------------------------------------------
+
+const ProvidersPane: React.FC<{
+  merchant: Merchant;
+  canEdit: boolean;
+  onSaved: () => void;
+  onError: (message: string) => void;
+}> = ({ merchant, canEdit, onSaved, onError }) => {
+  const colors = useThemeColors();
+  const { t } = useTranslation();
   const [payment, setPayment] = useState(merchant.paymentProvider);
   const [messaging, setMessaging] = useState(merchant.messagingProvider);
   const [busy, setBusy] = useState(false);
@@ -330,7 +796,7 @@ const ProvidersSection: React.FC<{
       });
       onSaved();
     } catch (err) {
-      onError(err instanceof Error ? err.message : 'Could not save.');
+      onError(err instanceof Error ? err.message : t('settings.providers.failed'));
     } finally {
       setBusy(false);
     }
@@ -340,12 +806,17 @@ const ProvidersSection: React.FC<{
     <Card>
       <SectionHeader
         icon={<CreditCard size={18} color={colors['accent']} />}
-        title="Payments & delivery"
-        subtitle="Swappable — switching one does not affect the rest of the app"
+        title={t('settings.panes.providers')}
+        subtitle={t('settings.panes.providersSub')}
+        className="mb-4 pb-3.5 border-b border-brand-border"
       />
 
-      <Text className="text-xs font-bold text-brand-text-subtle uppercase tracking-wider mb-2">
-        How customers pay
+      <Text font="body" className="text-xs text-brand-text-muted mb-4 leading-4">
+        {t('settings.providers.swappable')}
+      </Text>
+
+      <Text font="body-semibold" className="text-xs font-bold text-brand-text-subtle uppercase tracking-wider mb-2.5">
+        {t('settings.providers.payTitle')}
       </Text>
       <View className="gap-2.5 mb-5">
         {Object.entries(PAYMENT_PROVIDERS).map(([id, meta]) => (
@@ -360,10 +831,10 @@ const ProvidersSection: React.FC<{
         ))}
       </View>
 
-      <View className="flex-row items-center gap-1.5 mb-2">
-        <MessageSquare size={12} color={colors['text-muted']} />
-        <Text className="text-xs font-bold text-brand-text-subtle uppercase tracking-wider">
-          How passes reach customers
+      <View className="flex-row items-center gap-1.5 mb-2.5">
+        <MessageSquare size={13} color={colors['text-muted']} />
+        <Text font="body-semibold" className="text-xs font-bold text-brand-text-subtle uppercase tracking-wider">
+          {t('settings.providers.deliverTitle')}
         </Text>
       </View>
       <View className="gap-2.5 mb-5">
@@ -380,7 +851,13 @@ const ProvidersSection: React.FC<{
       </View>
 
       {canEdit ? (
-        <Button title="Save" variant="primary" fullWidth loading={busy} onPress={save} />
+        <Button
+          title={t('settings.providers.save')}
+          variant="primary"
+          fullWidth
+          loading={busy}
+          onPress={save}
+        />
       ) : (
         <ReadOnlyNote />
       )}
@@ -388,42 +865,20 @@ const ProvidersSection: React.FC<{
   );
 };
 
-const ChoiceRow: React.FC<{
-  selected: boolean;
-  disabled: boolean;
-  label: string;
-  note: string;
-  onPress: () => void;
-}> = ({ selected, disabled, label, note, onPress }) => {
-  const colors = useThemeColors();
-  return (
-  <TouchableOpacity
-    onPress={disabled ? undefined : onPress}
-    activeOpacity={disabled ? 1 : 0.7}
-    className={`p-3.5 rounded-2xl border ${
-      selected ? 'bg-brand-accent/10 border-brand-accent/50' : 'bg-brand-bg/60 border-brand-border'
-    } ${disabled ? 'opacity-60' : ''}`}
-  >
-    <View className="flex-row items-center justify-between mb-1">
-      <Text className="text-sm font-bold text-brand-text">{label}</Text>
-      {selected && <CheckCircle2 size={15} color={colors['accent']} />}
-    </View>
-    <Text className="text-[11px] text-brand-text-muted leading-4">{note}</Text>
-  </TouchableOpacity>
-  );
-};
-
+// -----------------------------------------------------------------------------
+// Pane 5: Pass Types & Prices
 // -----------------------------------------------------------------------------
 
-const TicketTypesSection: React.FC<{
+const PassTypesPane: React.FC<{
   merchantId: string;
   currency: string;
-  types: ReturnType<typeof useApp>['ticketTypes'];
+  types: TicketType[];
   canEdit: boolean;
   onChanged: () => void;
   onError: (message: string) => void;
 }> = ({ merchantId, currency, types, canEdit, onChanged, onError }) => {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const [adding, setAdding] = useState(false);
   const [code, setCode] = useState('');
   const [label, setLabel] = useState('');
@@ -434,10 +889,6 @@ const TicketTypesSection: React.FC<{
   const [busy, setBusy] = useState(false);
 
   const add = async () => {
-    // null in either extension field means "fall back to the base price /
-    // window". Storing null rather than a copy keeps that link live, so an
-    // owner who later raises the base price does not silently leave extensions
-    // priced at the old rate.
     const timed = validMinutes !== null;
     const draft = {
       code: code.trim().toUpperCase().replace(/\s+/g, '_'),
@@ -469,7 +920,7 @@ const TicketTypesSection: React.FC<{
       setAdding(false);
       onChanged();
     } catch (err) {
-      onError(err instanceof Error ? err.message : 'Could not add the pass type.');
+      onError(err instanceof Error ? err.message : t('settings.passTypes.addFailed'));
     } finally {
       setBusy(false);
     }
@@ -480,7 +931,7 @@ const TicketTypesSection: React.FC<{
       await merchantService.updateTicketType(id, { isActive });
       onChanged();
     } catch (err) {
-      onError(err instanceof Error ? err.message : 'Could not update the pass type.');
+      onError(err instanceof Error ? err.message : t('settings.passTypes.updateFailed'));
     }
   };
 
@@ -488,11 +939,12 @@ const TicketTypesSection: React.FC<{
     <Card>
       <SectionHeader
         icon={<Tag size={18} color={colors['accent']} />}
-        title="Pass types & prices"
-        subtitle="Add a new type any time — no update needed"
+        title={t('settings.panes.passTypes')}
+        subtitle={t('settings.panes.passTypesSub')}
+        className="mb-4 pb-3.5 border-b border-brand-border"
       />
 
-      <View className="gap-2.5">
+      <View className="gap-2.5 mb-3">
         {types.map((type) => {
           const Icon = ticketTypeIcon(type.icon);
           return (
@@ -502,18 +954,23 @@ const TicketTypesSection: React.FC<{
             >
               <Icon size={18} color={type.isActive ? colors['accent'] : colors['text-faint']} />
               <View className="flex-1 min-w-0">
-                <Text className="text-sm font-bold text-brand-text">{type.label}</Text>
-                <Text className="text-[11px] text-brand-text-faint">
+                <Text font="body-bold" className="text-sm text-brand-text">
+                  {type.label}
+                </Text>
+                <Text font="body" className="text-[11px] text-brand-text-faint mt-0.5">
                   {formatDuration(type.validForMinutes)}
                   {(() => {
                     const terms = extensionTerms(type);
                     return terms
-                      ? ` · +${formatCurrency(terms.amount, currency)} per ${formatDuration(terms.minutes)}`
+                      ? ` · ${t('settings.passTypes.perExtension', {
+                          amount: formatCurrency(terms.amount, currency),
+                          duration: formatDuration(terms.minutes),
+                        })}`
                       : '';
                   })()}
                 </Text>
               </View>
-              <Text className="text-sm font-extrabold text-brand-accent">
+              <Text font="display-extrabold" className="text-sm text-brand-accent">
                 {formatCurrency(type.amount, currency)}
               </Text>
               {canEdit && (
@@ -529,31 +986,26 @@ const TicketTypesSection: React.FC<{
         })}
       </View>
 
-      {/*
-        Retiring rather than deleting: transactions reference the type, and a
-        pass sold last month must keep reporting under the type it was sold as.
-      */}
-      <Text className="text-[11px] text-brand-text-faint mt-3 leading-4">
-        Switching a type off hides it from checkout. Past passes keep their original type
-        and price.
+      <Text font="body" className="text-[11px] text-brand-text-faint mb-4 leading-4">
+        {t('settings.passTypes.retireNote')}
       </Text>
 
       {canEdit &&
         (adding ? (
-          <View className="mt-4 pt-4 border-t border-brand-border">
-            <Field label="Name">
+          <View className="mt-2 pt-4 border-t border-brand-border">
+            <Field label={t('settings.passTypes.name')}>
               <TextInput
                 value={label}
                 onChangeText={(text) => {
                   setLabel(text);
                   if (!code) setCode(text.toUpperCase().replace(/[^A-Z0-9]+/g, '_').slice(0, 32));
                 }}
-                placeholder="Cycle / VIP Pass / Night Rate"
+                placeholder={t('settings.passTypes.namePlaceholder')}
                 placeholderTextColor={colors['text-faint']}
                 className="text-brand-text text-base"
               />
             </Field>
-            <Field label="Code" hint="Used internally. Letters, numbers and underscore.">
+            <Field label={t('settings.passTypes.code')} hint={t('settings.passTypes.codeHint')}>
               <TextInput
                 value={code}
                 onChangeText={(text) => setCode(text.toUpperCase())}
@@ -563,7 +1015,7 @@ const TicketTypesSection: React.FC<{
                 className="text-brand-text text-base font-mono"
               />
             </Field>
-            <Field label="Price">
+            <Field label={t('settings.passTypes.price')}>
               <TextInput
                 value={amount}
                 onChangeText={setAmount}
@@ -574,8 +1026,8 @@ const TicketTypesSection: React.FC<{
               />
             </Field>
 
-            <Text className="text-xs font-bold text-brand-text-subtle uppercase tracking-wider mb-2">
-              Valid for
+            <Text font="body-semibold" className="text-xs font-bold text-brand-text-subtle uppercase tracking-wider mb-2">
+              {t('settings.passTypes.validFor')}
             </Text>
             <View className="flex-row flex-wrap gap-2 mb-2">
               {VALIDITY_PRESETS.map((preset) => (
@@ -583,8 +1035,6 @@ const TicketTypesSection: React.FC<{
                   key={preset.label}
                   onPress={() => {
                     setValidMinutes(preset.minutes);
-                    // An untimed pass cannot be extended, so clear the terms
-                    // rather than leave stale ones the form would then reject.
                     if (preset.minutes === null) {
                       setExtAmount('');
                       setExtMinutes(null);
@@ -598,7 +1048,8 @@ const TicketTypesSection: React.FC<{
                   }`}
                 >
                   <Text
-                    className={`text-xs font-bold ${
+                    font="body-bold"
+                    className={`text-xs ${
                       validMinutes === preset.minutes ? 'text-brand-on-accent' : 'text-brand-text-muted'
                     }`}
                   >
@@ -607,20 +1058,20 @@ const TicketTypesSection: React.FC<{
                 </TouchableOpacity>
               ))}
             </View>
-            <Text className="text-[11px] text-brand-text-faint mb-4 leading-4">
-              The clock starts when the pass is paid for, not when it is created.
+            <Text font="body" className="text-[11px] text-brand-text-faint mb-4 leading-4">
+              {t('settings.passTypes.clockNote')}
             </Text>
 
             {validMinutes !== null && (
               <>
-                <Text className="text-xs font-bold text-brand-text-subtle uppercase tracking-wider mb-2">
-                  Extension
+                <Text font="body-semibold" className="text-xs font-bold text-brand-text-subtle uppercase tracking-wider mb-2">
+                  {t('settings.passTypes.extension')}
                 </Text>
                 <View className="bg-brand-bg border border-brand-border rounded-2xl px-4 py-3 mb-2">
                   <TextInput
                     value={extAmount}
                     onChangeText={setExtAmount}
-                    placeholder={`Leave blank for the same price (${amount || '0'})`}
+                    placeholder={t('settings.passTypes.extensionPlaceholder', { amount: amount || '0' })}
                     placeholderTextColor={colors['text-faint']}
                     keyboardType="number-pad"
                     className="text-brand-text text-base"
@@ -641,7 +1092,8 @@ const TicketTypesSection: React.FC<{
                       }`}
                     >
                       <Text
-                        className={`text-xs font-bold ${
+                        font="body-bold"
+                        className={`text-xs ${
                           extMinutes === preset.minutes ? 'text-brand-on-accent' : 'text-brand-text-muted'
                         }`}
                       >
@@ -650,25 +1102,33 @@ const TicketTypesSection: React.FC<{
                     </TouchableOpacity>
                   ))}
                 </View>
-                <Text className="text-[11px] text-brand-text-faint mb-4 leading-4">
-                  Leave both blank to charge the same price for the same length again. Overstay
-                  is billed in whole extensions, so extending in advance is never more expensive
-                  than being late.
+                <Text font="body" className="text-[11px] text-brand-text-faint mb-4 leading-4">
+                  {t('settings.passTypes.extensionNote')}
                 </Text>
               </>
             )}
 
             <View className="flex-row gap-2">
-              <Button title="Cancel" variant="secondary" className="flex-1" onPress={() => setAdding(false)} />
-              <Button title="Add" variant="primary" className="flex-1" loading={busy} onPress={add} />
+              <Button
+                title={t('common.cancel')}
+                variant="secondary"
+                className="flex-1"
+                onPress={() => setAdding(false)}
+              />
+              <Button
+                title={t('settings.passTypes.add')}
+                variant="primary"
+                className="flex-1"
+                loading={busy}
+                onPress={add}
+              />
             </View>
           </View>
         ) : (
           <Button
-            title="Add a pass type"
+            title={t('settings.passTypes.add')}
             variant="secondary"
             fullWidth
-            className="mt-4"
             icon={<Plus size={15} color={colors['text']} />}
             onPress={() => setAdding(true)}
           />
@@ -678,8 +1138,10 @@ const TicketTypesSection: React.FC<{
 };
 
 // -----------------------------------------------------------------------------
+// Pane 6: Staff & Gatekeepers
+// -----------------------------------------------------------------------------
 
-const StaffSection: React.FC<{
+const StaffPane: React.FC<{
   staff: StaffMember[];
   canManage: boolean;
   currentUserId: string;
@@ -687,6 +1149,7 @@ const StaffSection: React.FC<{
   onError: (message: string) => void;
 }> = ({ staff, canManage, currentUserId, onChanged, onError }) => {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -700,17 +1163,15 @@ const StaffSection: React.FC<{
         name,
         phone,
         pin,
-        // Scanner access only, until the owner grants more. Defaults come from
-        // the registry, so a permission added later starts off correctly too.
         permissions: defaultStaffPermissions(),
       });
       setName('');
       setPhone('');
       setPin('');
       setAdding(false);
-      onChanged('Gatekeeper added. Share their PIN with them.');
+      onChanged(t('settings.staff.added'));
     } catch (err) {
-      onError(err instanceof Error ? err.message : 'Could not add the gatekeeper.');
+      onError(err instanceof Error ? err.message : t('settings.staff.addFailed'));
     } finally {
       setBusy(false);
     }
@@ -720,11 +1181,12 @@ const StaffSection: React.FC<{
     <Card>
       <SectionHeader
         icon={<Users2 size={18} color={colors['accent']} />}
-        title="Gatekeepers"
-        subtitle="Who works here, and what each of them can do"
+        title={t('settings.panes.staff')}
+        subtitle={t('settings.panes.staffSub')}
+        className="mb-4 pb-3.5 border-b border-brand-border"
       />
 
-      <View className="gap-3">
+      <View className="gap-3 mb-3">
         {staff.map((member) => (
           <StaffRow
             key={member.id}
@@ -739,17 +1201,17 @@ const StaffSection: React.FC<{
 
       {canManage &&
         (adding ? (
-          <View className="mt-4 pt-4 border-t border-brand-border">
-            <Field label="Name">
+          <View className="mt-3 pt-4 border-t border-brand-border">
+            <Field label={t('settings.staff.name')}>
               <TextInput
                 value={name}
                 onChangeText={setName}
-                placeholder="Amit Kumar"
+                placeholder={t('settings.staff.namePlaceholder')}
                 placeholderTextColor={colors['text-faint']}
                 className="text-brand-text text-base"
               />
             </Field>
-            <Field label="Phone" hint="They sign in with this number and their PIN.">
+            <Field label={t('settings.staff.phone')} hint={t('settings.staff.phoneHint')}>
               <TextInput
                 value={phone}
                 onChangeText={setPhone}
@@ -759,7 +1221,7 @@ const StaffSection: React.FC<{
                 className="text-brand-text text-base"
               />
             </Field>
-            <Field label="PIN" hint="4 to 8 digits. You can change it any time.">
+            <Field label={t('settings.staff.pin')} hint={t('settings.staff.pinHint')}>
               <TextInput
                 value={pin}
                 onChangeText={setPin}
@@ -771,16 +1233,26 @@ const StaffSection: React.FC<{
               />
             </Field>
             <View className="flex-row gap-2">
-              <Button title="Cancel" variant="secondary" className="flex-1" onPress={() => setAdding(false)} />
-              <Button title="Add" variant="primary" className="flex-1" loading={busy} onPress={addStaff} />
+              <Button
+                title={t('common.cancel')}
+                variant="secondary"
+                className="flex-1"
+                onPress={() => setAdding(false)}
+              />
+              <Button
+                title={t('settings.staff.add')}
+                variant="primary"
+                className="flex-1"
+                loading={busy}
+                onPress={addStaff}
+              />
             </View>
           </View>
         ) : (
           <Button
-            title="Add a gatekeeper"
+            title={t('settings.staff.add')}
             variant="secondary"
             fullWidth
-            className="mt-4"
             icon={<Plus size={15} color={colors['text']} />}
             onPress={() => setAdding(true)}
           />
@@ -797,24 +1269,22 @@ const StaffRow: React.FC<{
   onError: (message: string) => void;
 }> = ({ member, canManage, isSelf, onChanged, onError }) => {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const [permissions, setPermissions] = useState<PermissionSet>(member.permissions);
   const [expanded, setExpanded] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [newPin, setNewPin] = useState('');
 
-  // Keep local toggles in step with a refresh that happened elsewhere.
   useEffect(() => setPermissions(member.permissions), [member.permissions]);
 
   const toggle = async (key: PermissionKey, value: boolean) => {
     const next = { ...permissions, [key]: value };
-    setPermissions(next); // optimistic
+    setPermissions(next);
     try {
-      // The whole set is written, not a patch: the column is JSONB and a partial
-      // write would drop every key it omits.
       await merchantService.setStaffPermissions(member.id, next);
     } catch (err) {
       setPermissions(permissions);
-      onError(err instanceof Error ? err.message : 'Could not change access.');
+      onError(err instanceof Error ? err.message : t('settings.staff.accessFailed'));
     }
   };
 
@@ -823,18 +1293,18 @@ const StaffRow: React.FC<{
       await merchantService.resetStaffPin(member.id, newPin);
       setNewPin('');
       setResetting(false);
-      onChanged(`New PIN set for ${member.name}.`);
+      onChanged(t('settings.staff.pinSet', { name: member.name }));
     } catch (err) {
-      onError(err instanceof Error ? err.message : 'Could not reset the PIN.');
+      onError(err instanceof Error ? err.message : t('settings.staff.pinFailed'));
     }
   };
 
   const deactivate = async () => {
     try {
       await merchantService.deactivateStaff(member.id);
-      onChanged(`${member.name} can no longer sign in.`);
+      onChanged(t('settings.staff.removed_toast', { name: member.name }));
     } catch (err) {
-      onError(err instanceof Error ? err.message : 'Could not remove them.');
+      onError(err instanceof Error ? err.message : t('settings.staff.removeFailed'));
     }
   };
 
@@ -847,42 +1317,47 @@ const StaffRow: React.FC<{
       >
         <View className="flex-1 min-w-0">
           <View className="flex-row items-center gap-2 flex-wrap">
-            <Text className="text-sm font-bold text-brand-text">{member.name}</Text>
+            <Text font="body-bold" className="text-sm text-brand-text">
+              {member.name}
+            </Text>
             <Badge
-              label={member.isOwner ? 'Owner' : member.isActive ? 'Gatekeeper' : 'Removed'}
+              label={
+                member.isOwner
+                  ? t('settings.staff.owner')
+                  : member.isActive
+                    ? t('settings.staff.gatekeeper')
+                    : t('settings.staff.removed')
+              }
               variant={member.isOwner ? 'success' : member.isActive ? 'info' : 'neutral'}
               size="sm"
             />
-            {isSelf && <Badge label="You" variant="neutral" size="sm" />}
+            {isSelf && <Badge label={t('settings.staff.you')} variant="neutral" size="sm" />}
           </View>
-          <Text className="text-[11px] text-brand-text-muted mt-0.5">{member.phone}</Text>
+          <Text font="body" className="text-[11px] text-brand-text-muted mt-0.5">
+            {member.phone}
+          </Text>
         </View>
-        <Text className="text-[11px] font-bold text-brand-accent">
-          {expanded ? 'Hide' : 'Access'}
+        <Text font="body-bold" className="text-xs text-brand-accent">
+          {expanded ? t('settings.staff.hide') : t('settings.staff.access')}
         </Text>
       </TouchableOpacity>
 
       {expanded && (
         <View className="mt-3 pt-3 border-t border-brand-border">
           {member.isOwner ? (
-            <Text className="text-[11px] text-brand-text-faint leading-4">
-              The owner always has every permission, including any added later.
+            <Text font="body" className="text-[11px] text-brand-text-faint leading-4">
+              {t('settings.staff.ownerNote')}
             </Text>
           ) : (
             <>
-              {/*
-                Rendered from the registry, so adding a permission in
-                src/config/permissions.ts makes it appear here with no change to
-                this screen and no migration.
-              */}
               <View className="gap-3">
                 {PERMISSION_KEYS.map((key) => (
                   <View key={key} className="flex-row items-start justify-between gap-3">
                     <View className="flex-1">
-                      <Text className="text-xs font-bold text-brand-text">
+                      <Text font="body-bold" className="text-xs text-brand-text">
                         {PERMISSION_REGISTRY[key].label}
                       </Text>
-                      <Text className="text-[11px] text-brand-text-faint leading-4">
+                      <Text font="body" className="text-[11px] text-brand-text-faint leading-4">
                         {PERMISSION_REGISTRY[key].description}
                       </Text>
                     </View>
@@ -908,7 +1383,7 @@ const StaffRow: React.FC<{
                         <TextInput
                           value={newPin}
                           onChangeText={setNewPin}
-                          placeholder="New PIN"
+                          placeholder={t('settings.staff.newPin')}
                           placeholderTextColor={colors['text-faint']}
                           keyboardType="number-pad"
                           maxLength={8}
@@ -917,14 +1392,14 @@ const StaffRow: React.FC<{
                       </View>
                       <View className="flex-row gap-2">
                         <Button
-                          title="Cancel"
+                          title={t('common.cancel')}
                           variant="ghost"
                           size="sm"
                           className="flex-1"
                           onPress={() => setResetting(false)}
                         />
                         <Button
-                          title="Set PIN"
+                          title={t('settings.staff.setPin')}
                           variant="primary"
                           size="sm"
                           className="flex-1"
@@ -935,7 +1410,7 @@ const StaffRow: React.FC<{
                   ) : (
                     <View className="flex-row gap-2">
                       <Button
-                        title="Change PIN"
+                        title={t('settings.staff.changePin')}
                         variant="secondary"
                         size="sm"
                         className="flex-1"
@@ -944,7 +1419,7 @@ const StaffRow: React.FC<{
                       />
                       {member.isActive && (
                         <Button
-                          title="Remove"
+                          title={t('settings.staff.remove')}
                           variant="danger"
                           size="sm"
                           className="flex-1"
@@ -961,5 +1436,124 @@ const StaffRow: React.FC<{
         </View>
       )}
     </View>
+  );
+};
+
+// -----------------------------------------------------------------------------
+// Pane 7: Appearance & Language
+// -----------------------------------------------------------------------------
+
+const AppearancePane: React.FC = () => {
+  const colors = useThemeColors();
+  const { t } = useTranslation();
+  const { preference: themePref, setPreference: setThemePref } = useTheme();
+  const { preference: langPref, setPreference: setLangPref } = useLanguage();
+
+  const themeOptions: { value: ThemePreference; labelKey: string; Icon: LucideIcon }[] = [
+    { value: 'system', labelKey: 'appearance.themeSystem', Icon: SunMoon },
+    { value: 'light', labelKey: 'appearance.themeLight', Icon: Sun },
+    { value: 'dark', labelKey: 'appearance.themeDark', Icon: Moon },
+  ];
+
+  const langOptions: { value: LanguagePreference; labelKey: string; tag: string }[] = [
+    { value: 'system', labelKey: 'appearance.languageSystem', tag: 'AUTO' },
+    { value: 'en', labelKey: 'appearance.languageEn', tag: 'EN' },
+    { value: 'hi', labelKey: 'appearance.languageHi', tag: 'हिं' },
+  ];
+
+  return (
+    <Card className="gap-5">
+      <SectionHeader
+        icon={<SunMoon size={18} color={colors['accent']} />}
+        title={t('settings.panes.appearance')}
+        subtitle={t('settings.panes.appearanceSub')}
+        className="pb-3.5 border-b border-brand-border"
+      />
+
+      {/* Theme Section */}
+      <View>
+        <Text font="body-semibold" className="text-xs font-bold text-brand-text-subtle uppercase tracking-wider mb-2.5">
+          {t('appearance.theme')}
+        </Text>
+        <View className="flex-row gap-2.5">
+          {themeOptions.map((option) => {
+            const active = themePref === option.value;
+            const Icon = option.Icon;
+            return (
+              <TouchableOpacity
+                key={option.value}
+                onPress={() => setThemePref(option.value)}
+                activeOpacity={0.7}
+                className={`flex-1 items-center gap-2 p-3.5 rounded-2xl border ${
+                  active
+                    ? 'bg-brand-accent/10 border-brand-accent/60'
+                    : 'bg-brand-bg/60 border-brand-border'
+                }`}
+              >
+                <Icon
+                  size={20}
+                  color={active ? colors['accent'] : colors['text-muted']}
+                />
+                <Text
+                  font={active ? 'body-bold' : 'body-medium'}
+                  className={`text-xs ${
+                    active ? 'text-brand-accent' : 'text-brand-text-muted'
+                  }`}
+                >
+                  {t(option.labelKey)}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        <Text font="body" className="text-[11px] text-brand-text-faint mt-2.5 leading-4">
+          {t('settings.appearance.themeNote')}
+        </Text>
+      </View>
+
+      {/* Language Section */}
+      <View>
+        <Text font="body-semibold" className="text-xs font-bold text-brand-text-subtle uppercase tracking-wider mb-2.5">
+          {t('appearance.language')}
+        </Text>
+        <View className="flex-row gap-2.5">
+          {langOptions.map((option) => {
+            const active = langPref === option.value;
+            return (
+              <TouchableOpacity
+                key={option.value}
+                onPress={() => setLangPref(option.value)}
+                activeOpacity={0.7}
+                className={`flex-1 items-center gap-1.5 p-3.5 rounded-2xl border ${
+                  active
+                    ? 'bg-brand-accent/10 border-brand-accent/60'
+                    : 'bg-brand-bg/60 border-brand-border'
+                }`}
+              >
+                <Text
+                  font="display-extrabold"
+                  className={`text-sm ${
+                    active ? 'text-brand-accent' : 'text-brand-text-muted'
+                  }`}
+                >
+                  {option.tag}
+                </Text>
+                <Text
+                  font={active ? 'body-bold' : 'body-medium'}
+                  className={`text-xs ${
+                    active ? 'text-brand-accent' : 'text-brand-text-muted'
+                  }`}
+                >
+                  {t(option.labelKey)}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        <Text font="body" className="text-[11px] text-brand-text-faint mt-2.5 leading-4">
+          {t('settings.appearance.langNote')}
+        </Text>
+      </View>
+    </Card>
   );
 };
