@@ -2,9 +2,9 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { LayoutDashboard, BookOpen, ScanLine, Settings } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../../src/context/AuthContext';
-import { useIsExpanded } from '../../src/hooks/useLayoutMode';
-import { AppTabBar } from '../../components/nav/AppTabBar';
+import { useAuth } from '../../../src/context/AuthContext';
+import { useIsExpanded } from '../../../src/hooks/useLayoutMode';
+import { AppTabBar } from '../../../components/nav/AppTabBar';
 
 export default function TabLayout() {
   const { can } = useAuth();

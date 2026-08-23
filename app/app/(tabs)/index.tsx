@@ -15,25 +15,25 @@ import {
   Car,
 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
-import { useThemeColors } from '../../src/context/ThemeContext';
-import { useAuth } from '../../src/context/AuthContext';
-import { useApp } from '../../src/context/AppContext';
-import { useIsExpanded } from '../../src/hooks/useLayoutMode';
-import { TopBar } from '../../components/nav/TopBar';
-import { StatCard } from '../../components/ui/StatCard';
-import { Card } from '../../components/ui/Card';
-import { Badge } from '../../components/ui/Badge';
-import { Button } from '../../components/ui/Button';
-import { Text } from '../../components/ui/Text';
-import { Row } from '../../components/ui/Row';
-import { SectionHeader } from '../../components/ui/SectionHeader';
-import { CustomBrandedQR } from '../../components/ui/CustomBrandedQR';
-import { NewTicketModal } from '../../components/ui/NewTicketModal';
-import { PassDeliveryModal } from '../../components/ui/PassDeliveryModal';
-import { messagingProvider } from '../../src/services/messaging';
-import { passUrl } from '../../src/utils/links';
-import { formatCurrency, formatTimeAgo, formatDateTime } from '../../src/utils/formatters';
-import type { ExpiringPass, Merchant, Transaction } from '../../src/types';
+import { useThemeColors } from '../../../src/context/ThemeContext';
+import { useAuth } from '../../../src/context/AuthContext';
+import { useApp } from '../../../src/context/AppContext';
+import { useIsExpanded } from '../../../src/hooks/useLayoutMode';
+import { TopBar } from '../../../components/nav/TopBar';
+import { StatCard } from '../../../components/ui/StatCard';
+import { Card } from '../../../components/ui/Card';
+import { Badge } from '../../../components/ui/Badge';
+import { Button } from '../../../components/ui/Button';
+import { Text } from '../../../components/ui/Text';
+import { Row } from '../../../components/ui/Row';
+import { SectionHeader } from '../../../components/ui/SectionHeader';
+import { CustomBrandedQR } from '../../../components/ui/CustomBrandedQR';
+import { NewTicketModal } from '../../../components/ui/NewTicketModal';
+import { PassDeliveryModal } from '../../../components/ui/PassDeliveryModal';
+import { messagingProvider } from '../../../src/services/messaging';
+import { passUrl } from '../../../src/utils/links';
+import { formatCurrency, formatTimeAgo, formatDateTime } from '../../../src/utils/formatters';
+import type { ExpiringPass, Merchant, Transaction } from '../../../src/types';
 
 /** Width the gate QR column takes once there is room for a second column. */
 const QR_COLUMN_WIDTH = 356;
@@ -89,7 +89,7 @@ export default function DashboardScreen() {
           action={
             canSeeLedger ? (
               <Pressable
-                onPress={() => router.push('/(tabs)/ledger')}
+                onPress={() => router.push('/app/ledger')}
                 accessibilityRole="button"
                 className="flex-row items-center gap-1 active:opacity-60"
               >

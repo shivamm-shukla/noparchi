@@ -84,5 +84,100 @@
   },
   "preview": {
     "banner": "Preview — sample data. Nothing is saved."
+  },
+  "landing": {
+    "nav": {
+      "features": "Features",
+      "how": "How it works",
+      "useCases": "Use cases",
+      "signIn": "Sign in",
+      "getStarted": "Get started"
+    },
+    "hero": {
+      "eyebrow": "Now live for parking, melas & street stalls",
+      "titleA": "The paper ticket ends at ",
+      "titleAccent": "this",
+      "titleB": " gate.",
+      "sub": "NoParchi turns any entry point into a smart QR gate — customers scan, pay, and get a WhatsApp ticket in seconds. No app, no paper, no leakage.",
+      "ctaPrimary": "Start free trial",
+      "ctaSecondary": "See how it works",
+      "note": "No credit card needed · Setup in one afternoon",
+      "step1Title": "Scan the gate QR",
+      "step1Body": "Customer points their phone camera at your branded QR — no app download.",
+      "step2Title": "Pick a slot & pay",
+      "step2Body": "A lightweight web page opens — pick what's needed, pay in one tap.",
+      "step3Title": "Ticket lands on WhatsApp",
+      "step3Body": "A verified pass arrives instantly — ready to be scanned at exit."
+    },
+    "proof": {
+      "notice": "Illustrative figures and quotes — shown to preview how this section will read once NoParchi is in the field.",
+      "gates": "Gates live",
+      "passes": "Passes issued",
+      "collected": "Collected through the gate",
+      "cities": "Cities",
+      "title": "What operators say",
+      "q1": "The counter used to be an argument every evening. Now the gate opens on a green tick and nobody debates the amount.",
+      "r1": "Parking lot owner",
+      "l1": "Connaught Place, Delhi",
+      "q2": "We ran eleven gates over four days of the mela. I could see every rupee from my phone without standing at any of them.",
+      "r2": "Mela organiser",
+      "l2": "Jaipur",
+      "q3": "My boys only get the scanner. Pricing and the ledger stay with me. That was the whole reason I switched.",
+      "r3": "Street food stall",
+      "l3": "Indore"
+    },
+    "features": {
+      "tag": "Why NoParchi",
+      "title": "Built for the counter, not the boardroom",
+      "sub": "Every feature exists to stop revenue leakage and speed up the line at the gate.",
+      "f1Title": "Fraud-proof scanning",
+      "f1Body": "Every ticket locks the instant it's scanned. A second attempt is flagged red on the spot — no double entries, no reused tickets.",
+      "f2Title": "Real-time ledger",
+      "f2Body": "Every rupee collected shows up on your dashboard the second it's paid — visible to you, invisible to skimming.",
+      "f3Title": "Staff you can trust — by design",
+      "f3Body": "Give gatekeepers scanner-only access. Ledger and pricing stay with the owner unless you say otherwise.",
+      "f4Title": "Tickets on WhatsApp",
+      "f4Body": "No app to install. Your customer already has WhatsApp — that's where their ticket shows up.",
+      "f5Title": "Works on patchy networks",
+      "f5Body": "Scans are queued on the device and settled when signal returns, so a basement or a crowded mela never stops the line.",
+      "f6Title": "One QR, every vertical",
+      "f6Body": "Parking today, a mela stall tomorrow. The same gate engine adapts to what you're selling."
+    },
+    "how": {
+      "tag": "The flow",
+      "title": "Four steps. No queue.",
+      "s1Title": "Put up your QR",
+      "s1Body": "One branded QR per gate, printed once, done.",
+      "s2Title": "Customer scans & pays",
+      "s2Body": "Right from their phone browser, no install.",
+      "s3Title": "Ticket hits WhatsApp",
+      "s3Body": "A verified pass, generated instantly.",
+      "s4Title": "Staff scans at exit",
+      "s4Body": "Big green tick or big red flag — nothing in between."
+    },
+    "useCases": {
+      "tag": "One engine, many gates",
+      "title": "Wherever there's a line and a ticket",
+      "u1Title": "Parking lots",
+      "u1Body": "Scan in, pay by duration, scan out — no boom-barrier arguments.",
+      "u2Title": "Melas & events",
+      "u2Body": "Entry passes, ride coupons, stall payments — all through one QR gate.",
+      "u3Title": "Street food stalls",
+      "u3Body": "Order, pay, get a token on WhatsApp — no cash counter chaos."
+    },
+    "cta": {
+      "title": "Stop losing the count at the gate.",
+      "sub": "Set up your first QR gate this week — no paperwork, no upfront cost.",
+      "button": "Start free trial"
+    },
+    "footer": {
+      "blurb": "The smart QR gate for parking, events, and street stalls across India.",
+      "product": "Product",
+      "company": "Company",
+      "about": "About",
+      "contact": "Contact",
+      "rights": "© 2026 NoParchi. All rights reserved.",
+      "made": "Made in India"
+    }
   }
 }

@@ -2,16 +2,16 @@ import React, { useCallback, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Platform, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { ScanLine, WifiOff, Camera as CameraIcon } from 'lucide-react-native';
-import { useThemeColors } from '../../src/context/ThemeContext';
-import { useAuth } from '../../src/context/AuthContext';
-import { useApp } from '../../src/context/AppContext';
-import { TopBar } from '../../components/nav/TopBar';
-import { Card } from '../../components/ui/Card';
-import { Button } from '../../components/ui/Button';
-import { ValidationModal } from '../../components/ui/ValidationModal';
-import { RoleGate } from '../../components/ui/RoleGate';
-import { scanService } from '../../src/services/scanService';
-import type { ScanResult } from '../../src/types';
+import { useThemeColors } from '../../../src/context/ThemeContext';
+import { useAuth } from '../../../src/context/AuthContext';
+import { useApp } from '../../../src/context/AppContext';
+import { TopBar } from '../../../components/nav/TopBar';
+import { Card } from '../../../components/ui/Card';
+import { Button } from '../../../components/ui/Button';
+import { ValidationModal } from '../../../components/ui/ValidationModal';
+import { RoleGate } from '../../../components/ui/RoleGate';
+import { scanService } from '../../../src/services/scanService';
+import type { ScanResult } from '../../../src/types';
 
 /**
  * Gates are configurable text rather than a fixed list. The previous version

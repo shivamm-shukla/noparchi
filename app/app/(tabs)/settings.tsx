@@ -15,32 +15,32 @@ import {
   Moon,
   SunMoon,
 } from 'lucide-react-native';
-import { useThemeColors, useTheme, type ThemePreference } from '../../src/context/ThemeContext';
-import { useAuth } from '../../src/context/AuthContext';
-import { useApp } from '../../src/context/AppContext';
-import { TopBar } from '../../components/nav/TopBar';
-import { Card } from '../../components/ui/Card';
-import { Badge } from '../../components/ui/Badge';
-import { Button } from '../../components/ui/Button';
-import { Field } from '../../components/ui/Field';
-import { merchantService } from '../../src/services/merchantService';
+import { useThemeColors, useTheme, type ThemePreference } from '../../../src/context/ThemeContext';
+import { useAuth } from '../../../src/context/AuthContext';
+import { useApp } from '../../../src/context/AppContext';
+import { TopBar } from '../../../components/nav/TopBar';
+import { Card } from '../../../components/ui/Card';
+import { Badge } from '../../../components/ui/Badge';
+import { Button } from '../../../components/ui/Button';
+import { Field } from '../../../components/ui/Field';
+import { merchantService } from '../../../src/services/merchantService';
 import {
   PERMISSION_KEYS,
   PERMISSION_REGISTRY,
   defaultStaffPermissions,
   type PermissionKey,
   type PermissionSet,
-} from '../../src/config/permissions';
-import { PAYMENT_PROVIDERS, MESSAGING_PROVIDERS } from '../../src/config/providers';
+} from '../../../src/config/permissions';
+import { PAYMENT_PROVIDERS, MESSAGING_PROVIDERS } from '../../../src/config/providers';
 import {
   validateTicketTypeDraft,
   formatDuration,
   extensionTerms,
   VALIDITY_PRESETS,
-} from '../../src/config/pricing';
-import { ticketTypeIcon } from '../../src/config/icons';
-import { formatCurrency } from '../../src/utils/formatters';
-import type { StaffMember } from '../../src/types';
+} from '../../../src/config/pricing';
+import { ticketTypeIcon } from '../../../src/config/icons';
+import { formatCurrency } from '../../../src/utils/formatters';
+import type { StaffMember } from '../../../src/types';
 
 export default function SettingsScreen() {
   const colors = useThemeColors();

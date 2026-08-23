@@ -18,7 +18,7 @@
  */
 import { chromium, devices } from 'playwright';
 
-const URL = process.env.CHECK_URL ?? 'http://localhost:8081';
+const URL = process.env.CHECK_URL ?? 'http://localhost:8081/app';
 const DEVICE = process.env.CHECK_DEVICE ?? 'iPhone 12 Pro';
 const OUT = process.env.CHECK_OUT ?? null;
 

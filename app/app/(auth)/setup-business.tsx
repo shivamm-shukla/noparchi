@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, ScrollView } from 'react-native';
 import { Building2, AlertCircle } from 'lucide-react-native';
-import { useThemeColors } from '../../src/context/ThemeContext';
-import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
-import { Field } from '../../components/ui/Field';
-import { authService } from '../../src/services/authService';
-import { useAuth } from '../../src/context/AuthContext';
+import { useThemeColors } from '../../../src/context/ThemeContext';
+import { Button } from '../../../components/ui/Button';
+import { Card } from '../../../components/ui/Card';
+import { Field } from '../../../components/ui/Field';
+import { authService } from '../../../src/services/authService';
+import { useAuth } from '../../../src/context/AuthContext';
 
 /**
  * Recovery for a half-finished signup.

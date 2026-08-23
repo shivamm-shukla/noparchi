@@ -18,33 +18,40 @@ import '../global.css';
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 /**
- * Routes a stranger may open without signing in.
+ * Everything the merchant app owns lives under /app; everything else is public.
  *
- * This is the app-less half of the product: a customer scans the gate QR and
- * lands on /pay/<merchantId> with no account and no install, then keeps their
- * pass at /ticket/<code>. Both read through anon-executable RPCs that return
- * only non-sensitive fields, so leaving them open exposes no merchant data.
+ * The public half is three things, and none of them may be gated:
+ *   /                 the marketing site a stranger lands on
+ *   /pay/<merchantId> a customer who scanned a gate QR, with no account
+ *   /ticket/<code>    that customer's pass afterwards
+ *
+ * The two customer routes read through anon-executable RPCs that return only
+ * non-sensitive fields, so leaving them open exposes no merchant data.
+ *
+ * Checking for the /app prefix rather than listing public segments means a new
+ * public page is public by default. The old list worked the other way round: a
+ * route nobody remembered to add became a page a signed-out visitor got bounced
+ * off, which is the wrong failure for a marketing site.
  */
-const PUBLIC_SEGMENTS = ['pay', 'ticket'];
-
 function RouteGuard({ children }: { children: React.ReactNode }) {
   const colors = useThemeColors();
   const { status, missingEnvKeys } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
-  const isPublicRoute = PUBLIC_SEGMENTS.includes(segments[0] as string);
-  const inAuthGroup = segments[0] === '(auth)';
+  const inMerchantApp = segments[0] === 'app';
+  const inAuthGroup = inMerchantApp && segments[1] === '(auth)';
+  const isPublicRoute = !inMerchantApp;
 
   React.useEffect(() => {
     if (status === 'loading' || isPublicRoute) return;
 
     if (status === 'signed-out' && !inAuthGroup) {
-      router.replace('/(auth)/sign-in');
-    } else if (status === 'needs-business' && segments[1] !== 'setup-business') {
-      router.replace('/(auth)/setup-business');
+      router.replace('/app/sign-in');
+    } else if (status === 'needs-business' && segments[2] !== 'setup-business') {
+      router.replace('/app/setup-business');
     } else if (status === 'signed-in' && inAuthGroup) {
-      router.replace('/(tabs)');
+      router.replace('/app');
     }
   }, [status, isPublicRoute, inAuthGroup, segments, router]);
 
@@ -100,6 +107,15 @@ function ConfigurationNeeded({ missing }: { missing: string[] }) {
  */
 function ThemedShell() {
   const { colors, resolved } = useTheme();
+  const segments = useSegments();
+
+  /*
+    The sample-data banner belongs anywhere sample data is shown - the merchant
+    app and both customer pages. Not on the marketing site, which shows no
+    account data at all, and where an amber warning about unsaved data is
+    simply confusing to a visitor who has not signed up for anything.
+  */
+  const showsAccountData = segments.length > 0;
 
   return (
     <>
@@ -108,7 +124,7 @@ function ThemedShell() {
         style={resolved === 'dark' ? 'light' : 'dark'}
         backgroundColor={colors['surface']}
       />
-      <PreviewBanner />
+      {showsAccountData ? <PreviewBanner /> : null}
       <RouteGuard>
         <Stack
           screenOptions={{
@@ -116,8 +132,8 @@ function ThemedShell() {
             contentStyle: { backgroundColor: colors['bg'] },
           }}
         >
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="index" />
+          <Stack.Screen name="app" />
         </Stack>
       </RouteGuard>
     </>

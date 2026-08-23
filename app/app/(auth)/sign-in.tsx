@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { Link } from 'expo-router';
 import { AlertCircle, Mail, KeyRound, Smartphone } from 'lucide-react-native';
-import { useThemeColors } from '../../src/context/ThemeContext';
-import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
-import { Logo } from '../../components/ui/Logo';
-import { Field } from '../../components/ui/Field';
-import { authService, type StaffAccountChoice } from '../../src/services/authService';
+import { useThemeColors } from '../../../src/context/ThemeContext';
+import { Button } from '../../../components/ui/Button';
+import { Card } from '../../../components/ui/Card';
+import { Logo } from '../../../components/ui/Logo';
+import { Field } from '../../../components/ui/Field';
+import { authService, type StaffAccountChoice } from '../../../src/services/authService';
 
 type Mode = 'owner' | 'staff';
 
@@ -130,7 +130,7 @@ export default function SignInScreen() {
 
                 <View className="flex-row items-center justify-center gap-1.5 mt-4">
                   <Text className="text-xs text-brand-text-muted">New here?</Text>
-                  <Link href="/(auth)/sign-up" asChild>
+                  <Link href="/app/sign-up" asChild>
                     <TouchableOpacity>
                       <Text className="text-xs font-bold text-brand-accent">Create a business</Text>
                     </TouchableOpacity>
