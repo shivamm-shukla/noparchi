@@ -312,7 +312,8 @@
       "uploadFailed": "Could not upload the logo.",
       "removeFailed": "Could not remove the logo.",
       "sizeHint": "PNG, JPG, SVG or WEBP up to 5MB. Square works best.",
-      "preview": "This is how it looks to a customer"
+      "preview": "This is how it looks to a customer",
+      "permissionNeeded": "NoParchi needs access to your photos to upload a logo. Allow it in your device settings."
     },
     "gates": {
       "intro": "Every scan is recorded against the gate it happened at. Name them the way your staff say them out loud.",

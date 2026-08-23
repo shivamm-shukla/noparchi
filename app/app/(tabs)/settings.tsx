@@ -500,9 +500,12 @@ const BrandPane: React.FC<{
 
   const pickAndUpload = async () => {
     try {
+      // Not granted means not granted. The previous condition also required
+      // canAskAgain, so the one case it needed to catch - permission denied for
+      // good - fell through and opened a picker the OS refuses to populate.
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted && permission.canAskAgain) {
-        onError('Permission to access photos is required.');
+      if (!permission.granted) {
+        onError(t('settings.brand.permissionNeeded'));
         return;
       }
 
