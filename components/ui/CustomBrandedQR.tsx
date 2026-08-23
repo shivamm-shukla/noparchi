@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Platform } from 'react-native';
+import { View, Pressable, Platform } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
-import { Download, Copy, CheckCircle2, Sparkles, AlertTriangle } from 'lucide-react-native';
+import { Download, Copy, CheckCircle2, AlertTriangle } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useThemeColors } from '../../src/context/ThemeContext';
+import { radii } from '../../src/config/radii';
 import { Card } from './Card';
 import { Button } from './Button';
+import { Text } from './Text';
+import { MerchantLogo } from './MerchantLogo';
 import { checkoutUrl } from '../../src/utils/links';
 import { formatCurrency } from '../../src/utils/formatters';
 import type { Merchant } from '../../src/types';
@@ -28,6 +32,11 @@ interface CustomBrandedQRProps {
  * but produces no pass, no ticket code and no record, so nothing could be
  * scanned at the exit and none of it reached the ledger - which is the theft
  * this product exists to stop.
+ *
+ * The centre badge is the landing page's treatment exactly: a solid dark
+ * rounded square, white border, initials in the accent. The frame around it is
+ * plain paper with a hairline - the old heavy accent border made the whole card
+ * read green, and a QR wants a quiet mount.
  */
 export const CustomBrandedQR: React.FC<CustomBrandedQRProps> = ({
   merchant,
@@ -36,15 +45,16 @@ export const CustomBrandedQR: React.FC<CustomBrandedQRProps> = ({
   showDetails = true,
 }) => {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   const url = checkoutUrl(merchant.id);
 
   const initials = merchant.businessName
-    .split(' ')
+    .split(/\s+/)
     .map((word) => word[0])
     .filter(Boolean)
-    .join('')
     .slice(0, 2)
+    .join('')
     .toUpperCase();
 
   const copyLink = async () => {
@@ -78,35 +88,54 @@ export const CustomBrandedQR: React.FC<CustomBrandedQRProps> = ({
 
   if (!url) {
     return (
-      <Card className="w-full items-center p-6">
-        <AlertTriangle size={28} color={colors['warning']} />
-        <Text className="text-sm font-bold text-brand-text mt-3 text-center">
-          Gate QR not ready
+      <Card className="w-full items-center gap-2 p-6">
+        <AlertTriangle size={24} color={colors['warning']} />
+        <Text font="display-bold" className="text-center text-sm text-brand-text">
+          {t('dashboard.gateQr.notReadyTitle')}
         </Text>
-        <Text className="text-xs text-brand-text-muted text-center mt-2 leading-4">
-          Set EXPO_PUBLIC_WEB_URL to the address customers will visit, so the QR points
-          somewhere their phone can actually open.
+        <Text font="body" className="text-center text-xs leading-5 text-brand-text-muted">
+          {t('dashboard.gateQr.notReadyBody')}
         </Text>
       </Card>
     );
   }
 
+  const badge = Math.round(size * 0.24);
+
   return (
-    <Card className="w-full max-w-sm mx-auto items-center p-6">
-      <View className="items-center mb-4">
-        <View className="flex-row items-center gap-1.5 mb-1">
-          <Sparkles size={14} color={colors['accent']} />
-          <Text className="text-[11px] font-bold text-brand-accent uppercase tracking-widest">
-            Scan to enter
+    <Card variant="hero" className="w-full items-center p-6">
+      {/*
+        The merchant's own identity, above their own QR. When logo upload lands
+        this slot fills on its own - MerchantLogo already prefers
+        branding.logoUrl and only falls back to the initials.
+      */}
+      <View className="mb-5 w-full flex-row items-center gap-3">
+        <MerchantLogo
+          name={merchant.businessName}
+          logoUrl={merchant.branding?.logoUrl}
+          size={40}
+        />
+        <View className="min-w-0 flex-1">
+          <Text font="display-bold" numberOfLines={1} className="text-base text-brand-text">
+            {merchant.businessName}
+          </Text>
+          <Text font="body" numberOfLines={1} className="text-xs text-brand-text-muted">
+            {merchant.location}
           </Text>
         </View>
-        <Text className="text-lg font-extrabold text-brand-text text-center">
-          {merchant.businessName}
-        </Text>
-        <Text className="text-xs text-brand-text-muted text-center">{merchant.location}</Text>
       </View>
 
-      <View className="noparchi-gate-qr p-4 bg-brand-paper rounded-3xl items-center justify-center relative border-4 border-brand-accent/20">
+      <Text
+        font="body-semibold"
+        className="mb-3 text-[11px] uppercase tracking-widest text-brand-accent"
+      >
+        {t('dashboard.gateQr.scanToEnter')}
+      </Text>
+
+      <View
+        style={{ borderRadius: radii.panel }}
+        className="noparchi-gate-qr relative items-center justify-center border border-brand-border bg-brand-paper p-4"
+      >
         <QRCode
           value={url}
           size={size}
@@ -116,30 +145,35 @@ export const CustomBrandedQR: React.FC<CustomBrandedQRProps> = ({
           ecl="H"
         />
         <View
-          style={{
-            position: 'absolute',
-            width: size * 0.22,
-            height: size * 0.22,
-            borderRadius: (size * 0.22) / 2,
-          }}
-          className="bg-brand-bg border-2 border-brand-accent items-center justify-center"
+          style={{ width: badge, height: badge, borderRadius: radii.control, borderWidth: 3 }}
+          className="absolute items-center justify-center border-brand-paper bg-brand-on-paper"
         >
-          <Text className="text-brand-accent font-extrabold text-xs">{initials || 'NP'}</Text>
+          <Text
+            font="display-extrabold"
+            style={{ fontSize: badge * 0.36, color: colors['accent'] }}
+          >
+            {initials || 'NP'}
+          </Text>
         </View>
       </View>
 
       {showDetails && (
-        <View className="w-full mt-5 pt-4 border-t border-brand-border items-center">
-          <Text className="text-xs text-brand-text-subtle font-medium text-center mb-3">
-            Any phone camera. No app to install.
+        <View className="mt-5 w-full items-center border-t border-brand-border pt-4">
+          <Text font="body" className="mb-3 text-center text-xs text-brand-text-subtle">
+            {t('dashboard.gateQr.noApp')}
           </Text>
 
-          <TouchableOpacity
+          <Pressable
             onPress={copyLink}
-            activeOpacity={0.7}
-            className="flex-row items-center gap-2 bg-brand-surface-raised/90 border border-brand-border-strong/80 px-3 py-1.5 rounded-xl mb-4 max-w-full"
+            accessibilityRole="button"
+            accessibilityLabel={t('dashboard.gateQr.copyLink')}
+            className="mb-4 max-w-full flex-row items-center gap-2 rounded-control border border-brand-border bg-brand-surface-alt px-3 py-1.5 active:opacity-70"
           >
-            <Text numberOfLines={1} className="text-[11px] font-mono text-brand-accent flex-shrink">
+            <Text
+              font="body-medium"
+              numberOfLines={1}
+              className="flex-shrink text-[11px] text-brand-text-subtle"
+            >
               {url}
             </Text>
             {copied ? (
@@ -147,19 +181,22 @@ export const CustomBrandedQR: React.FC<CustomBrandedQRProps> = ({
             ) : (
               <Copy size={12} color={colors['text-muted']} />
             )}
-          </TouchableOpacity>
+          </Pressable>
 
           {ticketTypes.length > 0 && (
-            <View className="flex-row flex-wrap items-center justify-center gap-2 mb-4">
+            <View className="mb-4 flex-row flex-wrap items-center justify-center gap-2">
               {ticketTypes.slice(0, 4).map((type) => (
                 <View
                   key={type.id}
-                  className="px-2.5 py-1.5 rounded-xl bg-brand-bg/60 border border-brand-border"
+                  className="rounded-control border border-brand-border bg-brand-surface-alt px-2.5 py-1.5"
                 >
-                  <Text className="text-[10px] text-brand-text-muted uppercase font-semibold">
+                  <Text
+                    font="body-medium"
+                    className="text-[10px] uppercase tracking-wide text-brand-text-muted"
+                  >
                     {type.label}
                   </Text>
-                  <Text className="text-xs font-bold text-brand-text text-center">
+                  <Text font="display-bold" className="text-center text-xs text-brand-text">
                     {formatCurrency(type.amount)}
                   </Text>
                 </View>
@@ -169,7 +206,7 @@ export const CustomBrandedQR: React.FC<CustomBrandedQRProps> = ({
 
           {Platform.OS === 'web' && (
             <Button
-              title="Download QR to print"
+              title={t('dashboard.gateQr.download')}
               variant="secondary"
               size="sm"
               fullWidth

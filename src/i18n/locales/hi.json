@@ -30,5 +30,56 @@
     "languageSystem": "अपने आप",
     "languageEn": "English",
     "languageHi": "हिन्दी"
+  },
+  "dashboard": {
+    "issuePass": "पास बनाएं",
+    "stats": {
+      "revenue": "आज की कमाई",
+      "vsYesterday": "कल के मुकाबले",
+      "verified": "पास जांचे गए",
+      "verifiedAllGates": "सभी गेट मिलाकर",
+      "verifiedByYou": "{{count}} आपने",
+      "inside": "अभी अंदर",
+      "insidePaid": "पेमेंट हो चुका, बाहर नहीं गए",
+      "insideExpiring": "{{count}} का समय खत्म होने वाला है",
+      "sold": "पास बिके",
+      "soldToday": "आज",
+      "soldPending": "{{count}} का पेमेंट बाकी"
+    },
+    "gateQr": {
+      "title": "आपका गेट QR",
+      "subtitle": "एक बार प्रिंट कराएं। ग्राहक स्कैन करके पेमेंट करेंगे और पास पा लेंगे।",
+      "scanToEnter": "अंदर आने के लिए स्कैन करें",
+      "noApp": "किसी भी फोन का कैमरा। कोई ऐप इंस्टॉल नहीं।",
+      "copyLink": "चेकआउट लिंक कॉपी करें",
+      "download": "प्रिंट के लिए QR डाउनलोड करें",
+      "notReadyTitle": "गेट QR तैयार नहीं है",
+      "notReadyBody": "EXPO_PUBLIC_WEB_URL में वह पता डालें जहां ग्राहक जाएंगे, ताकि QR ऐसी जगह ले जाए जो उनका फोन सच में खोल सके।"
+    },
+    "activity": {
+      "title": "गेट पर अभी क्या हो रहा है",
+      "viewAll": "सब देखें",
+      "emptyTitle": "आज अभी तक कुछ नहीं",
+      "emptyBody": "पास और स्कैन होते ही यहां दिखेंगे।",
+      "hiddenTitle": "आपके खाते पर यह जानकारी बंद है",
+      "hiddenBody": "ऊपर आपका स्कैन काउंट चालू है। पेमेंट देखने के लिए मालिक से लेजर एक्सेस मांगें।",
+      "statusUnpaid": "पेमेंट बाकी",
+      "statusExited": "बाहर गए",
+      "statusInside": "अंदर",
+      "sendPass": "WhatsApp पर पास भेजें"
+    },
+    "expiring": {
+      "title": "समय खत्म होने वाला है",
+      "ending": "खत्म होने वाला",
+      "timeOver": "समय खत्म",
+      "reminded": "याद दिलाया",
+      "due": "{{amount}} बाकी",
+      "remind": "इस ग्राहक को WhatsApp पर याद दिलाएं"
+    },
+    "conflicts": {
+      "title_one": "{{count}} ऑफलाइन स्कैन सिंक पर अस्वीकार हुआ",
+      "title_other": "{{count}} ऑफलाइन स्कैन सिंक पर अस्वीकार हुए",
+      "dismiss": "हटाएं"
+    }
   }
 }

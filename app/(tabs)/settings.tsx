@@ -850,7 +850,7 @@ const StaffRow: React.FC<{
             <Text className="text-sm font-bold text-brand-text">{member.name}</Text>
             <Badge
               label={member.isOwner ? 'Owner' : member.isActive ? 'Gatekeeper' : 'Removed'}
-              variant={member.isOwner ? 'emerald' : member.isActive ? 'info' : 'neutral'}
+              variant={member.isOwner ? 'success' : member.isActive ? 'info' : 'neutral'}
               size="sm"
             />
             {isSelf && <Badge label="You" variant="neutral" size="sm" />}

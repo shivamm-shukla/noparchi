@@ -1,13 +1,7 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 
-export type BadgeVariant =
-  | 'success'
-  | 'warning'
-  | 'danger'
-  | 'info'
-  | 'neutral'
-  | 'emerald';
+export type BadgeVariant = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
 
 interface BadgeProps {
   label: string;
@@ -23,7 +17,6 @@ interface BadgeProps {
  */
 const VARIANTS: Record<BadgeVariant, { container: string; text: string }> = {
   success: { container: 'bg-brand-accent/10 border-brand-accent/30', text: 'text-brand-accent' },
-  emerald: { container: 'bg-brand-accent/10 border-brand-accent/30', text: 'text-brand-accent' },
   warning: { container: 'bg-brand-warning/10 border-brand-warning/30', text: 'text-brand-warning' },
   danger: { container: 'bg-brand-danger/10 border-brand-danger/30', text: 'text-brand-danger' },
   info: { container: 'bg-brand-info/10 border-brand-info/30', text: 'text-brand-info' },

@@ -1,11 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
+import { View, ScrollView, RefreshControl, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
-  IndianRupee,
-  ScanLine,
-  Car,
-  Ticket as TicketIcon,
   PlusCircle,
   Clock,
   ArrowRight,
@@ -16,15 +12,21 @@ import {
   Clock as ClockIcon,
   Timer,
   MessageCircle,
+  Car,
 } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useThemeColors } from '../../src/context/ThemeContext';
 import { useAuth } from '../../src/context/AuthContext';
 import { useApp } from '../../src/context/AppContext';
+import { useIsExpanded } from '../../src/hooks/useLayoutMode';
 import { TopBar } from '../../components/nav/TopBar';
-import { StatsCard } from '../../components/ui/StatsCard';
+import { StatCard } from '../../components/ui/StatCard';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
+import { Text } from '../../components/ui/Text';
+import { Row } from '../../components/ui/Row';
+import { SectionHeader } from '../../components/ui/SectionHeader';
 import { CustomBrandedQR } from '../../components/ui/CustomBrandedQR';
 import { NewTicketModal } from '../../components/ui/NewTicketModal';
 import { PassDeliveryModal } from '../../components/ui/PassDeliveryModal';
@@ -33,9 +35,14 @@ import { passUrl } from '../../src/utils/links';
 import { formatCurrency, formatTimeAgo, formatDateTime } from '../../src/utils/formatters';
 import type { ExpiringPass, Merchant, Transaction } from '../../src/types';
 
+/** Width the gate QR column takes once there is room for a second column. */
+const QR_COLUMN_WIDTH = 356;
+
 export default function DashboardScreen() {
   const colors = useThemeColors();
   const router = useRouter();
+  const { t } = useTranslation();
+  const isExpanded = useIsExpanded();
   const { user, merchant, can } = useAuth();
   const {
     stats,
@@ -59,15 +66,80 @@ export default function DashboardScreen() {
   const canIssue = can('can_issue_passes');
   const recent = transactions.slice(0, 8);
 
+  const gateQr = (
+    <CustomBrandedQR merchant={merchant} ticketTypes={ticketTypes} size={188} />
+  );
+
+  const operations = (
+    <>
+      {/*
+        Expiring passes come before the feed because they are the only thing
+        here that is time-sensitive. When automated WhatsApp is off this list is
+        also the fallback: staff can nudge each customer themselves rather than
+        only discovering the overstay at the gate.
+      */}
+      {canSeeLedger && expiringPasses.length > 0 && (
+        <ExpiringSoonCard passes={expiringPasses} merchant={merchant} />
+      )}
+
+      <Card>
+        <SectionHeader
+          title={t('dashboard.activity.title')}
+          className="mb-1 border-b border-brand-border pb-3"
+          action={
+            canSeeLedger ? (
+              <Pressable
+                onPress={() => router.push('/(tabs)/ledger')}
+                accessibilityRole="button"
+                className="flex-row items-center gap-1 active:opacity-60"
+              >
+                <Text font="body-semibold" className="text-xs text-brand-accent">
+                  {t('dashboard.activity.viewAll')}
+                </Text>
+                <ArrowRight size={12} color={colors['accent']} />
+              </Pressable>
+            ) : undefined
+          }
+        />
+
+        {!canSeeLedger ? (
+          <EmptyState
+            icon={<ShieldCheck size={26} color={colors['text-faint']} />}
+            title={t('dashboard.activity.hiddenTitle')}
+            body={t('dashboard.activity.hiddenBody')}
+          />
+        ) : recent.length === 0 ? (
+          <EmptyState
+            icon={<Clock size={26} color={colors['text-faint']} />}
+            title={isLoading ? t('common.loading') : t('dashboard.activity.emptyTitle')}
+            body={t('dashboard.activity.emptyBody')}
+          />
+        ) : (
+          <View>
+            {recent.map((tx, index) => (
+              <ActivityRow
+                key={tx.id}
+                transaction={tx}
+                currency={merchant.currency}
+                divider={index < recent.length - 1}
+                onDeliver={() => setDeliverFor(tx)}
+              />
+            ))}
+          </View>
+        )}
+      </Card>
+    </>
+  );
+
   return (
     <View className="flex-1 bg-brand-bg">
       <TopBar
         title={merchant.businessName}
-        subtitle={merchant.location || 'Live operations'}
+        subtitle={merchant.location}
         rightAction={
           canIssue ? (
             <Button
-              title="Issue pass"
+              title={t('dashboard.issuePass')}
               size="sm"
               variant="primary"
               icon={<PlusCircle size={14} color={colors['on-accent']} />}
@@ -79,7 +151,7 @@ export default function DashboardScreen() {
 
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={{ paddingBottom: 32 }}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -89,203 +161,111 @@ export default function DashboardScreen() {
           />
         }
       >
-        <View className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-5">
+        <View className="mx-auto w-full max-w-7xl gap-4 px-4 py-5 sm:px-6 lg:px-8">
           {/*
             Offline scans the server refused on sync. Shown prominently rather
             than logged, because each one is a customer who left the venue on a
             pass another device had already cleared - the owner needs to know.
           */}
           {syncConflicts.length > 0 && (
-            <Card className="mb-5 border-brand-warning/40 bg-brand-warning/5">
+            <Card className="border-brand-warning/40">
               <View className="flex-row items-start gap-3">
-                <AlertTriangle size={18} color={colors['warning']} />
-                <View className="flex-1">
-                  <Text className="text-sm font-bold text-brand-warning mb-1">
-                    {syncConflicts.length} offline scan
-                    {syncConflicts.length > 1 ? 's were' : ' was'} rejected on sync
+                <AlertTriangle size={17} color={colors['warning']} />
+                <View className="flex-1 gap-1">
+                  <Text font="body-semibold" className="text-sm text-brand-warning">
+                    {t('dashboard.conflicts.title', { count: syncConflicts.length })}
                   </Text>
-                  {syncConflicts.slice(0, 3).map((c) => (
-                    <Text key={c.ticketCode} className="text-xs text-brand-warning/80 leading-4">
-                      {c.ticketCode} — {c.message}
+                  {syncConflicts.slice(0, 3).map((conflict) => (
+                    <Text
+                      key={conflict.ticketCode}
+                      font="body"
+                      className="text-xs leading-5 text-brand-text-subtle"
+                    >
+                      {conflict.ticketCode} — {conflict.message}
                     </Text>
                   ))}
                 </View>
-                <TouchableOpacity onPress={dismissConflicts} className="p-1">
-                  <X size={14} color={colors['warning']} />
-                </TouchableOpacity>
+                <Pressable
+                  onPress={dismissConflicts}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('dashboard.conflicts.dismiss')}
+                  className="p-1 active:opacity-60"
+                >
+                  <X size={14} color={colors['text-muted']} />
+                </Pressable>
               </View>
             </Card>
           )}
 
           {error && (
-            <Card className="mb-5 border-brand-danger/40 bg-brand-danger/5">
-              <Text className="text-xs text-brand-danger leading-4">{error}</Text>
+            <Card className="border-brand-danger/40">
+              <Text font="body" className="text-xs leading-5 text-brand-danger">
+                {error}
+              </Text>
             </Card>
           )}
-
-          <View className="flex-row flex-wrap items-center justify-between gap-3 bg-brand-surface border border-brand-border rounded-2xl p-4 mb-6">
-            <View>
-              <Text className="text-base sm:text-lg font-bold text-brand-text">
-                Welcome back, {user.name.split(' ')[0]}
-              </Text>
-              <Text className="text-xs text-brand-text-muted">
-                {user.isOwner
-                  ? 'Owner — full access'
-                  : 'Gatekeeper — scanner and today’s activity'}
-              </Text>
-            </View>
-            <Badge
-              label={user.isOwner ? 'Owner' : 'Staff'}
-              variant={user.isOwner ? 'emerald' : 'info'}
-            />
-          </View>
 
           {/*
             Revenue is only rendered when the server said this account may see
             it. stats.revenue is null otherwise - the figure never leaves the
             database, so hiding the tile is presentation, not protection.
           */}
-          <View className="flex-row flex-wrap gap-3 sm:gap-4 mb-6">
+          <View className="flex-row flex-wrap gap-3">
             {stats?.canViewRevenue && (
-              <StatsCard
-                title="Revenue today"
+              <StatCard
+                label={t('dashboard.stats.revenue')}
                 value={formatCurrency(stats.revenue ?? 0, merchant.currency)}
-                trend={
-                  stats.growthPercent === null
-                    ? undefined
-                    : `${Math.abs(stats.growthPercent)}% vs yesterday`
-                }
-                trendPositive={(stats.growthPercent ?? 0) >= 0}
-                icon={<IndianRupee size={20} color={colors['accent']} />}
-                highlight
+                deltaPercent={stats.growthPercent}
+                deltaLabel={t('dashboard.stats.vsYesterday')}
               />
             )}
-            <StatsCard
-              title="Passes verified"
+            <StatCard
+              label={t('dashboard.stats.verified')}
               value={stats?.scans ?? 0}
-              subtitle={user.isOwner ? 'all gates' : `${stats?.myScans ?? 0} by you`}
-              icon={<ScanLine size={20} color={colors['info']} />}
-            />
-            <StatsCard
-              title="Still inside"
-              value={stats?.openPasses ?? 0}
-              subtitle={
-                stats?.expiringSoon
-                  ? `${stats.expiringSoon} running out soon`
-                  : 'paid, not yet exited'
+              detail={
+                user.isOwner
+                  ? t('dashboard.stats.verifiedAllGates')
+                  : t('dashboard.stats.verifiedByYou', { count: stats?.myScans ?? 0 })
               }
-              icon={<Car size={20} color={colors['warning']} />}
+            />
+            <StatCard
+              label={t('dashboard.stats.inside')}
+              value={stats?.openPasses ?? 0}
+              detail={
+                stats?.expiringSoon
+                  ? t('dashboard.stats.insideExpiring', { count: stats.expiringSoon })
+                  : t('dashboard.stats.insidePaid')
+              }
             />
             {stats?.canViewRevenue && (
-              <StatsCard
-                title="Passes sold"
+              <StatCard
+                label={t('dashboard.stats.sold')}
                 value={stats.passesIssued ?? 0}
-                subtitle={
+                detail={
                   stats.pendingPayments
-                    ? `${stats.pendingPayments} awaiting payment`
-                    : 'today'
+                    ? t('dashboard.stats.soldPending', { count: stats.pendingPayments })
+                    : t('dashboard.stats.soldToday')
                 }
-                icon={<TicketIcon size={20} color={colors['text-subtle']} />}
               />
             )}
           </View>
 
           {/*
-            Expiring passes, surfaced before the activity feed because they are
-            the only thing here that is time-sensitive. When automated WhatsApp
-            is off this list is also the fallback: staff can nudge each customer
-            themselves rather than only discovering the overstay at the gate.
+            Two columns when there is room, and the QR leads on a phone.
+            Yoga does not implement CSS `order`, so the arrangement is chosen
+            here rather than with a `lg:order-*` class that would do nothing.
           */}
-          {canSeeLedger && expiringPasses.length > 0 && (
-            <ExpiringSoonCard passes={expiringPasses} merchant={merchant} />
+          {isExpanded ? (
+            <View className="flex-row items-start gap-4">
+              <View className="flex-1 gap-4">{operations}</View>
+              <View style={{ width: QR_COLUMN_WIDTH }}>{gateQr}</View>
+            </View>
+          ) : (
+            <View className="gap-4">
+              {gateQr}
+              {operations}
+            </View>
           )}
-
-          <View className="flex-col lg:flex-row gap-6">
-            <View className="flex-1">
-              <Card className="mb-6">
-                <Text className="text-sm font-bold text-brand-text uppercase tracking-wider mb-3">
-                  Quick actions
-                </Text>
-                <View className="flex-row flex-wrap gap-3">
-                  {canIssue && (
-                    <QuickAction
-                      label="Issue a pass"
-                      icon={<PlusCircle size={22} color={colors['accent']} />}
-                      onPress={() => setIssueVisible(true)}
-                    />
-                  )}
-                  <QuickAction
-                    label="Open scanner"
-                    icon={<ScanLine size={22} color={colors['info']} />}
-                    onPress={() => router.push('/(tabs)/scanner')}
-                  />
-                  {canSeeLedger && (
-                    <QuickAction
-                      label="View ledger"
-                      icon={<IndianRupee size={22} color={colors['warning']} />}
-                      onPress={() => router.push('/(tabs)/ledger')}
-                    />
-                  )}
-                </View>
-              </Card>
-
-              <Card>
-                <View className="flex-row items-center justify-between mb-4 pb-3 border-b border-brand-border">
-                  <View className="flex-row items-center gap-2">
-                    <View className="w-2.5 h-2.5 rounded-full bg-brand-accent" />
-                    <Text className="text-base font-bold text-brand-text">Live gate activity</Text>
-                  </View>
-                  {canSeeLedger && (
-                    <TouchableOpacity
-                      onPress={() => router.push('/(tabs)/ledger')}
-                      className="flex-row items-center gap-1"
-                    >
-                      <Text className="text-xs font-bold text-brand-accent">View all</Text>
-                      <ArrowRight size={12} color={colors['accent']} />
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                {!canSeeLedger ? (
-                  <View className="py-10 items-center">
-                    <ShieldCheck size={32} color={colors['text-faint']} />
-                    <Text className="text-sm font-semibold text-brand-text-muted mt-2 text-center">
-                      Activity is hidden on your account
-                    </Text>
-                    <Text className="text-xs text-brand-text-faint text-center mt-1 leading-4">
-                      Your scan count above is live. Ask the owner for ledger access to see
-                      payments.
-                    </Text>
-                  </View>
-                ) : recent.length === 0 ? (
-                  <View className="py-10 items-center">
-                    <Clock size={32} color={colors['text-faint']} />
-                    <Text className="text-sm font-semibold text-brand-text-muted mt-2">
-                      {isLoading ? 'Loading…' : 'Nothing yet today'}
-                    </Text>
-                    <Text className="text-xs text-brand-text-faint text-center mt-1">
-                      Passes and scans appear here as they happen.
-                    </Text>
-                  </View>
-                ) : (
-                  <View className="gap-3">
-                    {recent.map((tx) => (
-                      <ActivityRow
-                        key={tx.id}
-                        transaction={tx}
-                        currency={merchant.currency}
-                        onDeliver={() => setDeliverFor(tx)}
-                      />
-                    ))}
-                  </View>
-                )}
-              </Card>
-            </View>
-
-            <View className="w-full lg:w-96 shrink-0">
-              <CustomBrandedQR merchant={merchant} ticketTypes={ticketTypes} size={190} />
-            </View>
-          </View>
         </View>
       </ScrollView>
 
@@ -304,11 +284,29 @@ export default function DashboardScreen() {
   );
 }
 
+const EmptyState: React.FC<{ icon: React.ReactNode; title: string; body: string }> = ({
+  icon,
+  title,
+  body,
+}) => (
+  <View className="items-center gap-1.5 py-10">
+    {icon}
+    <Text font="body-semibold" className="mt-1 text-center text-sm text-brand-text-subtle">
+      {title}
+    </Text>
+    <Text font="body" className="max-w-xs text-center text-xs leading-5 text-brand-text-muted">
+      {body}
+    </Text>
+  </View>
+);
+
 const ExpiringSoonCard: React.FC<{ passes: ExpiringPass[]; merchant: Merchant }> = ({
   passes,
   merchant,
 }) => {
   const colors = useThemeColors();
+  const { t } = useTranslation();
+
   const nudge = async (pass: ExpiringPass) => {
     if (!pass.customerPhone) return;
     const url = passUrl(pass.ticketCode);
@@ -331,135 +329,139 @@ const ExpiringSoonCard: React.FC<{ passes: ExpiringPass[]; merchant: Merchant }>
     });
   };
 
+  const shown = passes.slice(0, 6);
+
   return (
-    <Card className="mb-6 border-brand-warning/30">
-      <View className="flex-row items-center gap-2 mb-4 pb-3 border-b border-brand-border">
-        <Timer size={17} color={colors['warning']} />
-        <Text className="text-base font-bold text-brand-text">Running out soon</Text>
-        <Badge label={String(passes.length)} variant="warning" size="sm" />
-      </View>
+    <Card>
+      <SectionHeader
+        title={t('dashboard.expiring.title')}
+        icon={<Timer size={15} color={colors['warning']} />}
+        action={<Badge label={String(passes.length)} variant="warning" size="sm" />}
+        className="mb-1 border-b border-brand-border pb-3"
+      />
 
-      <View className="gap-2.5">
-        {passes.slice(0, 6).map((pass) => (
-          <View
-            key={pass.ticketCode}
-            className="flex-row items-center justify-between gap-3 p-3 rounded-xl bg-brand-bg/60 border border-brand-border"
-          >
-            <View className="flex-1 min-w-0">
-              <View className="flex-row items-center gap-2 flex-wrap">
-                <Text numberOfLines={1} className="text-xs font-bold text-brand-text uppercase">
-                  {pass.vehicleNumber || pass.typeLabel}
-                </Text>
-                <Badge
-                  label={pass.isExpired ? 'Time over' : 'Ending'}
-                  variant={pass.isExpired ? 'danger' : 'warning'}
-                  size="sm"
-                />
-                {pass.reminderSentAt && (
-                  <Badge label="Reminded" variant="neutral" size="sm" />
-                )}
-              </View>
-              <View className="flex-row items-center gap-1.5 mt-0.5">
-                <ClockIcon size={10} color={colors['text-faint']} />
-                <Text className="text-[11px] text-brand-text-muted">
-                  {formatDateTime(pass.expiresAt)}
-                  {pass.overstayDue > 0
-                    ? ` · ${formatCurrency(pass.overstayDue, merchant.currency)} due`
-                    : ''}
-                </Text>
-              </View>
-            </View>
-
-            {pass.customerPhone && (
-              <TouchableOpacity
-                onPress={() => nudge(pass)}
-                accessibilityLabel="Remind this customer on WhatsApp"
-                className="p-2 rounded-lg bg-brand-surface-raised active:bg-brand-surface-raised"
+      {shown.map((pass, index) => (
+        <Row key={pass.ticketCode} divider={index < shown.length - 1}>
+          <View className="min-w-0 flex-1 gap-1">
+            <View className="flex-row flex-wrap items-center gap-2">
+              <Text
+                font="body-semibold"
+                numberOfLines={1}
+                className="text-xs uppercase tracking-wide text-brand-text"
               >
-                <MessageCircle size={14} color={colors['accent-soft']} />
-              </TouchableOpacity>
-            )}
+                {pass.vehicleNumber || pass.typeLabel}
+              </Text>
+              <Badge
+                label={t(pass.isExpired ? 'dashboard.expiring.timeOver' : 'dashboard.expiring.ending')}
+                variant={pass.isExpired ? 'danger' : 'warning'}
+                size="sm"
+              />
+              {pass.reminderSentAt && (
+                <Badge label={t('dashboard.expiring.reminded')} variant="neutral" size="sm" />
+              )}
+            </View>
+            <View className="flex-row items-center gap-1.5">
+              <ClockIcon size={10} color={colors['text-faint']} />
+              <Text font="body" className="text-[11px] text-brand-text-muted">
+                {formatDateTime(pass.expiresAt)}
+                {pass.overstayDue > 0
+                  ? ` · ${t('dashboard.expiring.due', {
+                      amount: formatCurrency(pass.overstayDue, merchant.currency),
+                    })}`
+                  : ''}
+              </Text>
+            </View>
           </View>
-        ))}
-      </View>
+
+          {pass.customerPhone && (
+            <Pressable
+              onPress={() => nudge(pass)}
+              accessibilityRole="button"
+              accessibilityLabel={t('dashboard.expiring.remind')}
+              className="rounded-control border border-brand-border bg-brand-surface-alt p-2 active:opacity-60"
+            >
+              <MessageCircle size={14} color={colors['text-subtle']} />
+            </Pressable>
+          )}
+        </Row>
+      ))}
     </Card>
   );
 };
 
-const QuickAction: React.FC<{
-  label: string;
-  icon: React.ReactNode;
-  onPress: () => void;
-}> = ({ label, icon, onPress }) => (
-  <TouchableOpacity
-    onPress={onPress}
-    activeOpacity={0.7}
-    className="flex-1 min-w-[130px] p-3.5 rounded-xl bg-brand-surface-raised/80 border border-brand-border-strong/80 items-center justify-center gap-2"
-  >
-    {icon}
-    <Text className="text-xs font-bold text-brand-text text-center">{label}</Text>
-  </TouchableOpacity>
-);
-
 const ActivityRow: React.FC<{
   transaction: Transaction;
   currency: string;
+  divider: boolean;
   onDeliver: () => void;
-}> = ({ transaction, currency, onDeliver }) => {
+}> = ({ transaction, currency, divider, onDeliver }) => {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const exited = Boolean(transaction.validation);
   const unpaid = transaction.status === 'pending';
 
   return (
-    <View className="flex-row items-center justify-between p-3 sm:p-3.5 rounded-xl bg-brand-surface-raised/50 border border-brand-border-strong/60">
-      <View className="flex-row items-center gap-3 flex-1 min-w-0 pr-2">
-        <View
-          className={`w-9 h-9 rounded-xl items-center justify-center shrink-0 border ${
-            unpaid
-              ? 'bg-brand-warning/10 border-brand-warning/30'
-              : exited
-                ? 'bg-brand-accent/10 border-brand-accent/30'
-                : 'bg-brand-info/10 border-brand-info/30'
-          }`}
-        >
-          {unpaid ? (
-            <AlertTriangle size={18} color={colors['warning']} />
-          ) : exited ? (
-            <ShieldCheck size={18} color={colors['accent']} />
-          ) : (
-            <Car size={18} color={colors['info']} />
-          )}
-        </View>
-
-        <View className="flex-1 min-w-0">
-          <View className="flex-row items-center gap-2">
-            <Text numberOfLines={1} className="text-xs font-bold text-brand-text uppercase">
-              {transaction.vehicleNumber || transaction.ticketTypeLabel}
-            </Text>
-            <Badge
-              label={unpaid ? 'Unpaid' : exited ? 'Exited' : 'Inside'}
-              variant={unpaid ? 'warning' : exited ? 'success' : 'info'}
-              size="sm"
-            />
-          </View>
-          <Text numberOfLines={1} className="text-[11px] font-mono text-brand-text-muted">
-            {transaction.ticketCode} · {formatTimeAgo(transaction.createdAt)}
-          </Text>
-        </View>
+    <Row divider={divider}>
+      <View
+        className={`h-9 w-9 shrink-0 items-center justify-center rounded-control border ${
+          unpaid
+            ? 'border-brand-warning/30 bg-brand-warning/10'
+            : exited
+              ? 'border-brand-accent/30 bg-brand-accent/10'
+              : 'border-brand-border bg-brand-surface-alt'
+        }`}
+      >
+        {unpaid ? (
+          <AlertTriangle size={16} color={colors['warning']} />
+        ) : exited ? (
+          <ShieldCheck size={16} color={colors['accent']} />
+        ) : (
+          <Car size={16} color={colors['text-muted']} />
+        )}
       </View>
 
-      <View className="flex-row items-center gap-2 shrink-0">
-        <Text className="text-sm font-extrabold text-brand-accent">
+      <View className="min-w-0 flex-1">
+        <Text
+          font="body-semibold"
+          numberOfLines={1}
+          className="text-xs uppercase tracking-wide text-brand-text"
+        >
+          {transaction.vehicleNumber || transaction.ticketTypeLabel}
+        </Text>
+        <Text font="body" numberOfLines={1} className="text-[11px] text-brand-text-muted">
+          {transaction.ticketCode} · {formatTimeAgo(transaction.createdAt)}
+        </Text>
+      </View>
+
+      <View className="shrink-0 flex-row items-center gap-2.5">
+        {/*
+          The amount is the figure, so it is set in the display face - but in
+          the text colour, not the accent. A green number on every row makes the
+          accent mean nothing, and none of these rows is the one to look at.
+        */}
+        <Text font="display-bold" className="text-sm text-brand-text">
           {formatCurrency(transaction.amount, currency)}
         </Text>
-        <TouchableOpacity
+        <Badge
+          label={t(
+            unpaid
+              ? 'dashboard.activity.statusUnpaid'
+              : exited
+                ? 'dashboard.activity.statusExited'
+                : 'dashboard.activity.statusInside'
+          )}
+          variant={unpaid ? 'warning' : exited ? 'success' : 'info'}
+          size="sm"
+        />
+        <Pressable
           onPress={onDeliver}
-          accessibilityLabel="Send pass on WhatsApp"
-          className="p-1.5 rounded-lg bg-brand-surface-raised/60 active:bg-brand-border-strong"
+          accessibilityRole="button"
+          accessibilityLabel={t('dashboard.activity.sendPass')}
+          className="rounded-control border border-brand-border bg-brand-surface-alt p-1.5 active:opacity-60"
         >
-          <MessageSquare size={14} color={colors['accent-soft']} />
-        </TouchableOpacity>
+          <MessageSquare size={13} color={colors['text-subtle']} />
+        </Pressable>
       </View>
-    </View>
+    </Row>
   );
 };

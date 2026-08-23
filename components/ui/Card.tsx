@@ -1,38 +1,45 @@
 import React from 'react';
-import { View, ViewProps } from 'react-native';
+import { View, type ViewProps } from 'react-native';
+import { useTheme } from '../../src/context/ThemeContext';
+import { elevation } from '../../src/config/elevation';
+import { cn } from '../../src/utils/cn';
+
+export type CardVariant = 'default' | 'hero' | 'flat';
 
 interface CardProps extends ViewProps {
   children: React.ReactNode;
   className?: string;
-  variant?: 'default' | 'elevated' | 'glass' | 'emerald';
+  variant?: CardVariant;
 }
 
+/**
+ * A surface that floats off the ground.
+ *
+ * The lift comes from a shadow rather than a heavy border - one hairline plus a
+ * wide, soft shadow, per the landing page. That is also why there is no longer
+ * an `emerald` variant: a whole card tinted with the accent was the single
+ * biggest reason the old app read as "everything is green". The accent marks
+ * one thing per view, not the container it sits in.
+ *
+ * `flat` exists for a card nested inside another surface, where a second shadow
+ * would just look like a rendering artefact.
+ */
 export const Card: React.FC<CardProps> = ({
   children,
-  className = '',
+  className,
   variant = 'default',
+  style,
   ...props
 }) => {
-  const getVariantStyles = () => {
-    switch (variant) {
-      case 'elevated':
-        return 'bg-brand-surface border border-brand-border shadow-lg shadow-black/40';
-      case 'glass':
-        // No backdrop-blur: it is a web-only filter that renders as a plain
-        // translucent panel on Android and iOS, so the variant would look
-        // different on the platforms the merchant actually uses.
-        return 'bg-brand-surface/80 border border-brand-border/80';
-      case 'emerald':
-        return 'bg-brand-accent/30 border border-brand-accent/20';
-      case 'default':
-      default:
-        return 'bg-brand-surface border border-brand-border/90';
-    }
-  };
+  const { resolved } = useTheme();
 
   return (
     <View
-      className={`rounded-2xl p-4 sm:p-5 ${getVariantStyles()} ${className}`}
+      style={[variant === 'flat' ? undefined : elevation(variant === 'hero' ? 'hero' : 'card', resolved), style]}
+      className={cn(
+        'rounded-card border border-brand-border bg-brand-surface p-4 sm:p-5',
+        className
+      )}
       {...props}
     >
       {children}

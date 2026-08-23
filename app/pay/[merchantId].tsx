@@ -153,7 +153,7 @@ export default function CheckoutScreen() {
               </Text>
             </View>
           </View>
-          <Badge label="No app needed" variant="emerald" size="sm" />
+          <Badge label="No app needed" variant="success" size="sm" />
         </View>
       </View>
 

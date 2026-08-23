@@ -30,5 +30,56 @@
     "languageSystem": "Automatic",
     "languageEn": "English",
     "languageHi": "हिन्दी"
+  },
+  "dashboard": {
+    "issuePass": "Issue pass",
+    "stats": {
+      "revenue": "Revenue today",
+      "vsYesterday": "vs yesterday",
+      "verified": "Passes verified",
+      "verifiedAllGates": "across all gates",
+      "verifiedByYou": "{{count}} by you",
+      "inside": "Still inside",
+      "insidePaid": "paid, not yet exited",
+      "insideExpiring": "{{count}} running out soon",
+      "sold": "Passes sold",
+      "soldToday": "today",
+      "soldPending": "{{count}} awaiting payment"
+    },
+    "gateQr": {
+      "title": "Your gate QR",
+      "subtitle": "Print it once. Customers scan, pay and get their pass.",
+      "scanToEnter": "Scan to enter",
+      "noApp": "Any phone camera. No app to install.",
+      "copyLink": "Copy the checkout link",
+      "download": "Download QR to print",
+      "notReadyTitle": "Gate QR not ready",
+      "notReadyBody": "Set EXPO_PUBLIC_WEB_URL to the address customers will visit, so the QR points somewhere their phone can actually open."
+    },
+    "activity": {
+      "title": "Live gate activity",
+      "viewAll": "View all",
+      "emptyTitle": "Nothing yet today",
+      "emptyBody": "Passes and scans appear here as they happen.",
+      "hiddenTitle": "Activity is hidden on your account",
+      "hiddenBody": "Your scan count above is live. Ask the owner for ledger access to see payments.",
+      "statusUnpaid": "Unpaid",
+      "statusExited": "Exited",
+      "statusInside": "Inside",
+      "sendPass": "Send pass on WhatsApp"
+    },
+    "expiring": {
+      "title": "Running out soon",
+      "ending": "Ending",
+      "timeOver": "Time over",
+      "reminded": "Reminded",
+      "due": "{{amount}} due",
+      "remind": "Remind this customer on WhatsApp"
+    },
+    "conflicts": {
+      "title_one": "{{count}} offline scan was rejected on sync",
+      "title_other": "{{count}} offline scans were rejected on sync",
+      "dismiss": "Dismiss"
+    }
   }
 }
