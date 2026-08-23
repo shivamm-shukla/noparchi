@@ -18,6 +18,7 @@ import React, {
 } from 'react';
 import { authService } from '../services/authService';
 import { offlineScanStore } from '../services/offlineScanStore';
+import { scanService } from '../services/scanService';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { missingConfig, isPreview } from '../config/env';
 import { hasPermission, type PermissionKey } from '../config/permissions';
@@ -109,14 +110,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = useCallback(async () => {
     if (isPreview) return;
+
+    // Flush anything scanned offline while the session still exists.
+    // validate_ticket resolves the gatekeeper from the JWT, so a queued scan
+    // replayed after sign-out has no identity to record against.
+    if (merchant) {
+      await scanService.syncQueued(merchant.id).catch(() => {});
+    }
+
     await authService.signOut();
-    // A gate device is often shared. Clearing the offline cache and the local
-    // used-set stops one account's passes leaking into the next session.
-    await offlineScanStore.clearAll();
+
+    // Only the cached pass list goes. It is the one piece of state that would
+    // let the next account to sign in validate against this one's passes.
+    //
+    // The queue stays. It is keyed by merchant, so nobody else can read it, and
+    // whatever is left in it is a person who was let out of the venue on a scan
+    // the server has never seen. The previous code wiped all three keys here,
+    // which meant signing out on a device that had been offline destroyed the
+    // only record those exits had.
+    await offlineScanStore.clearCachedPasses();
+
     setUser(null);
     setMerchant(null);
     setStatus('signed-out');
-  }, []);
+  }, [merchant]);
 
   const can = useCallback(
     (key: PermissionKey) => hasPermission(user?.permissions, key, user?.isOwner ?? false),

@@ -5,7 +5,8 @@
  * gates ringed by parked cars. The scanner has to keep working there, but
  * "keep working" must not mean "let everything through".
  *
- * Two pieces of state make that possible:
+ * Three pieces of state make that possible, and every one of them is keyed on
+ * the merchant it belongs to:
  *
  *   pass cache  - the paid, not-yet-scanned passes for this merchant, refreshed
  *                 whenever the app is online. A code that is not in it while
@@ -15,6 +16,15 @@
  *                 mutated an in-memory object and wrote to a list nothing ever
  *                 read back, so every scanned pass became reusable again after
  *                 a page refresh.
+ *   queue       - the same clearances, waiting to be replayed against the
+ *                 server. This is the only record that a person went through
+ *                 the gate, so it outlives a sign-out.
+ *
+ * Scoping all three by merchant is what lets the queue survive. A gate device
+ * is shared, and the previous code wiped every key on sign-out to stop one
+ * account's passes leaking into the next session - which also threw away scans
+ * that had never reached the server. Now nothing leaks because nothing is read
+ * outside its own tenant, so nothing has to be destroyed.
  *
  * The residual risk is narrow and worth stating: two gatekeepers, both offline,
  * scanning the same pass on different devices will both clear it. Neither can
@@ -25,8 +35,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const KEY_CACHE = '@noparchi/offline-pass-cache/v1';
-const KEY_USED = '@noparchi/offline-used/v1';
-const KEY_QUEUE = '@noparchi/offline-queue/v1';
+const KEY_USED = '@noparchi/offline-used/v2';
+const KEY_QUEUE = '@noparchi/offline-queue/v2';
+
+/** v1 held one flat, tenant-less map and list. Read once, then retired. */
+const KEY_USED_V1 = '@noparchi/offline-used/v1';
+const KEY_QUEUE_V1 = '@noparchi/offline-queue/v1';
+
+/** A used entry older than this is dropped: the pass it names is long gone. */
+const USED_RETENTION_DAYS = 7;
 
 export interface CachedPass {
   ticketCode: string;
@@ -44,10 +61,18 @@ export interface QueuedScan {
   scannedAt: string;
 }
 
+/** A queued scan knows which business it belongs to; a bare one never did. */
+export interface OwnedScan extends QueuedScan {
+  merchantId: string;
+}
+
 export interface SyncConflict {
   ticketCode: string;
   message: string;
 }
+
+/** merchantId -> ticketCode -> the clearance. */
+type UsedIndex = Record<string, Record<string, QueuedScan>>;
 
 async function readJson<T>(key: string, fallback: T): Promise<T> {
   try {
@@ -84,48 +109,106 @@ class OfflineScanStore {
     return (cache.passes ?? []).find((p) => p.ticketCode.toUpperCase() === code) ?? null;
   }
 
-  async cacheAgeMinutes(): Promise<number | null> {
-    const cache = await readJson<{ cachedAt?: string }>(KEY_CACHE, {});
-    if (!cache.cachedAt) return null;
+  /** How stale the cache is, or null if it holds nothing for this merchant. */
+  async cacheAgeMinutes(merchantId: string): Promise<number | null> {
+    const cache = await readJson<{ merchantId?: string; cachedAt?: string }>(KEY_CACHE, {});
+    if (cache.merchantId !== merchantId || !cache.cachedAt) return null;
     return Math.floor((Date.now() - new Date(cache.cachedAt).getTime()) / 60000);
   }
 
-  async isUsedLocally(ticketCode: string): Promise<QueuedScan | null> {
-    const used = await readJson<Record<string, QueuedScan>>(KEY_USED, {});
-    return used[ticketCode.toUpperCase()] ?? null;
+  async isUsedLocally(merchantId: string, ticketCode: string): Promise<QueuedScan | null> {
+    const used = await readJson<UsedIndex>(KEY_USED, {});
+    return used[merchantId]?.[ticketCode.toUpperCase()] ?? null;
   }
 
   /** Records the clearance and queues it for sync, in that order. */
-  async markUsedLocally(scan: QueuedScan): Promise<void> {
+  async markUsedLocally(scan: OwnedScan): Promise<void> {
     const code = scan.ticketCode.toUpperCase();
-    const used = await readJson<Record<string, QueuedScan>>(KEY_USED, {});
-    used[code] = scan;
-    await writeJson(KEY_USED, used);
 
-    const queue = await readJson<QueuedScan[]>(KEY_QUEUE, []);
-    if (!queue.some((q) => q.ticketCode.toUpperCase() === code)) {
+    const used = await readJson<UsedIndex>(KEY_USED, {});
+    const forMerchant = used[scan.merchantId] ?? {};
+    forMerchant[code] = {
+      ticketCode: scan.ticketCode,
+      exitGate: scan.exitGate,
+      notes: scan.notes,
+      scannedAt: scan.scannedAt,
+    };
+    used[scan.merchantId] = forMerchant;
+    await writeJson(KEY_USED, prune(used));
+
+    const queue = await this.readQueue(scan.merchantId);
+    const already = queue.some(
+      (q) => q.merchantId === scan.merchantId && q.ticketCode.toUpperCase() === code
+    );
+    if (!already) {
       queue.push(scan);
       await writeJson(KEY_QUEUE, queue);
     }
   }
 
-  async pendingScans(): Promise<QueuedScan[]> {
-    return readJson<QueuedScan[]>(KEY_QUEUE, []);
+  /** Only this merchant's scans: another tenant's would be rejected as unknown. */
+  async pendingScans(merchantId: string): Promise<OwnedScan[]> {
+    const queue = await this.readQueue(merchantId);
+    return queue.filter((q) => q.merchantId === merchantId);
   }
 
-  async removeFromQueue(ticketCode: string): Promise<void> {
+  async removeFromQueue(merchantId: string, ticketCode: string): Promise<void> {
     const code = ticketCode.toUpperCase();
-    const queue = await readJson<QueuedScan[]>(KEY_QUEUE, []);
+    const queue = await this.readQueue(merchantId);
     await writeJson(
       KEY_QUEUE,
-      queue.filter((q) => q.ticketCode.toUpperCase() !== code)
+      queue.filter(
+        (q) => !(q.merchantId === merchantId && q.ticketCode.toUpperCase() === code)
+      )
     );
   }
 
-  /** Called on sign-out so a shared gate device does not leak between accounts. */
-  async clearAll(): Promise<void> {
-    await AsyncStorage.multiRemove([KEY_CACHE, KEY_USED, KEY_QUEUE]).catch(() => {});
+  /**
+   * Drop the cached pass list on sign-out.
+   *
+   * The used set and the queue deliberately stay. Both are keyed by merchant so
+   * neither is readable by the next account to sign in, and the queue is the
+   * only evidence that somebody was let out of the venue - deleting it to tidy
+   * up loses revenue the server has never heard about.
+   */
+  async clearCachedPasses(): Promise<void> {
+    await AsyncStorage.removeItem(KEY_CACHE).catch(() => {});
   }
+
+  /**
+   * The queue, adopting anything left behind by the tenant-less v1 layout.
+   *
+   * A device that was offline across the upgrade would otherwise have its
+   * unsynced scans stranded under a key nothing reads. They can only have
+   * belonged to whoever is signed in, so they are attributed to them and v1 is
+   * retired.
+   */
+  private async readQueue(merchantId: string): Promise<OwnedScan[]> {
+    const queue = await readJson<OwnedScan[]>(KEY_QUEUE, []);
+    const legacy = await readJson<QueuedScan[]>(KEY_QUEUE_V1, []);
+    if (legacy.length === 0) return queue;
+
+    const adopted = [...queue, ...legacy.map((scan) => ({ ...scan, merchantId }))];
+    await writeJson(KEY_QUEUE, adopted);
+    // The v1 used-set goes with it: v2 rebuilds itself as scans are replayed,
+    // and a tenant-less map of codes is not something to keep on the device.
+    await AsyncStorage.multiRemove([KEY_QUEUE_V1, KEY_USED_V1]).catch(() => {});
+    return adopted;
+  }
+}
+
+/** Forget clearances old enough that the pass cannot still be in the venue. */
+function prune(used: UsedIndex): UsedIndex {
+  const cutoff = Date.now() - USED_RETENTION_DAYS * 86_400_000;
+  const kept: UsedIndex = {};
+
+  for (const [merchantId, scans] of Object.entries(used)) {
+    const recent = Object.entries(scans).filter(
+      ([, scan]) => new Date(scan.scannedAt).getTime() >= cutoff
+    );
+    if (recent.length > 0) kept[merchantId] = Object.fromEntries(recent);
+  }
+  return kept;
 }
 
 export const offlineScanStore = new OfflineScanStore();

@@ -175,7 +175,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let cancelled = false;
 
     (async () => {
-      const { synced, conflicts } = await scanService.syncQueued();
+      const { synced, conflicts } = await scanService.syncQueued(merchantId);
       if (cancelled) return;
       if (conflicts.length > 0) setSyncConflicts(conflicts);
       if (synced > 0) refreshRef.current({ silent: true });

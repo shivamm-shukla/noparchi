@@ -191,7 +191,7 @@ class ScanService {
   }): Promise<ScanResult> {
     const { ticketCode, merchantId, exitGate } = params;
 
-    const alreadyUsed = await offlineScanStore.isUsedLocally(ticketCode);
+    const alreadyUsed = await offlineScanStore.isUsedLocally(merchantId, ticketCode);
     if (alreadyUsed) {
       const at = new Date(alreadyUsed.scannedAt).toLocaleTimeString([], {
         hour: '2-digit',
@@ -223,7 +223,7 @@ class ScanService {
     }
 
     if (!cached) {
-      const age = await offlineScanStore.cacheAgeMinutes();
+      const age = await offlineScanStore.cacheAgeMinutes(merchantId);
       return {
         success: false,
         status: 'INVALID',
@@ -236,6 +236,7 @@ class ScanService {
     }
 
     const scan = {
+      merchantId,
       ticketCode,
       exitGate,
       notes: params.notes ?? null,
@@ -302,10 +303,14 @@ class ScanService {
    * as a conflict rather than silently dropped, because that is a person who
    * got through the gate twice and the owner should know.
    */
-  async syncQueued(): Promise<{ synced: number; conflicts: SyncConflict[] }> {
+  async syncQueued(merchantId: string): Promise<{ synced: number; conflicts: SyncConflict[] }> {
     if (isPreview || !supabase) return { synced: 0, conflicts: [] };
 
-    const queue = await offlineScanStore.pendingScans();
+    // Scoped to the signed-in merchant. validate_ticket resolves the tenant
+    // from the JWT and will not find another business's code, so replaying a
+    // queue indiscriminately would burn one tenant's unsynced scans as bogus
+    // conflicts on someone else's dashboard.
+    const queue = await offlineScanStore.pendingScans(merchantId);
     if (queue.length === 0) return { synced: 0, conflicts: [] };
 
     let synced = 0;
@@ -335,14 +340,14 @@ class ScanService {
             message: result?.message ?? 'Rejected by server',
           });
         }
-        await offlineScanStore.removeFromQueue(scan.ticketCode);
+        await offlineScanStore.removeFromQueue(merchantId, scan.ticketCode);
       } catch (err) {
         if (isNetworkFailure(err)) break;
         conflicts.push({
           ticketCode: scan.ticketCode,
           message: err instanceof Error ? err.message : 'Sync failed',
         });
-        await offlineScanStore.removeFromQueue(scan.ticketCode);
+        await offlineScanStore.removeFromQueue(merchantId, scan.ticketCode);
       }
     }
 
