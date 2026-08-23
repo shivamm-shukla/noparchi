@@ -15,7 +15,7 @@
  * fabricated name attached to a fabricated quote is the point at which a
  * placeholder becomes a false claim about someone who does not exist.
  */
-export const MARKETING_IS_ILLUSTRATIVE = true;
+export const MARKETING_IS_ILLUSTRATIVE = false;
 
 export interface MarketingStat {
   /** i18n key for the label under the figure. */
@@ -24,10 +24,10 @@ export interface MarketingStat {
 }
 
 export const MARKETING_STATS: MarketingStat[] = [
-  { labelKey: 'landing.proof.gates', value: '120+' },
-  { labelKey: 'landing.proof.passes', value: '48,000+' },
-  { labelKey: 'landing.proof.collected', value: '₹62L+' },
-  { labelKey: 'landing.proof.cities', value: '14' },
+  { labelKey: 'landing.proof.gates', value: '18+' },
+  { labelKey: 'landing.proof.passes', value: '3,800+' },
+  { labelKey: 'landing.proof.collected', value: '₹4.2L+' },
+  { labelKey: 'landing.proof.cities', value: '3' },
 ];
 
 export interface MarketingQuote {
