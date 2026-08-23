@@ -59,8 +59,7 @@ npm run web
 
 ## How it is put together
 
-- `app/` — Expo Router screens. `(tabs)` is the merchant app, `(auth)` is
-  sign-in, `pay/` and `ticket/` are the public customer pages.
+- `app/` — Expo Router screens. `(tabs)` is the merchant app (Dashboard, Ledger, Scanner, and the macOS-style Master-Detail Settings with 7 panes), `(auth)` is sign-in, `pay/` and `ticket/` are the public customer pages. Complete English and Hindi localization (`src/i18n`).
 - `src/config/` — the things you will want to change: colours, permissions,
   pricing, providers. One file each.
 - `src/services/` — data access, with payment and messaging behind swappable

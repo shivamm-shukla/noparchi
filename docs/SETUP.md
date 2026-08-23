@@ -64,17 +64,21 @@ you actually open the app on; once deployed, use the real domain.
 
 ---
 
-## 2. Push the database
+## 2. Push the database schema & storage
 
+You can push the schema in one of two ways:
+
+### Option A: SQL Editor in Supabase Dashboard (Fastest, ~10 seconds)
+1. In the Supabase Dashboard, open **SQL Editor** (`>_` icon) → **+ New Query**.
+2. Paste the contents of `supabase/full_schema.sql` (or run `supabase/full_schema.sql` and `supabase/rpc_functions.sql`) and click **Run**.
+3. This creates all 6 core tables, RLS policies, the `merchant-assets` storage bucket, and the ticket verification/expiry RPC functions.
+
+### Option B: Supabase CLI
 ```bash
 npx supabase login
 npx supabase link --project-ref YOUR-PROJECT-REF
 npm run db:push
 ```
-
-No Docker needed — this pushes straight to the hosted project. If you would
-rather not use the CLI, paste each file in `supabase/migrations/` into the
-Supabase **SQL Editor**, in filename order.
 
 Then regenerate the typed schema so TypeScript matches the real database:
 
@@ -271,6 +275,8 @@ entry box, which is why it is there.
 | Any colour, anywhere | `src/config/theme.js` |
 | Permission toggles | `src/config/permissions.ts` |
 | Starter pass types for a new merchant | `src/config/pricing.ts` |
+| Merchant logo / mark | Settings → Brand (upload image / instant preview) |
+| Exit gate names | Settings → Exit gates (no code) |
 | Pass types for an existing merchant | Settings → Pass types (no code) |
 | Add a payment gateway | `src/services/payment/`, register in `index.ts` |
 | Add a delivery channel | `src/services/messaging/`, register in `index.ts` |
