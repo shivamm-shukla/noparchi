@@ -102,8 +102,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // Ticket types and staff are cheap and rarely change, but they are what
         // the Settings and checkout screens are built from, so they load with
         // everything else rather than per-screen.
+        // Always today, never `range`. The dashboard is the only screen that
+        // reads these figures and every one of its labels says so - "Revenue
+        // today", "vs yesterday", "paid, not yet exited". `range` belongs to
+        // the ledger's date filter, so passing it here meant an owner who
+        // looked at last month in the ledger came back to a dashboard quietly
+        // showing last month's revenue under a label that said today.
         const [statsResult, typesResult, staffResult] = await Promise.all([
-          transactionService.stats(range),
+          transactionService.stats('today'),
           merchantService.listTicketTypes(merchantId, true),
           merchantService.listStaff(merchantId),
         ]);
