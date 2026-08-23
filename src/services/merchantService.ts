@@ -120,9 +120,7 @@ class MerchantService {
       .from('merchant-assets')
       .getPublicUrl(filePath);
 
-    return this.updateMerchant(merchantId, {
-      branding: { ...previewMerchant.branding, logoUrl: publicUrl },
-    });
+    return this.setBranding(merchantId, (current) => ({ ...current, logoUrl: publicUrl }));
   }
 
   async removeLogo(merchantId: string): Promise<Merchant> {
@@ -130,9 +128,25 @@ class MerchantService {
       previewMerchant.branding = { ...previewMerchant.branding, logoUrl: undefined };
       return previewMerchant;
     }
-    return this.updateMerchant(merchantId, {
-      branding: { logoUrl: undefined },
-    });
+    return this.setBranding(merchantId, ({ logoUrl: _dropped, ...rest }) => rest);
+  }
+
+  /**
+   * Change one part of branding without losing the rest.
+   *
+   * branding is a nested object inside the settings JSONB column, so a write
+   * replaces it wholesale. Both callers here previously built the replacement
+   * from scratch: uploadLogo spread `previewMerchant.branding` - the sample
+   * data - over a real tenant's record, and removeLogo wrote a bare object.
+   * Either way welcomeMessage was dropped on the floor. Read the live value and
+   * derive the new one from it.
+   */
+  private async setBranding(
+    merchantId: string,
+    derive: (current: MerchantBranding) => MerchantBranding
+  ): Promise<Merchant> {
+    const current = await this.getMerchant(merchantId);
+    return this.updateMerchant(merchantId, { branding: derive(current.branding ?? {}) });
   }
 
   // ---------------------------------------------------------------------------
