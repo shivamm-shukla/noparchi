@@ -2,12 +2,12 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
-    "baseUrl": ".",
-    "paths": {
-      "@/*": [
-        "./*"
-      ]
-    }
+    // expo/tsconfig.base still sets moduleResolution to "node", the node10
+    // algorithm, which TypeScript 7 drops. Metro is a bundler and resolves the
+    // way "bundler" describes - package.json "exports" included - so this both
+    // silences the deprecation and matches what actually happens at build time.
+    "module": "esnext",
+    "moduleResolution": "bundler"
   },
   "include": [
     "app/**/*.ts",
