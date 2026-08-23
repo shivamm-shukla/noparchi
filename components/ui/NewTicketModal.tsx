@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView } from 'react-native';
 import { PlusCircle, X, AlertCircle } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useThemeColors } from '../../src/context/ThemeContext';
 import { Button } from './Button';
 import { useApp } from '../../src/context/AppContext';
@@ -29,6 +30,7 @@ interface NewTicketModalProps {
  */
 export const NewTicketModal: React.FC<NewTicketModalProps> = ({ visible, onClose, onIssued }) => {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const { ticketTypes, refresh } = useApp();
   const types = useMemo(() => activeTicketTypes(ticketTypes), [ticketTypes]);
 
@@ -65,7 +67,7 @@ export const NewTicketModal: React.FC<NewTicketModalProps> = ({ visible, onClose
       reset();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not issue the pass.');
+      setError(err instanceof Error ? err.message : t('issue.failed'));
     } finally {
       setBusy(false);
     }
@@ -81,8 +83,8 @@ export const NewTicketModal: React.FC<NewTicketModalProps> = ({ visible, onClose
                 <PlusCircle size={20} color={colors['accent']} />
               </View>
               <View>
-                <Text className="text-lg font-bold text-brand-text">Issue a pass</Text>
-                <Text className="text-xs text-brand-text-muted">For a customer paying at the gate</Text>
+                <Text className="text-lg font-bold text-brand-text">{t('issue.title')}</Text>
+                <Text className="text-xs text-brand-text-muted">{t('issue.subtitle')}</Text>
               </View>
             </View>
             <TouchableOpacity
@@ -98,16 +100,16 @@ export const NewTicketModal: React.FC<NewTicketModalProps> = ({ visible, onClose
               <View className="items-center py-8">
                 <AlertCircle size={28} color={colors['warning']} />
                 <Text className="text-sm font-bold text-brand-text mt-3 text-center">
-                  No pass types yet
+                  {t('issue.noTypesTitle')}
                 </Text>
                 <Text className="text-xs text-brand-text-muted text-center mt-1.5 leading-4">
-                  Add one in Settings → Pass types before issuing passes.
+                  {t('issue.noTypesBody')}
                 </Text>
               </View>
             ) : (
               <>
                 <Text className="text-xs font-bold text-brand-text-subtle uppercase tracking-wider mb-2.5">
-                  Pass type
+                  {t('issue.passType')}
                 </Text>
                 <View className="flex-row flex-wrap gap-2.5 mb-5">
                   {types.map((type) => {
@@ -140,13 +142,13 @@ export const NewTicketModal: React.FC<NewTicketModalProps> = ({ visible, onClose
                 </View>
 
                 <Text className="text-xs font-bold text-brand-text-subtle uppercase tracking-wider mb-2">
-                  Vehicle number (optional)
+                  {t('issue.vehicle')}
                 </Text>
                 <View className="bg-brand-bg border border-brand-border rounded-2xl px-4 py-3 mb-4">
                   <TextInput
                     value={vehicleNumber}
                     onChangeText={setVehicleNumber}
-                    placeholder="DL 01 AB 1234"
+                    placeholder={t('issue.vehiclePlaceholder')}
                     placeholderTextColor={colors['text-faint']}
                     autoCapitalize="characters"
                     className="text-brand-text text-base font-bold uppercase tracking-wider"
@@ -154,13 +156,13 @@ export const NewTicketModal: React.FC<NewTicketModalProps> = ({ visible, onClose
                 </View>
 
                 <Text className="text-xs font-bold text-brand-text-subtle uppercase tracking-wider mb-2">
-                  WhatsApp number (optional)
+                  {t('issue.whatsapp')}
                 </Text>
                 <View className="bg-brand-bg border border-brand-border rounded-2xl px-4 py-3">
                   <TextInput
                     value={customerPhone}
                     onChangeText={setCustomerPhone}
-                    placeholder="98765 43210"
+                    placeholder={t('issue.phonePlaceholder')}
                     placeholderTextColor={colors['text-faint']}
                     keyboardType="phone-pad"
                     className="text-brand-text text-sm font-semibold"
@@ -178,7 +180,11 @@ export const NewTicketModal: React.FC<NewTicketModalProps> = ({ visible, onClose
           )}
 
           <Button
-            title={chosen ? `Issue pass · ${formatCurrency(chosen.amount)}` : 'Issue pass'}
+            title={
+              chosen
+                ? t('issue.submitWithAmount', { amount: formatCurrency(chosen.amount) })
+                : t('issue.submit')
+            }
             variant="primary"
             size="lg"
             fullWidth

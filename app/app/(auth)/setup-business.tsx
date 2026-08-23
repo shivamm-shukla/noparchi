@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, ScrollView } from 'react-native';
 import { Building2, AlertCircle } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useThemeColors } from '../../../src/context/ThemeContext';
 import { Button } from '../../../components/ui/Button';
 import { Card } from '../../../components/ui/Card';
@@ -18,6 +19,7 @@ import { useAuth } from '../../../src/context/AuthContext';
  */
 export default function SetupBusinessScreen() {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const { refresh, signOut } = useAuth();
   const [businessName, setBusinessName] = useState('');
   const [ownerName, setOwnerName] = useState('');
@@ -29,7 +31,7 @@ export default function SetupBusinessScreen() {
 
   const submit = async () => {
     if (!businessName.trim() || !ownerName.trim()) {
-      setError('Business name and your name are needed.');
+      setError(t('auth.setupMissing'));
       return;
     }
     setBusy(true);
@@ -38,7 +40,7 @@ export default function SetupBusinessScreen() {
       await authService.provisionMerchant({ businessName, ownerName, phone, location, upiId });
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not create the business.');
+      setError(err instanceof Error ? err.message : t('auth.setupFailed'));
     } finally {
       setBusy(false);
     }
@@ -55,58 +57,58 @@ export default function SetupBusinessScreen() {
             <Building2 size={22} color={colors['accent']} />
           </View>
           <View className="flex-1">
-            <Text className="text-2xl font-extrabold text-brand-text">One last step</Text>
-            <Text className="text-xs text-brand-text-muted">Tell us about your business.</Text>
+            <Text className="text-2xl font-extrabold text-brand-text">{t('auth.setupTitle')}</Text>
+            <Text className="text-xs text-brand-text-muted">{t('auth.setupSubtitle')}</Text>
           </View>
         </View>
 
         <Card className="p-5 sm:p-6">
-          <Field label="Business name">
+          <Field label={t('auth.businessName')}>
             <TextInput
               value={businessName}
               onChangeText={setBusinessName}
-              placeholder="Metro Hub Parking"
+              placeholder={t('auth.businessNamePlaceholder')}
               placeholderTextColor={colors['text-faint']}
               className="text-brand-text text-base"
             />
           </Field>
 
-          <Field label="Your name">
+          <Field label={t('auth.yourName')}>
             <TextInput
               value={ownerName}
               onChangeText={setOwnerName}
-              placeholder="Rajesh Sharma"
+              placeholder={t('auth.yourNamePlaceholder')}
               placeholderTextColor={colors['text-faint']}
               className="text-brand-text text-base"
             />
           </Field>
 
-          <Field label="Phone">
+          <Field label={t('auth.phone')}>
             <TextInput
               value={phone}
               onChangeText={setPhone}
-              placeholder="98765 43210"
+              placeholder={t('auth.phonePlaceholder')}
               placeholderTextColor={colors['text-faint']}
               keyboardType="phone-pad"
               className="text-brand-text text-base"
             />
           </Field>
 
-          <Field label="Location">
+          <Field label={t('auth.location')}>
             <TextInput
               value={location}
               onChangeText={setLocation}
-              placeholder="Connaught Place, New Delhi"
+              placeholder={t('auth.locationPlaceholder')}
               placeholderTextColor={colors['text-faint']}
               className="text-brand-text text-base"
             />
           </Field>
 
-          <Field label="UPI ID" hint="Where customer payments land.">
+          <Field label={t('auth.upiId')} hint={t('auth.upiHint')}>
             <TextInput
               value={upiId}
               onChangeText={setUpiId}
-              placeholder="yourbusiness@icici"
+              placeholder={t('auth.upiPlaceholder')}
               placeholderTextColor={colors['text-faint']}
               autoCapitalize="none"
               className="text-brand-text text-base"
@@ -121,7 +123,7 @@ export default function SetupBusinessScreen() {
           )}
 
           <Button
-            title="Finish setup"
+            title={t('auth.finishSetup')}
             variant="primary"
             size="lg"
             fullWidth
@@ -129,7 +131,7 @@ export default function SetupBusinessScreen() {
             onPress={submit}
           />
           <Button
-            title="Sign out"
+            title={t('auth.signOut')}
             variant="ghost"
             size="sm"
             fullWidth

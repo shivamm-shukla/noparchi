@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { Link } from 'expo-router';
 import { Sparkles, AlertCircle, ArrowLeft } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useThemeColors } from '../../../src/context/ThemeContext';
 import { Button } from '../../../components/ui/Button';
 import { Card } from '../../../components/ui/Card';
@@ -17,6 +18,7 @@ import { authService } from '../../../src/services/authService';
  */
 export default function SignUpScreen() {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const [businessName, setBusinessName] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [phone, setPhone] = useState('');
@@ -30,11 +32,11 @@ export default function SignUpScreen() {
 
   const submit = async () => {
     if (!businessName.trim() || !ownerName.trim() || !email.trim() || !password) {
-      setError('Business name, your name, email and password are all needed.');
+      setError(t('auth.signUpMissing'));
       return;
     }
     if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
+      setError(t('auth.passwordTooShort'));
       return;
     }
 
@@ -55,7 +57,7 @@ export default function SignUpScreen() {
       // idempotent and runs on the first real sign-in instead.
       if (!(await authService.hasSession())) setConfirmEmailNotice(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not create the account.');
+      setError(err instanceof Error ? err.message : t('auth.signUpFailed'));
     } finally {
       setBusy(false);
     }
@@ -66,14 +68,16 @@ export default function SignUpScreen() {
       <View className="flex-1 bg-brand-bg items-center justify-center p-6">
         <Card className="w-full max-w-md p-6 items-center">
           <Text className="text-xl font-extrabold text-brand-text text-center mb-2">
-            Check your email
+            {t('auth.checkEmailTitle')}
           </Text>
           <Text className="text-sm text-brand-text-muted text-center leading-5 mb-5">
-            Confirm your address, then sign in. Your business is set up on the first sign-in.
+            {t('auth.checkEmailBody')}
           </Text>
           <Link href="/app/sign-in" asChild>
             <TouchableOpacity>
-              <Text className="text-sm font-bold text-brand-accent">Back to sign in</Text>
+              <Text className="text-sm font-bold text-brand-accent">
+                {t('auth.backToSignIn')}
+              </Text>
             </TouchableOpacity>
           </Link>
         </Card>
@@ -91,7 +95,7 @@ export default function SignUpScreen() {
           <Link href="/app/sign-in" asChild>
             <TouchableOpacity className="flex-row items-center gap-1.5 mb-6">
               <ArrowLeft size={16} color={colors['text-muted']} />
-              <Text className="text-xs font-bold text-brand-text-subtle">Back</Text>
+              <Text className="text-xs font-bold text-brand-text-subtle">{t('auth.back')}</Text>
             </TouchableOpacity>
           </Link>
 
@@ -100,58 +104,60 @@ export default function SignUpScreen() {
               <Sparkles size={22} color={colors['accent']} />
             </View>
             <View>
-              <Text className="text-2xl font-extrabold text-brand-text">Set up your business</Text>
-              <Text className="text-xs text-brand-text-muted">Takes about a minute.</Text>
+              <Text className="text-2xl font-extrabold text-brand-text">
+                {t('auth.signUpTitle')}
+              </Text>
+              <Text className="text-xs text-brand-text-muted">{t('auth.signUpSubtitle')}</Text>
             </View>
           </View>
 
           <Card className="p-5 sm:p-6">
-            <Field label="Business name">
+            <Field label={t('auth.businessName')}>
               <TextInput
                 value={businessName}
                 onChangeText={setBusinessName}
-                placeholder="Metro Hub Parking"
+                placeholder={t('auth.businessNamePlaceholder')}
                 placeholderTextColor={colors['text-faint']}
                 className="text-brand-text text-base"
               />
             </Field>
 
-            <Field label="Your name">
+            <Field label={t('auth.yourName')}>
               <TextInput
                 value={ownerName}
                 onChangeText={setOwnerName}
-                placeholder="Rajesh Sharma"
+                placeholder={t('auth.yourNamePlaceholder')}
                 placeholderTextColor={colors['text-faint']}
                 className="text-brand-text text-base"
               />
             </Field>
 
-            <Field label="Phone">
+            <Field label={t('auth.phone')}>
               <TextInput
                 value={phone}
                 onChangeText={setPhone}
-                placeholder="98765 43210"
+                placeholder={t('auth.phonePlaceholder')}
                 placeholderTextColor={colors['text-faint']}
                 keyboardType="phone-pad"
                 className="text-brand-text text-base"
               />
             </Field>
 
-            <Field label="Location" hint="Shown to customers on the checkout page.">
+            <Field label={t('auth.location')} hint={t('auth.locationHintSignUp')}>
               <TextInput
                 value={location}
                 onChangeText={setLocation}
-                placeholder="Connaught Place, New Delhi"
+                placeholder={t('auth.locationPlaceholder')}
                 placeholderTextColor={colors['text-faint']}
                 className="text-brand-text text-base"
               />
             </Field>
 
-            <Field label="UPI ID" hint="Where customer payments land. You can add this later.">
+            <Field label={t('auth.upiId')} hint={t('auth.upiHintSignUp')}>
               <TextInput
                 value={upiId}
                 onChangeText={setUpiId}
-                placeholder="yourbusiness@icici"
+                placeholder={t('auth.upiPlaceholder')}
                 placeholderTextColor={colors['text-faint']}
                 autoCapitalize="none"
                 className="text-brand-text text-base"
@@ -160,11 +166,11 @@ export default function SignUpScreen() {
 
             <View className="h-px bg-brand-surface-raised my-2" />
 
-            <Field label="Email">
+            <Field label={t('auth.email')}>
               <TextInput
                 value={email}
                 onChangeText={setEmail}
-                placeholder="you@business.com"
+                placeholder={t('auth.emailPlaceholder')}
                 placeholderTextColor={colors['text-faint']}
                 autoCapitalize="none"
                 keyboardType="email-address"
@@ -172,7 +178,7 @@ export default function SignUpScreen() {
               />
             </Field>
 
-            <Field label="Password" hint="At least 6 characters.">
+            <Field label={t('auth.password')} hint={t('auth.passwordHint')}>
               <TextInput
                 value={password}
                 onChangeText={setPassword}
@@ -191,7 +197,7 @@ export default function SignUpScreen() {
             )}
 
             <Button
-              title="Create business"
+              title={t('auth.createBusinessCta')}
               variant="primary"
               size="lg"
               fullWidth

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, TextInput, ScrollView } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { MessageSquare, X, Send, CheckCircle2, AlertCircle, Link2 } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useThemeColors } from '../../src/context/ThemeContext';
 import { Button } from './Button';
 import { messagingProvider } from '../../src/services/messaging';
@@ -36,6 +37,7 @@ export const PassDeliveryModal: React.FC<PassDeliveryModalProps> = ({
   onClose,
 }) => {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const [phone, setPhone] = useState('');
   const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState<'sent' | 'handed_off' | null>(null);
@@ -49,7 +51,7 @@ export const PassDeliveryModal: React.FC<PassDeliveryModalProps> = ({
 
   const send = async () => {
     if (!url) {
-      setError('Set EXPO_PUBLIC_WEB_URL so the pass link points somewhere reachable.');
+      setError(t('deliver.noWebUrl'));
       return;
     }
     setBusy(true);
@@ -68,10 +70,10 @@ export const PassDeliveryModal: React.FC<PassDeliveryModalProps> = ({
         passUrl: url,
       });
 
-      if (result.outcome === 'failed') setError(result.error ?? 'Could not send the pass.');
+      if (result.outcome === 'failed') setError(result.error ?? t('deliver.failed'));
       else setOutcome(result.outcome);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not send the pass.');
+      setError(err instanceof Error ? err.message : t('deliver.failed'));
     } finally {
       setBusy(false);
     }
@@ -94,7 +96,7 @@ export const PassDeliveryModal: React.FC<PassDeliveryModalProps> = ({
                 <MessageSquare size={20} color={colors['accent']} />
               </View>
               <View className="flex-1">
-                <Text className="text-lg font-bold text-brand-text">Send the pass</Text>
+                <Text className="text-lg font-bold text-brand-text">{t('deliver.title')}</Text>
                 <Text className="text-xs text-brand-text-muted">{providerMeta.label}</Text>
               </View>
             </View>
@@ -122,24 +124,27 @@ export const PassDeliveryModal: React.FC<PassDeliveryModalProps> = ({
             </View>
 
             <View className="rounded-2xl bg-brand-bg/70 border border-brand-border p-4 gap-2.5 mb-4">
-              <Row label="Type" value={transaction.ticketTypeLabel} />
+              <Row label={t('deliver.rowType')} value={transaction.ticketTypeLabel} />
               {transaction.vehicleNumber ? (
-                <Row label="Vehicle" value={transaction.vehicleNumber} />
+                <Row label={t('deliver.rowVehicle')} value={transaction.vehicleNumber} />
               ) : null}
-              <Row label="Amount" value={formatCurrency(transaction.amount, merchant.currency)} />
-              <Row label="Issued" value={formatDateTime(transaction.createdAt)} />
+              <Row
+                label={t('deliver.rowAmount')}
+                value={formatCurrency(transaction.amount, merchant.currency)}
+              />
+              <Row label={t('deliver.rowIssued')} value={formatDateTime(transaction.createdAt)} />
             </View>
 
             {outcome === null && (
               <>
                 <Text className="text-xs font-bold text-brand-text-subtle uppercase tracking-wider mb-2">
-                  Customer WhatsApp number
+                  {t('deliver.phoneLabel')}
                 </Text>
                 <View className="bg-brand-bg border border-brand-border rounded-2xl px-4 py-3">
                   <TextInput
                     value={phone || transaction.customerPhone || ''}
                     onChangeText={setPhone}
-                    placeholder="98765 43210"
+                    placeholder={t('deliver.phonePlaceholder')}
                     placeholderTextColor={colors['text-faint']}
                     keyboardType="phone-pad"
                     className="text-brand-text text-sm font-semibold"
@@ -155,13 +160,11 @@ export const PassDeliveryModal: React.FC<PassDeliveryModalProps> = ({
               <View className="items-center p-4 rounded-2xl bg-brand-accent/10 border border-brand-accent/30">
                 <CheckCircle2 size={28} color={colors['accent']} />
                 <Text className="text-sm font-bold text-brand-accent mt-2 text-center">
-                  {outcome === 'sent'
-                    ? 'Pass sent to the customer.'
-                    : 'WhatsApp opened with the pass ready to send.'}
+                  {t(outcome === 'sent' ? 'deliver.sent' : 'deliver.handedOff')}
                 </Text>
                 {outcome === 'handed_off' && (
                   <Text className="text-[11px] text-brand-text-muted mt-1.5 text-center leading-4">
-                    Press send in WhatsApp to finish. Nothing was sent automatically.
+                    {t('deliver.handedOffNote')}
                   </Text>
                 )}
               </View>
@@ -177,7 +180,7 @@ export const PassDeliveryModal: React.FC<PassDeliveryModalProps> = ({
 
           {outcome === null ? (
             <Button
-              title="Send pass on WhatsApp"
+              title={t('deliver.send')}
               variant="primary"
               size="lg"
               fullWidth
@@ -186,7 +189,7 @@ export const PassDeliveryModal: React.FC<PassDeliveryModalProps> = ({
               onPress={send}
             />
           ) : (
-            <Button title="Done" variant="secondary" size="lg" fullWidth onPress={close} />
+            <Button title={t('deliver.done')} variant="secondary" size="lg" fullWidth onPress={close} />
           )}
 
           {url && (

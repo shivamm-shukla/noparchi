@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { Link } from 'expo-router';
 import { AlertCircle, Mail, KeyRound, Smartphone } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useThemeColors } from '../../../src/context/ThemeContext';
 import { Button } from '../../../components/ui/Button';
 import { Card } from '../../../components/ui/Card';
@@ -25,6 +26,7 @@ type Mode = 'owner' | 'staff';
  */
 export default function SignInScreen() {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const [mode, setMode] = useState<Mode>('owner');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +45,7 @@ export default function SignInScreen() {
       await authService.signInOwner(email, password);
       // The auth state listener in AuthContext routes onward.
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not sign in.');
+      setError(err instanceof Error ? err.message : t('auth.signInFailed'));
     } finally {
       setBusy(false);
     }
@@ -57,7 +59,7 @@ export default function SignInScreen() {
       // The same number can work at more than one business; ask rather than guess.
       if (result.needsChoice) setChoices(result.needsChoice);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not sign in.');
+      setError(err instanceof Error ? err.message : t('auth.signInFailed'));
     } finally {
       setBusy(false);
     }
@@ -72,19 +74,19 @@ export default function SignInScreen() {
         <View className="w-full max-w-md mx-auto">
           <View className="items-center mb-8">
             <Logo size={56} tagline />
-            <Text className="text-sm text-brand-text-muted mt-3">No paper. No stolen cash.</Text>
+            <Text className="text-sm text-brand-text-muted mt-3">{t('auth.tagline')}</Text>
           </View>
 
           <Card className="p-5 sm:p-6">
             <View className="flex-row bg-brand-bg border border-brand-border rounded-2xl p-1 mb-5">
               <ModeTab
-                label="Owner"
+                label={t('auth.modeOwner')}
                 icon={<Mail size={14} color={mode === 'owner' ? colors['on-accent'] : colors['text-muted']} />}
                 active={mode === 'owner'}
                 onPress={() => { setMode('owner'); setError(null); }}
               />
               <ModeTab
-                label="Gatekeeper"
+                label={t('auth.modeGatekeeper')}
                 icon={<Smartphone size={14} color={mode === 'staff' ? colors['on-accent'] : colors['text-muted']} />}
                 active={mode === 'staff'}
                 onPress={() => { setMode('staff'); setError(null); }}
@@ -93,11 +95,11 @@ export default function SignInScreen() {
 
             {mode === 'owner' ? (
               <>
-                <Field label="Email">
+                <Field label={t('auth.email')}>
                   <TextInput
                     value={email}
                     onChangeText={setEmail}
-                    placeholder="you@business.com"
+                    placeholder={t('auth.emailPlaceholder')}
                     placeholderTextColor={colors['text-faint']}
                     autoCapitalize="none"
                     keyboardType="email-address"
@@ -106,7 +108,7 @@ export default function SignInScreen() {
                   />
                 </Field>
 
-                <Field label="Password">
+                <Field label={t('auth.password')}>
                   <TextInput
                     value={password}
                     onChangeText={setPassword}
@@ -120,7 +122,7 @@ export default function SignInScreen() {
                 </Field>
 
                 <Button
-                  title="Sign in"
+                  title={t('auth.signIn')}
                   variant="primary"
                   size="lg"
                   fullWidth
@@ -129,19 +131,23 @@ export default function SignInScreen() {
                 />
 
                 <View className="flex-row items-center justify-center gap-1.5 mt-4">
-                  <Text className="text-xs text-brand-text-muted">New here?</Text>
+                  <Text className="text-xs text-brand-text-muted">{t('auth.newHere')}</Text>
                   <Link href="/app/sign-up" asChild>
                     <TouchableOpacity>
-                      <Text className="text-xs font-bold text-brand-accent">Create a business</Text>
+                      <Text className="text-xs font-bold text-brand-accent">
+                        {t('auth.createBusiness')}
+                      </Text>
                     </TouchableOpacity>
                   </Link>
                 </View>
               </>
             ) : choices ? (
               <>
-                <Text className="text-sm font-bold text-brand-text mb-1">Which business?</Text>
+                <Text className="text-sm font-bold text-brand-text mb-1">
+                  {t('auth.whichBusiness')}
+                </Text>
                 <Text className="text-xs text-brand-text-muted mb-4 leading-4">
-                  That number works at more than one place.
+                  {t('auth.whichBusinessBody')}
                 </Text>
                 <View className="gap-2.5">
                   {choices.map((choice) => (
@@ -159,18 +165,18 @@ export default function SignInScreen() {
               </>
             ) : (
               <>
-                <Field label="Phone number">
+                <Field label={t('auth.phoneNumber')}>
                   <TextInput
                     value={phone}
                     onChangeText={setPhone}
-                    placeholder="98765 43210"
+                    placeholder={t('auth.phonePlaceholder')}
                     placeholderTextColor={colors['text-faint']}
                     keyboardType="phone-pad"
                     className="text-brand-text text-base"
                   />
                 </Field>
 
-                <Field label="PIN">
+                <Field label={t('auth.pin')}>
                   <TextInput
                     value={pin}
                     onChangeText={setPin}
@@ -185,7 +191,7 @@ export default function SignInScreen() {
                 </Field>
 
                 <Button
-                  title="Start shift"
+                  title={t('auth.startShift')}
                   variant="primary"
                   size="lg"
                   fullWidth
@@ -195,8 +201,7 @@ export default function SignInScreen() {
                 />
 
                 <Text className="text-[11px] text-brand-text-faint text-center mt-4 leading-4">
-                  Your PIN is set by the business owner. Five wrong tries locks the account
-                  for fifteen minutes.
+                  {t('auth.pinNote')}
                 </Text>
               </>
             )}

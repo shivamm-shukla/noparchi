@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, ScrollView } from 'react-native';
 import { LandingNav } from '../components/landing/LandingNav';
+import { MobileAppBanner } from '../components/landing/MobileAppBanner';
 import { Hero } from '../components/landing/Hero';
 import { Proof } from '../components/landing/Proof';
 import { Features, HowItWorks, UseCases } from '../components/landing/Sections';
@@ -27,6 +28,7 @@ export default function LandingScreen() {
         contentContainerStyle={{ paddingBottom: 0 }}
         showsVerticalScrollIndicator={false}
       >
+        <MobileAppBanner />
         <Hero />
         <Features />
         <HowItWorks />

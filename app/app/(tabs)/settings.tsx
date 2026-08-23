@@ -624,7 +624,9 @@ const BrandPane: React.FC<{
                 </Text>
               </View>
             </View>
-            <Badge label="Valid" variant="success" size="sm" />
+            {/* This block mimics the customer's pass page, so it uses that
+                page's own wording rather than a second copy of it. */}
+            <Badge label={t('pass.validBadge')} variant="success" size="sm" />
           </View>
 
           <View className="p-3 rounded-xl bg-brand-bg/80 border border-brand-border/60 flex-row items-center justify-between">

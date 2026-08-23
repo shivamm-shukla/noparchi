@@ -24,6 +24,7 @@
       }
     },
     "android": {
+      "package": "com.noparchi.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/noparchi-app-icon.png",
         "backgroundColor": "#F8FAFC"
