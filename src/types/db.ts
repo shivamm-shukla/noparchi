@@ -115,4 +115,6 @@ export interface TicketValidationRow {
   exit_gate: string;
   notes: string | null;
   scanned_at: string;
+  /** Joined in by validate_ticket; absent when the row is read directly. */
+  scanned_by_name?: string | null;
 }

@@ -311,7 +311,12 @@ begin
                  || ' by ' || coalesce(v_scanned_by, 'another gatekeeper')
                  || ' (' || v_existing.exit_gate || ').',
       'ticket', to_jsonb(v_tx),
-      'validation', to_jsonb(v_existing),
+      -- The name is folded into the object rather than left only in the
+      -- message, so the app can lay out who and where itself. A gatekeeper
+      -- reading a refusal needs those two facts as facts, not as a sentence
+      -- they have to parse in a queue.
+      'validation', to_jsonb(v_existing)
+                    || jsonb_build_object('scanned_by_name', v_scanned_by),
       'scannedAt', v_existing.scanned_at);
   end if;
 

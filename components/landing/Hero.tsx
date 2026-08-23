@@ -8,7 +8,7 @@ import { elevation } from '../../src/config/elevation';
 import { radii } from '../../src/config/radii';
 import { Text } from '../ui/Text';
 import { Button } from '../ui/Button';
-import { PulseRing } from './PulseRing';
+import { PulseRing } from '../ui/PulseRing';
 import { CONTENT_MAX_WIDTH } from './shared';
 
 /** Where the hero QR points. A real, openable page, not a decorative pattern. */

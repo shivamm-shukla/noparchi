@@ -38,6 +38,7 @@ class MerchantService {
       paymentProvider?: string;
       messagingProvider?: string;
       branding?: MerchantBranding;
+      exitGates?: string[];
     }
   ): Promise<Merchant> {
     // Preview writes go nowhere by design - the point is to look at the screens,
@@ -52,7 +53,33 @@ class MerchantService {
     if (patch.upiId !== undefined) update.upi_id = patch.upiId.trim();
     if (patch.paymentProvider !== undefined) update.payment_provider = patch.paymentProvider;
     if (patch.messagingProvider !== undefined) update.messaging_provider = patch.messagingProvider;
-    if (patch.branding !== undefined) update.settings = { branding: patch.branding };
+
+    /*
+      settings is one JSONB column shared by everything that does not deserve
+      its own. Writing `{ branding }` straight into it replaced the whole
+      object, so saving a logo silently deleted the gate list and saving gates
+      deleted the logo. Read what is there, merge, write it back.
+
+      Not race-free: two owners saving different settings in the same second
+      would have one overwrite the other. That is worth a `settings || patch`
+      RPC when settings become something more than one person occasionally
+      edits; it is not worth pretending the clobber was fine.
+    */
+    const settingsPatch: Record<string, unknown> = {};
+    if (patch.branding !== undefined) settingsPatch.branding = patch.branding;
+    if (patch.exitGates !== undefined) {
+      settingsPatch.gates = patch.exitGates.map((gate) => gate.trim()).filter(Boolean);
+    }
+
+    if (Object.keys(settingsPatch).length > 0) {
+      const { data: current, error: readError } = await client
+        .from('merchants')
+        .select('settings')
+        .eq('id', merchantId)
+        .single();
+      if (readError) throw readError;
+      update.settings = { ...((current?.settings ?? {}) as Record<string, unknown>), ...settingsPatch };
+    }
 
     const { data, error } = await client
       .from('merchants')

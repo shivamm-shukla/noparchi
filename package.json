@@ -16,7 +16,9 @@
     "typecheck": "tsc --noEmit",
     "preview": "EXPO_PUBLIC_PREVIEW=1 expo start --web --clear",
     "preview:build": "EXPO_PUBLIC_PREVIEW=1 expo export --platform web --clear --output-dir dist",
-    "check:layout": "node scripts/check-layout.mjs"
+    "check:layout": "node scripts/check-layout.mjs",
+    "check:scanner": "node scripts/check-scanner.mjs",
+    "check": "npm run check:layout && npm run check:scanner"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",

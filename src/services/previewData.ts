@@ -36,6 +36,7 @@ export const previewMerchant: Merchant = {
   paymentProvider: 'upi_intent',
   messagingProvider: 'wa_deeplink',
   branding: {},
+  exitGates: ['Main Exit', 'Gate 2', 'Gate 3'],
   createdAt: minutesAgo(60 * 24 * 30),
 };
 

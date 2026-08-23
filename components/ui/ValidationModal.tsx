@@ -1,10 +1,25 @@
-import React, { useState } from 'react';
-import { View, Text, Modal, TouchableOpacity, ScrollView } from 'react-native';
-import { CheckCircle2, XCircle, AlertTriangle, ShieldAlert, WifiOff, Clock, IndianRupee } from 'lucide-react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Modal, Pressable, ScrollView } from 'react-native';
+import {
+  Check,
+  Ban,
+  AlertTriangle,
+  ShieldAlert,
+  WifiOff,
+  Clock,
+  X,
+  MapPin,
+  User,
+} from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useThemeColors } from '../../src/context/ThemeContext';
 import { Button } from './Button';
-import { formatCurrency, formatDateTime } from '../../src/utils/formatters';
+import { Text } from './Text';
+import { formatCurrency, formatDateTime, formatTime } from '../../src/utils/formatters';
 import type { ScanResult, ScanStatus } from '../../src/types';
+
+/** A clean pass closes itself, so a queue keeps moving without a tap. */
+const AUTO_CLOSE_SECONDS = 4;
 
 interface ValidationModalProps {
   result: ScanResult | null;
@@ -18,80 +33,85 @@ interface ValidationModalProps {
   onCollectOverstay?: (amount: number) => Promise<void>;
 }
 
-/**
- * The gatekeeper's answer, in one glance.
- *
- * This screen is read in a second, in daylight, by someone with a queue behind
- * them, so the outcome is carried by colour and a single large word before any
- * detail. UNPAID is its own state rather than folded into INVALID: "this is a
- * real pass that was never paid for" usually means the customer is standing
- * right there and can pay, which is a different action from turning away a fake.
- */
 interface Presentation {
-  headline: string;
-  tone: string;
-  ring: string;
+  headlineKey: string;
+  /** Full-bleed wash behind the whole sheet. */
+  wash: string;
   text: string;
+  chip: string;
   color: string;
-  Icon: typeof CheckCircle2;
+  Icon: typeof Check;
 }
 
 /**
  * Built per render rather than held as a module constant, because the icon
  * colours are raw props that have to follow the active theme - a constant would
  * freeze whichever theme happened to load first.
+ *
+ * Every state has a distinct glyph as well as a distinct colour. Red and green
+ * are the two hues most commonly confused, and this is the one screen in the
+ * product where getting the answer wrong lets a car out for free.
  */
 const presentationFor = (colors: Record<string, string>): Record<ScanStatus, Presentation> => ({
   VERIFIED: {
-    headline: 'VERIFIED',
-    tone: 'bg-brand-accent/15',
-    ring: 'border-brand-accent/50',
+    headlineKey: 'scanner.result.verified',
+    wash: 'bg-brand-accent/10',
     text: 'text-brand-accent',
-    color: colors['success'],
-    Icon: CheckCircle2,
+    chip: 'bg-brand-accent',
+    color: colors['on-accent'],
+    Icon: Check,
   },
   ALREADY_USED: {
-    headline: 'ALREADY USED',
-    tone: 'bg-brand-danger/15',
-    ring: 'border-brand-danger/50',
+    headlineKey: 'scanner.result.alreadyUsed',
+    wash: 'bg-brand-danger/10',
     text: 'text-brand-danger',
-    color: colors['danger'],
-    Icon: XCircle,
+    chip: 'bg-brand-danger',
+    color: colors['on-danger'],
+    Icon: Ban,
   },
   UNPAID: {
-    headline: 'NOT PAID',
-    tone: 'bg-brand-warning/15',
-    ring: 'border-brand-warning/50',
+    headlineKey: 'scanner.result.notPaid',
+    wash: 'bg-brand-warning/10',
     text: 'text-brand-warning',
-    color: colors['warning'],
+    chip: 'bg-brand-warning',
+    color: colors['on-accent'],
     Icon: AlertTriangle,
   },
   EXPIRED: {
-    headline: 'TIME OVER',
-    tone: 'bg-brand-warning/15',
-    ring: 'border-brand-warning/50',
+    headlineKey: 'scanner.result.timeOver',
+    wash: 'bg-brand-warning/10',
     text: 'text-brand-warning',
-    color: colors['warning'],
+    chip: 'bg-brand-warning',
+    color: colors['on-accent'],
     Icon: Clock,
   },
   INVALID: {
-    headline: 'INVALID',
-    tone: 'bg-brand-danger/15',
-    ring: 'border-brand-danger/50',
+    headlineKey: 'scanner.result.invalid',
+    wash: 'bg-brand-danger/10',
     text: 'text-brand-danger',
-    color: colors['danger'],
-    Icon: XCircle,
+    chip: 'bg-brand-danger',
+    color: colors['on-danger'],
+    Icon: X,
   },
   UNAUTHORIZED: {
-    headline: 'NOT ALLOWED',
-    tone: 'bg-brand-surface-raised/40',
-    ring: 'border-brand-border-strong',
+    headlineKey: 'scanner.result.notAllowed',
+    wash: 'bg-brand-surface-alt',
     text: 'text-brand-text-subtle',
-    color: colors['text-muted'],
+    chip: 'bg-brand-neutral',
+    color: colors['on-danger'],
     Icon: ShieldAlert,
   },
 });
 
+/**
+ * The gatekeeper's answer, in one glance.
+ *
+ * Read in a second, in daylight, by someone with a queue behind them - so the
+ * outcome fills the screen and is carried by a glyph and one large word before
+ * any detail. UNPAID is its own state rather than folded into INVALID: "a real
+ * pass nobody paid for" usually means the customer is standing right there and
+ * can pay, which is a different action from turning away a fake.
+ */
 export const ValidationModal: React.FC<ValidationModalProps> = ({
   result,
   visible,
@@ -99,14 +119,46 @@ export const ValidationModal: React.FC<ValidationModalProps> = ({
   onCollectOverstay,
 }) => {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const [collecting, setCollecting] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+
+  const status = result?.status;
+  const isClean = status === 'VERIFIED';
+
+  /*
+    A verified pass dismisses itself. Every refusal waits: it needs the
+    gatekeeper to have actually read it, and something has to happen next -
+    money taken, a customer turned away - that a timer must not pre-empt.
+  */
+  useEffect(() => {
+    if (!visible || !isClean) {
+      setCountdown(null);
+      return;
+    }
+    setCountdown(AUTO_CLOSE_SECONDS);
+    const tick = setInterval(() => {
+      setCountdown((current) => {
+        if (current === null) return null;
+        if (current <= 1) {
+          clearInterval(tick);
+          closeRef.current();
+          return null;
+        }
+        return current - 1;
+      });
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [visible, isClean]);
 
   if (!result) return null;
-  const presentation = presentationFor(colors);
-  const p = presentation[result.status] ?? presentation.INVALID;
-  const ticket = result.ticket;
 
+  const p = presentationFor(colors)[result.status] ?? presentationFor(colors).INVALID;
+  const ticket = result.ticket;
   const overstayDue = result.overstayDue ?? 0;
+
   // Offline, the server cannot be asked what is owed, so there is nothing to
   // collect against and the button would be a guess.
   const canCollect =
@@ -124,64 +176,131 @@ export const ValidationModal: React.FC<ValidationModalProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View className="flex-1 bg-brand-scrim items-center justify-center p-4">
-        <View className={`w-full max-w-md rounded-3xl border-2 ${p.ring} bg-brand-surface p-6`}>
-          <View className="items-center">
-            <View className={`w-24 h-24 rounded-full ${p.tone} items-center justify-center mb-4`}>
-              <p.Icon size={56} color={p.color} />
+      {/* Tap anywhere to move on - a gatekeeper should never hunt for a close button. */}
+      <Pressable
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel={t('scanner.result.dismiss')}
+        className={`flex-1 items-center justify-center p-4 ${p.wash}`}
+      >
+        <View className="absolute inset-0 bg-brand-scrim" pointerEvents="none" />
+
+        <Pressable
+          onPress={(event) => event.stopPropagation()}
+          // Capped so the sheet can never grow past the screen on a phone. The
+          // detail list in the middle absorbs the difference, which keeps the
+          // headline and - more importantly - the two actions on screen. A
+          // gatekeeper who cannot reach "open gate" has to let the car through
+          // on trust, which is the thing this product exists to stop.
+          style={{ maxHeight: '94%' }}
+          className="w-full max-w-md overflow-hidden rounded-panel border border-brand-border bg-brand-surface"
+        >
+          <View className={`items-center px-6 pb-5 pt-7 ${p.wash}`}>
+            <View
+              className={`mb-4 h-20 w-20 items-center justify-center rounded-full ${p.chip}`}
+            >
+              <p.Icon size={44} color={p.color} strokeWidth={3} />
             </View>
 
-            <Text className={`text-3xl font-extrabold tracking-tight ${p.text} text-center`}>
-              {p.headline}
+            <Text
+              font="display-extrabold"
+              className={`text-center text-[32px] leading-tight ${p.text}`}
+            >
+              {t(p.headlineKey)}
             </Text>
 
-            <Text className="text-sm text-brand-text-subtle text-center mt-3 leading-5">
+            <Text
+              font="body"
+              className="mt-3 text-center text-sm leading-6 text-brand-text-subtle"
+            >
               {result.message}
             </Text>
 
-            {result.status === 'EXPIRED' && overstayDue > 0 && (
-              <View className="w-full mt-5 p-4 rounded-2xl bg-brand-warning/10 border border-brand-warning/40 items-center">
-                <Text className="text-[11px] font-bold text-brand-warning uppercase tracking-wider">
-                  Collect before exit
-                </Text>
-                <View className="flex-row items-center gap-1 mt-1">
-                  <IndianRupee size={22} color={colors['warning']} />
-                  <Text className="text-3xl font-extrabold text-brand-warning">
-                    {overstayDue.toFixed(0)}
-                  </Text>
-                </View>
-              </View>
-            )}
-
             {result.queuedOffline && (
-              <View className="flex-row items-center gap-2 mt-4 px-3 py-1.5 rounded-full bg-brand-surface-raised border border-brand-border-strong">
+              <View className="mt-4 flex-row items-center gap-2 rounded-full border border-brand-border bg-brand-surface px-3 py-1.5">
                 <WifiOff size={12} color={colors['text-muted']} />
-                <Text className="text-[11px] font-semibold text-brand-text-subtle">
-                  Recorded offline - will sync automatically
+                <Text font="body-medium" className="text-[11px] text-brand-text-subtle">
+                  {t('scanner.result.offlineNote')}
                 </Text>
               </View>
             )}
           </View>
 
-          {ticket && (
-            <ScrollView className="max-h-52 mt-5">
-              <View className="rounded-2xl bg-brand-bg/70 border border-brand-border p-4 gap-2.5">
-                <Row label="Pass code" value={ticket.ticketCode} mono />
-                <Row label="Type" value={ticket.ticketTypeLabel} />
-                {ticket.vehicleNumber ? <Row label="Vehicle" value={ticket.vehicleNumber} /> : null}
-                <Row label="Amount" value={formatCurrency(ticket.amount)} />
-                <Row label="Issued" value={formatDateTime(ticket.createdAt)} />
+          <ScrollView
+            style={{ flexShrink: 1 }}
+            contentContainerStyle={{ padding: 20, gap: 14 }}
+          >
+            {/*
+              Who cleared it, where, and when. The server sends these as fields
+              rather than only inside the message, because a gatekeeper facing
+              an argument needs them as facts they can point at.
+            */}
+            {result.status === 'ALREADY_USED' && result.validation && (
+              <View className="gap-2.5 rounded-card border border-brand-danger/30 bg-brand-danger/5 p-4">
+                <Text font="body-semibold" className="text-[13px] text-brand-danger">
+                  {t('scanner.result.firstUsedTitle')}
+                </Text>
+                <Fact
+                  icon={<Clock size={13} color={colors['text-muted']} />}
+                  value={t('scanner.result.firstUsedWhen', {
+                    time: formatTime(result.validation.scannedAt),
+                  })}
+                />
+                <Fact
+                  icon={<User size={13} color={colors['text-muted']} />}
+                  value={t('scanner.result.firstUsedWho', {
+                    name:
+                      result.validation.scannedByName ?? t('scanner.result.unknownGatekeeper'),
+                  })}
+                />
+                <Fact
+                  icon={<MapPin size={13} color={colors['text-muted']} />}
+                  value={t('scanner.result.firstUsedWhere', {
+                    gate: result.validation.exitGate,
+                  })}
+                />
               </View>
-            </ScrollView>
-          )}
+            )}
 
-          <View className="mt-6 gap-2">
+            {result.status === 'EXPIRED' && overstayDue > 0 && (
+              <View className="items-center rounded-card border border-brand-warning/40 bg-brand-warning/10 p-4">
+                <Text
+                  font="body-bold"
+                  className="text-[11px] uppercase tracking-wider text-brand-warning"
+                >
+                  {t('scanner.result.collectBeforeExit')}
+                </Text>
+                <Text
+                  font="display-extrabold"
+                  className="mt-1 text-[34px] leading-tight text-brand-warning"
+                >
+                  {formatCurrency(overstayDue)}
+                </Text>
+              </View>
+            )}
+
+            {ticket && (
+              <View className="gap-2.5 rounded-card border border-brand-border bg-brand-surface-alt p-4">
+                <Row label={t('scanner.result.passCode')} value={ticket.ticketCode} />
+                <Row label={t('scanner.result.type')} value={ticket.ticketTypeLabel} />
+                {ticket.vehicleNumber ? (
+                  <Row label={t('scanner.result.vehicle')} value={ticket.vehicleNumber} />
+                ) : null}
+                <Row label={t('scanner.result.amount')} value={formatCurrency(ticket.amount)} />
+                <Row label={t('scanner.result.issued')} value={formatDateTime(ticket.createdAt)} />
+              </View>
+            )}
+          </ScrollView>
+
+          <View className="gap-2 border-t border-brand-border p-5">
             {canCollect && (
               <Button
                 title={
                   overstayDue > 0
-                    ? `Collected ${formatCurrency(overstayDue)} — open gate`
-                    : 'Open gate'
+                    ? t('scanner.result.collectedOpenGate', {
+                        amount: formatCurrency(overstayDue),
+                      })
+                    : t('scanner.result.openGate')
                 }
                 variant="primary"
                 size="lg"
@@ -191,26 +310,39 @@ export const ValidationModal: React.FC<ValidationModalProps> = ({
               />
             )}
             <Button
-              title={canCollect ? 'Cancel' : 'Scan next pass'}
-              variant={result.success ? 'primary' : 'secondary'}
+              title={
+                countdown !== null
+                  ? t('scanner.result.autoClosing', { seconds: countdown })
+                  : t('scanner.result.scanNext')
+              }
+              variant={isClean ? 'primary' : 'secondary'}
               size="lg"
               fullWidth
+              accessibilityLabel={t('scanner.result.scanNext')}
               onPress={onClose}
             />
           </View>
-        </View>
-      </View>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 };
 
-const Row: React.FC<{ label: string; value: string; mono?: boolean }> = ({ label, value, mono }) => (
+const Fact: React.FC<{ icon: React.ReactNode; value: string }> = ({ icon, value }) => (
+  <View className="flex-row items-center gap-2">
+    {icon}
+    <Text font="body-medium" className="flex-1 text-[13px] text-brand-text-subtle">
+      {value}
+    </Text>
+  </View>
+);
+
+const Row: React.FC<{ label: string; value: string }> = ({ label, value }) => (
   <View className="flex-row items-center justify-between gap-3">
-    <Text className="text-xs text-brand-text-muted">{label}</Text>
-    <Text
-      numberOfLines={1}
-      className={`text-sm font-bold text-brand-text ${mono ? 'font-mono' : ''}`}
-    >
+    <Text font="body" className="text-xs text-brand-text-muted">
+      {label}
+    </Text>
+    <Text font="body-semibold" numberOfLines={1} className="text-sm text-brand-text">
       {value}
     </Text>
   </View>

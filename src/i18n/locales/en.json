@@ -179,5 +179,48 @@
       "rights": "© 2026 NoParchi. All rights reserved.",
       "made": "Made in India"
     }
+  },
+  "scanner": {
+    "title": "Exit scanner",
+    "gateLabel": "Gate: {{gate}}",
+    "gate": "Gate",
+    "scansToday": "{{count}} scanned today",
+    "blockedTitle": "Scanner is off for your account",
+    "aimHint": "Hold the customer's pass QR inside the frame",
+    "manualTitle": "Or type the pass code",
+    "manualPlaceholder": "NP-XXXX-YYYY",
+    "verify": "Verify",
+    "cameraOnPhoneTitle": "Camera scanning is on the phone app",
+    "cameraOnPhoneBody": "On a laptop, type the code printed under the customer's QR.",
+    "cameraPermissionTitle": "Camera permission needed",
+    "cameraPermissionBody": "Allow camera access to scan customer passes at the gate.",
+    "allowCamera": "Allow camera",
+    "offlineTitle": "Works without signal",
+    "offlineBody": "Paid passes are cached on this device. If the network drops, scanning keeps working and every clearance is written to storage immediately, so a used pass stays used even if the app restarts. Scans upload automatically once you are back online.",
+    "result": {
+      "verified": "VERIFIED",
+      "alreadyUsed": "ALREADY USED",
+      "notPaid": "NOT PAID",
+      "timeOver": "TIME OVER",
+      "invalid": "INVALID",
+      "notAllowed": "NOT ALLOWED",
+      "firstUsedTitle": "This pass was already cleared",
+      "firstUsedWhen": "At {{time}}",
+      "firstUsedWho": "By {{name}}",
+      "firstUsedWhere": "At {{gate}}",
+      "unknownGatekeeper": "another gatekeeper",
+      "collectBeforeExit": "Collect before exit",
+      "offlineNote": "Recorded offline — will sync automatically",
+      "passCode": "Pass code",
+      "type": "Type",
+      "vehicle": "Vehicle",
+      "amount": "Amount",
+      "issued": "Issued",
+      "openGate": "Open gate",
+      "collectedOpenGate": "Collected {{amount}} — open gate",
+      "scanNext": "Scan next pass",
+      "dismiss": "Dismiss",
+      "autoClosing": "Closing in {{seconds}}s"
+    }
   }
 }

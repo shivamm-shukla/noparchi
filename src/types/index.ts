@@ -21,6 +21,12 @@ export interface Merchant {
   paymentProvider: string;
   messagingProvider: string;
   branding: MerchantBranding;
+  /**
+   * The exits a gatekeeper can be standing at. Stored per merchant because a
+   * mela has eleven and a stall has one; a hardcoded list meant every scan in
+   * the product was recorded against the same three invented gate names.
+   */
+  exitGates: string[];
   createdAt: string;
 }
 

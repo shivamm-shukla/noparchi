@@ -179,5 +179,48 @@
       "rights": "© 2026 NoParchi. सर्वाधिकार सुरक्षित।",
       "made": "भारत में निर्मित"
     }
+  },
+  "scanner": {
+    "title": "एग्ज़िट स्कैनर",
+    "gateLabel": "गेट: {{gate}}",
+    "gate": "गेट",
+    "scansToday": "आज {{count}} स्कैन",
+    "blockedTitle": "आपके खाते पर स्कैनर बंद है",
+    "aimHint": "ग्राहक के पास का QR फ्रेम के अंदर रखें",
+    "manualTitle": "या पास कोड टाइप करें",
+    "manualPlaceholder": "NP-XXXX-YYYY",
+    "verify": "जांचें",
+    "cameraOnPhoneTitle": "कैमरा स्कैनिंग फोन ऐप पर है",
+    "cameraOnPhoneBody": "लैपटॉप पर, ग्राहक के QR के नीचे लिखा कोड टाइप करें।",
+    "cameraPermissionTitle": "कैमरा की अनुमति चाहिए",
+    "cameraPermissionBody": "गेट पर ग्राहकों के पास स्कैन करने के लिए कैमरा एक्सेस दें।",
+    "allowCamera": "कैमरा चालू करें",
+    "offlineTitle": "बिना सिग्नल भी चलता है",
+    "offlineBody": "पेमेंट हो चुके पास इस डिवाइस पर सेव रहते हैं। नेटवर्क जाने पर भी स्कैनिंग चलती रहती है और हर क्लियरेंस तुरंत स्टोरेज में लिख दी जाती है, इसलिए इस्तेमाल हो चुका पास ऐप रीस्टार्ट होने पर भी इस्तेमाल हुआ ही रहता है। नेटवर्क आते ही स्कैन अपने आप अपलोड हो जाते हैं।",
+    "result": {
+      "verified": "सही है",
+      "alreadyUsed": "पहले इस्तेमाल हो चुका",
+      "notPaid": "पेमेंट नहीं हुआ",
+      "timeOver": "समय खत्म",
+      "invalid": "अमान्य",
+      "notAllowed": "अनुमति नहीं",
+      "firstUsedTitle": "यह पास पहले ही क्लियर हो चुका है",
+      "firstUsedWhen": "{{time}} बजे",
+      "firstUsedWho": "{{name}} ने",
+      "firstUsedWhere": "{{gate}} पर",
+      "unknownGatekeeper": "किसी और गेटकीपर",
+      "collectBeforeExit": "बाहर जाने से पहले लें",
+      "offlineNote": "ऑफलाइन दर्ज — अपने आप सिंक होगा",
+      "passCode": "पास कोड",
+      "type": "प्रकार",
+      "vehicle": "गाड़ी",
+      "amount": "रकम",
+      "issued": "जारी हुआ",
+      "openGate": "गेट खोलें",
+      "collectedOpenGate": "{{amount}} लिए — गेट खोलें",
+      "scanNext": "अगला पास स्कैन करें",
+      "dismiss": "बंद करें",
+      "autoClosing": "{{seconds}} सेकंड में बंद"
+    }
   }
 }

@@ -34,8 +34,16 @@ export function firstEmbedded<T>(value: T | T[] | null | undefined): T | null {
   return value;
 }
 
+/** What a merchant gets before anyone has named their exits. */
+export const DEFAULT_EXIT_GATES = ['Main Exit'];
+
 export function toMerchant(row: MerchantRow): Merchant {
   const branding = (row.settings?.branding ?? {}) as MerchantBranding;
+  const rawGates = row.settings?.gates;
+  const exitGates =
+    Array.isArray(rawGates) && rawGates.length > 0
+      ? rawGates.map(String).filter(Boolean)
+      : DEFAULT_EXIT_GATES;
   return {
     id: row.id,
     businessName: row.business_name,
@@ -45,6 +53,7 @@ export function toMerchant(row: MerchantRow): Merchant {
     paymentProvider: row.payment_provider,
     messagingProvider: row.messaging_provider,
     branding,
+    exitGates,
     createdAt: row.created_at,
   };
 }
@@ -91,7 +100,7 @@ export function toValidation(
     id: row.id,
     transactionId: row.transaction_id,
     scannedByUserId: row.scanned_by_user_id,
-    scannedByName,
+    scannedByName: scannedByName ?? row.scanned_by_name ?? undefined,
     exitGate: row.exit_gate,
     notes: row.notes,
     scannedAt: row.scanned_at,
