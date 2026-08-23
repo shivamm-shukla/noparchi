@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Image } from 'react-native';
+import { View, Image } from 'react-native';
+import { Text } from './Text';
 import { cn } from '../../src/utils/cn';
 
 /**
@@ -55,15 +56,20 @@ export const Logo: React.FC<LogoProps> = ({
       {showWordmark ? (
         <View>
           <Text
+            font="display-extrabold"
             style={{ fontSize: size * 0.58, lineHeight: size * 0.72 }}
-            className="font-extrabold text-brand-text"
+            className="text-brand-text"
           >
-            No<Text className="text-brand-accent">Parchi</Text>
+            No
+            <Text font="display-extrabold" className="text-brand-accent">
+              Parchi
+            </Text>
           </Text>
           {tagline ? (
             <Text
+              font="body-medium"
               style={{ fontSize: size * 0.3 }}
-              className="text-brand-text-muted font-medium"
+              className="text-brand-text-muted"
             >
               Scan. Pay. Enter.
             </Text>

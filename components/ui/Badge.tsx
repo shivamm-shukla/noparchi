@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View } from 'react-native';
+import { Text } from './Text';
 
 export type BadgeVariant = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
 
@@ -31,7 +32,9 @@ export const Badge: React.FC<BadgeProps> = ({ label, variant = 'neutral', size =
     <View
       className={`flex-row items-center justify-center rounded-full border ${styles.container} ${sizeClasses}`}
     >
-      <Text className={`text-xs font-semibold tracking-wide ${styles.text}`}>{label}</Text>
+      <Text font="body-semibold" className={`text-xs tracking-wide ${styles.text}`}>
+        {label}
+      </Text>
     </View>
   );
 };

@@ -81,5 +81,8 @@
       "title_other": "{{count}} offline scans were rejected on sync",
       "dismiss": "Dismiss"
     }
+  },
+  "preview": {
+    "banner": "Preview — sample data. Nothing is saved."
   }
 }

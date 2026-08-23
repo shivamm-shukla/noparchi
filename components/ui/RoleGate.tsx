@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View } from 'react-native';
+import { Text } from './Text';
 import { ShieldAlert } from 'lucide-react-native';
 import { Card } from './Card';
 import { useThemeColors } from '../../src/context/ThemeContext';
@@ -39,15 +40,15 @@ export const RoleGate: React.FC<RoleGateProps> = ({ permission, children, title 
           <ShieldAlert size={32} color={colors['warning']} />
         </View>
 
-        <Text className="text-xl font-bold text-brand-text mb-2 text-center">
+        <Text font="display-bold" className="mb-2 text-center text-xl text-brand-text">
           {title ?? 'Not available on your account'}
         </Text>
 
-        <Text className="text-sm text-brand-text-muted text-center leading-5">
+        <Text font="body" className="text-center text-sm leading-5 text-brand-text-muted">
           {meta.description}
         </Text>
 
-        <Text className="text-xs text-brand-text-faint text-center mt-4 leading-4">
+        <Text font="body" className="mt-4 text-center text-xs leading-5 text-brand-text-faint">
           Ask the business owner to switch on “{meta.label}” for you in Settings → Staff.
         </Text>
       </Card>

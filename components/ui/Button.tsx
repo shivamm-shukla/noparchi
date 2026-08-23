@@ -1,5 +1,6 @@
 import React from 'react';
-import { TouchableOpacity, Text, ActivityIndicator, View } from 'react-native';
+import { TouchableOpacity, ActivityIndicator, View } from 'react-native';
+import { Text } from './Text';
 import { useThemeColors } from '../../src/context/ThemeContext';
 
 interface ButtonProps {
@@ -12,6 +13,8 @@ interface ButtonProps {
   icon?: React.ReactNode;
   className?: string;
   fullWidth?: boolean;
+  /** Defaults to `title`. Set it when the visible text is not the whole story. */
+  accessibilityLabel?: string;
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -24,6 +27,7 @@ export const Button: React.FC<ButtonProps> = ({
   icon,
   className = '',
   fullWidth = false,
+  accessibilityLabel,
 }) => {
   const colors = useThemeColors();
   const getVariantStyles = () => {
@@ -77,6 +81,13 @@ export const Button: React.FC<ButtonProps> = ({
       onPress={onPress}
       disabled={disabled || loading}
       activeOpacity={0.75}
+      // Without these a TouchableOpacity is an unlabelled div on web and an
+      // unannounced view on native - the primary action of a screen reachable
+      // only by sighted tap. `busy` matters because the label stays put while
+      // the spinner replaces it.
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? title}
+      accessibilityState={{ disabled: disabled || loading, busy: loading }}
       className={`flex-row items-center justify-center border ${getVariantStyles()} ${getSizeStyles()} ${
         fullWidth ? 'w-full' : ''
       } ${disabled ? 'opacity-50' : ''} ${className}`}
@@ -89,7 +100,9 @@ export const Button: React.FC<ButtonProps> = ({
       ) : (
         <View className="flex-row items-center justify-center gap-2">
           {icon && <View>{icon}</View>}
-          <Text className={`${getTextStyles()} tracking-wide`}>{title}</Text>
+          <Text font="body-semibold" className={`${getTextStyles()} tracking-wide`}>
+            {title}
+          </Text>
         </View>
       )}
     </TouchableOpacity>

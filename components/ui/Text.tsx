@@ -27,6 +27,26 @@ export interface TextProps extends RNTextProps {
 }
 
 /**
+ * Devanagari is never letter-spaced.
+ *
+ * Tracking is a Latin device - it opens up an uppercase eyebrow and makes it
+ * read as a label. Devanagari has no case and joins its characters, so the same
+ * class prises apart a word that is meant to be continuous and makes matras
+ * float away from the letters they belong to. The landing page zeroes tracking
+ * for Hindi for exactly this reason.
+ *
+ * Stripped from the class string rather than overridden in `style`, because the
+ * className-derived style is merged by nativewind downstream of this component
+ * and would win.
+ */
+const TRACKING_CLASS = /(^|\s)tracking-[\w[\].-]+/g;
+
+function forScript(className: string | undefined, script: string): string | undefined {
+  if (!className || script !== 'devanagari') return className;
+  return className.replace(TRACKING_CLASS, ' ').replace(/\s+/g, ' ').trim() || undefined;
+}
+
+/**
  * Every piece of text in the app goes through here.
  *
  * The reason it exists rather than a Tailwind `font-*` class: the face has to
@@ -36,16 +56,18 @@ export interface TextProps extends RNTextProps {
  * Inter, hands Hindi to whatever the OS substitutes. Conjuncts and matras break
  * and it reads as broken to anyone who actually speaks the language.
  *
- * So the script is resolved at render and the face is set explicitly. Size,
- * colour and spacing stay in `className` where they belong.
+ * So the script is resolved at render, the face is set explicitly, and the
+ * Latin-only typographic tricks are taken back off. Size, colour and spacing
+ * stay in `className` where they belong.
  */
-export const Text: React.FC<TextProps> = ({ font = 'body', style, ...props }) => {
+export const Text: React.FC<TextProps> = ({ font = 'body', style, className, ...props }) => {
   const script = useScript();
   const [role, weight = 'regular'] = font.split('-');
 
   return (
     <RNText
       {...props}
+      className={forScript(className, script)}
       style={[{ fontFamily: familyFor(role, weight, script) }, style]}
     />
   );

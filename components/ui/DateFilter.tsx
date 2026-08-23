@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, TouchableOpacity, ScrollView } from 'react-native';
+import { Text } from './Text';
 import type { DateRangeKey } from '../../src/types';
 
 interface DateFilterProps {
@@ -37,8 +38,9 @@ export const DateFilter: React.FC<DateFilterProps> = ({ selected, onSelect }) =>
               }`}
             >
               <Text
-                className={`text-xs font-semibold ${
-                  isActive ? 'text-brand-on-accent font-bold' : 'text-brand-text-muted'
+                font={isActive ? 'body-bold' : 'body-medium'}
+                className={`text-xs ${
+                  isActive ? 'text-brand-on-accent' : 'text-brand-text-muted'
                 }`}
               >
                 {item.label}
