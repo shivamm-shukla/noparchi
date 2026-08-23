@@ -4,7 +4,7 @@ import { Search, BookOpen, ShieldCheck, Car, MessageSquare, CheckCircle2, AlertT
 import { useThemeColors } from '../../src/context/ThemeContext';
 import { useAuth } from '../../src/context/AuthContext';
 import { useApp } from '../../src/context/AppContext';
-import { Header } from '../../components/ui/Header';
+import { TopBar } from '../../components/nav/TopBar';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -98,7 +98,7 @@ export default function LedgerScreen() {
 
   return (
     <View className="flex-1 bg-brand-bg">
-      <Header title="Ledger" subtitle="Every pass, every rupee" />
+      <TopBar title="Ledger" subtitle="Every pass, every rupee" />
 
       <RoleGate permission="can_view_ledger" title="Ledger is off for your account">
         <ScrollView

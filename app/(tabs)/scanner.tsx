@@ -5,7 +5,7 @@ import { ScanLine, WifiOff, Camera as CameraIcon } from 'lucide-react-native';
 import { useThemeColors } from '../../src/context/ThemeContext';
 import { useAuth } from '../../src/context/AuthContext';
 import { useApp } from '../../src/context/AppContext';
-import { Header } from '../../components/ui/Header';
+import { TopBar } from '../../components/nav/TopBar';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { ValidationModal } from '../../components/ui/ValidationModal';
@@ -109,7 +109,7 @@ export default function ScannerScreen() {
 
   return (
     <View className="flex-1 bg-brand-bg">
-      <Header title="Exit scanner" subtitle={`Gate: ${exitGate}`} />
+      <TopBar title="Exit scanner" subtitle={`Gate: ${exitGate}`} />
 
       <RoleGate permission="can_verify_tickets" title="Scanner is off for your account">
         <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40 }}>

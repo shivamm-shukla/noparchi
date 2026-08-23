@@ -18,7 +18,7 @@ import {
 import { useThemeColors, useTheme, type ThemePreference } from '../../src/context/ThemeContext';
 import { useAuth } from '../../src/context/AuthContext';
 import { useApp } from '../../src/context/AppContext';
-import { Header } from '../../components/ui/Header';
+import { TopBar } from '../../components/nav/TopBar';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -60,7 +60,7 @@ export default function SettingsScreen() {
 
   return (
     <View className="flex-1 bg-brand-bg">
-      <Header title="Settings" subtitle={merchant.businessName} />
+      <TopBar title="Settings" subtitle={merchant.businessName} />
 
       <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 48 }}>
         <View className="max-w-3xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-5 gap-6">

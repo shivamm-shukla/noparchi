@@ -20,7 +20,7 @@ import {
 import { useThemeColors } from '../../src/context/ThemeContext';
 import { useAuth } from '../../src/context/AuthContext';
 import { useApp } from '../../src/context/AppContext';
-import { Header } from '../../components/ui/Header';
+import { TopBar } from '../../components/nav/TopBar';
 import { StatsCard } from '../../components/ui/StatsCard';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
@@ -61,7 +61,7 @@ export default function DashboardScreen() {
 
   return (
     <View className="flex-1 bg-brand-bg">
-      <Header
+      <TopBar
         title={merchant.businessName}
         subtitle={merchant.location || 'Live operations'}
         rightAction={

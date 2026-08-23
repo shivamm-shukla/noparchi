@@ -1,13 +1,21 @@
 import React from 'react';
-import { View, Text, ActivityIndicator } from 'react-native';
+import { View, Text, ActivityIndicator, Platform } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
 import { AuthProvider, useAuth } from '../src/context/AuthContext';
 import { AppProvider } from '../src/context/AppContext';
 import { ThemeProvider, useTheme, useThemeColors } from '../src/context/ThemeContext';
+import { LanguageProvider } from '../src/context/LanguageContext';
+import { FONT_ASSETS } from '../src/config/fonts';
 import { PreviewBanner } from '../components/ui/PreviewBanner';
 import '../global.css';
+
+// Held until the faces are ready, so the first paint is not in a fallback font
+// that then jumps. Native only - see useBrandFonts below.
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 /**
  * Routes a stranger may open without signing in.
@@ -116,16 +124,44 @@ function ThemedShell() {
   );
 }
 
+/**
+ * Loads the brand faces, and reports whether it is safe to paint yet.
+ *
+ * The web answer is always yes, and that is not a shortcut. Static rendering
+ * runs this component in Node, where there is no FontFace API for expo-font to
+ * use, so `loaded` never becomes true - and a layout that returns null until it
+ * does emits an empty shell for all 18 routes while still exiting 0. That
+ * exact failure has bitten this project before. On web the browser applies the
+ * faces as they arrive anyway, which is what a font swap is for.
+ */
+function useBrandFonts(): boolean {
+  const [loaded, error] = useFonts(FONT_ASSETS);
+
+  React.useEffect(() => {
+    if (loaded || error) SplashScreen.hideAsync().catch(() => {});
+  }, [loaded, error]);
+
+  // An error here means a face is missing, not that the app is broken; render
+  // in the fallback rather than holding the splash forever.
+  return Platform.OS === 'web' || loaded || Boolean(error);
+}
+
 export default function RootLayout() {
+  const fontsReady = useBrandFonts();
+
+  if (!fontsReady) return null;
+
   return (
     <SafeAreaProvider>
-      <ThemeProvider>
-        <AuthProvider>
-          <AppProvider>
-            <ThemedShell />
-          </AppProvider>
-        </AuthProvider>
-      </ThemeProvider>
+      <LanguageProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <AppProvider>
+              <ThemedShell />
+            </AppProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </LanguageProvider>
     </SafeAreaProvider>
   );
 }
