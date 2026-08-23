@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { Link } from 'expo-router';
-import { Sparkles, AlertCircle, Mail, KeyRound, Smartphone } from 'lucide-react-native';
+import { AlertCircle, Mail, KeyRound, Smartphone } from 'lucide-react-native';
 import { useThemeColors } from '../../src/context/ThemeContext';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { Logo } from '../../components/ui/Logo';
 import { Field } from '../../components/ui/Field';
 import { authService, type StaffAccountChoice } from '../../src/services/authService';
 
@@ -70,11 +71,8 @@ export default function SignInScreen() {
       <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}>
         <View className="w-full max-w-md mx-auto">
           <View className="items-center mb-8">
-            <View className="w-14 h-14 rounded-2xl bg-brand-accent/10 border border-brand-accent/30 items-center justify-center mb-3">
-              <Sparkles size={28} color={colors['accent']} />
-            </View>
-            <Text className="text-3xl font-extrabold text-brand-text">NoParchi</Text>
-            <Text className="text-sm text-brand-text-muted mt-1">No paper. No stolen cash.</Text>
+            <Logo size={56} tagline />
+            <Text className="text-sm text-brand-text-muted mt-3">No paper. No stolen cash.</Text>
           </View>
 
           <Card className="p-5 sm:p-6">

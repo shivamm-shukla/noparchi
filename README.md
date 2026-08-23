@@ -1,4 +1,13 @@
-# NoParchi
+<p align="center">
+  <img src="assets/noparchi-website.png" alt="NoParchi — Scan. Pay. Enter." width="620">
+</p>
+
+<p align="center">
+  <strong>Scan. Pay. Enter.</strong><br>
+  No paper. No stolen cash.
+</p>
+
+---
 
 Smart QR and WhatsApp commerce for India's unorganised sector — parking lots,
 melas, street stalls. Customers pay by scanning a QR with no app installed and
@@ -7,6 +16,30 @@ get a digital pass; staff verify it at the exit with the merchant app.
 The problem it exists to solve is cash theft at the gate. Every rupee is tied to
 a pass code, every pass can be cleared exactly once, and every scan is recorded
 against a named person.
+
+## The name
+
+A *parchi* is the paper slip you are handed at a gate and asked to keep safe.
+It is also where the money goes missing: a slip can be reused, pocketed, or
+never written at all. The mark is that slip struck through, inside the QR that
+replaces it.
+
+## Brand
+
+| | |
+|---|---|
+| Wordmark | **No** in `slate-900` / `slate-100`, **Parchi** in the emerald accent |
+| Tagline | Scan. Pay. Enter. |
+| Mark | `assets/noparchi-app-icon.png` — app icon, favicon, splash |
+| Lockup | `assets/noparchi-website.png` — mark + wordmark, for anywhere outside the app |
+
+In the app, use `components/ui/Logo.tsx` rather than the PNGs. It draws the mark
+on a `brand-paper` tile and sets the wordmark in live text, so it reads
+correctly in both themes and stays sharp at any size.
+
+Every colour comes from `src/config/theme.js`, in both light and dark. Change it
+there and the whole app follows — Tailwind classes, raw React Native colour
+props, and the theme toggle all read that one file.
 
 ## Stack
 

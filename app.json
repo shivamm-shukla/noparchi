@@ -4,14 +4,18 @@
     "slug": "noparchi",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/noparchi-app-icon.png",
     "scheme": "noparchi",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/noparchi-app-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0F172A"
+      "backgroundColor": "#F8FAFC",
+      "dark": {
+        "image": "./assets/noparchi-app-icon.png",
+        "backgroundColor": "#0F172A"
+      }
     },
     "ios": {
       "supportsTablet": true,
@@ -21,8 +25,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0F172A"
+        "foregroundImage": "./assets/noparchi-app-icon.png",
+        "backgroundColor": "#F8FAFC"
       },
       "permissions": [
         "CAMERA"
@@ -31,7 +35,7 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/noparchi-app-icon.png"
     },
     "plugins": [
       "expo-router",

@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Shield, UserCircle2, LogOut } from 'lucide-react-native';
 import { useThemeColors } from '../../src/context/ThemeContext';
+import { Logo } from './Logo';
 import { useAuth } from '../../src/context/AuthContext';
 
 interface HeaderProps {
@@ -23,18 +24,23 @@ export const Header: React.FC<HeaderProps> = ({ title, subtitle, rightAction }) 
     >
       <View className="max-w-7xl mx-auto w-full flex-row items-center justify-between gap-3">
         <View className="flex-1 min-w-0">
-          <View className="flex-row items-center gap-2 mb-0.5">
-            <View className="w-2 h-2 rounded-full bg-brand-accent" />
-            <Text className="text-[10px] font-bold text-brand-accent tracking-wider uppercase">
-              NoParchi Live
-            </Text>
+          <View className="flex-row items-center gap-2 min-w-0">
+            <Logo size={34} className="shrink-0" />
+            <View className="flex-1 min-w-0">
+              <Text className="text-[10px] font-bold text-brand-accent tracking-wider uppercase">
+                NoParchi Live
+              </Text>
+              <Text
+                numberOfLines={1}
+                className="text-base sm:text-xl font-extrabold text-brand-text"
+              >
+                {title ?? merchant?.businessName ?? 'NoParchi'}
+              </Text>
+              <Text numberOfLines={1} className="text-xs text-brand-text-muted">
+                {subtitle ?? merchant?.location ?? ''}
+              </Text>
+            </View>
           </View>
-          <Text numberOfLines={1} className="text-base sm:text-xl font-extrabold text-brand-text">
-            {title ?? merchant?.businessName ?? 'NoParchi'}
-          </Text>
-          <Text numberOfLines={1} className="text-xs text-brand-text-muted">
-            {subtitle ?? merchant?.location ?? ''}
-          </Text>
         </View>
 
         <View className="flex-row items-center gap-2 sm:gap-3 shrink-0">
