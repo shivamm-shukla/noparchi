@@ -410,5 +410,16 @@
   "roleGate": {
     "title": "यह आपके खाते पर उपलब्ध नहीं है",
     "askOwner": "कारोबार के मालिक से कहें कि वे सेटिंग → स्टाफ में आपके लिए “{{permission}}” चालू कर दें।"
+  },
+  "duration": {
+    "noExpiry": "कोई समय-सीमा नहीं",
+    "minutes_one": "{{count}} मिनट",
+    "minutes_other": "{{count}} मिनट",
+    "hours_one": "{{count}} घंटा",
+    "hours_other": "{{count}} घंटे",
+    "hoursMinutes": "{{hours}} घंटे {{minutes}} मिनट",
+    "days_one": "{{count}} दिन",
+    "days_other": "{{count}} दिन",
+    "daysHours": "{{days}} दिन {{hours}} घंटे"
   }
 }

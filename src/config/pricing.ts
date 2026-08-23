@@ -11,6 +11,7 @@
  * To change how money is displayed, edit CURRENCY / formatting in
  * src/utils/formatters.ts.
  */
+import i18n from '../i18n';
 
 /** Icon names are resolved to lucide components in src/config/icons.ts. */
 export type TicketTypeIcon = 'bike' | 'car' | 'truck' | 'ticket' | 'bus' | 'person';
@@ -98,27 +99,37 @@ export const FALLBACK_TICKET_TYPE: TicketTypeDraft = {
  * parking lot wants to type 360, and a typo there silently expires every pass
  * six minutes after it is sold.
  */
-export const VALIDITY_PRESETS: { label: string; minutes: number | null }[] = [
-  { label: 'No expiry', minutes: null },
-  { label: '1 hour', minutes: 60 },
-  { label: '3 hours', minutes: 180 },
-  { label: '6 hours', minutes: 360 },
-  { label: '12 hours', minutes: 720 },
-  { label: '24 hours', minutes: 1440 },
-];
+// Just the values. The wording each one shows is formatDuration's job, so the
+// presets cannot drift out of step with how the same duration is printed
+// everywhere else - and there is only one set of strings to translate.
+export const VALIDITY_PRESETS: readonly (number | null)[] = [null, 60, 180, 360, 720, 1440];
 
-/** Human-readable duration: 90 -> "1 hr 30 min". */
+/**
+ * Human-readable duration: 90 -> "1 hr 30 min", "1 घंटे 30 मिनट".
+ *
+ * Reads the active language from i18next rather than taking a locale argument,
+ * for the same reason the date and money helpers do: a duration is printed from
+ * a dozen call sites and the ones that forgot to thread a locale through are
+ * exactly how English survives in the middle of a Hindi screen. This one is
+ * shown on the customer's pass as well as the merchant's settings.
+ */
 export function formatDuration(minutes: number | null | undefined): string {
-  if (minutes === null || minutes === undefined) return 'No expiry';
-  if (minutes < 60) return `${minutes} min`;
+  if (minutes === null || minutes === undefined) return i18n.t('duration.noExpiry');
+  if (minutes < 60) return i18n.t('duration.minutes', { count: minutes });
 
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
-  if (hours < 24) return rest ? `${hours} hr ${rest} min` : `${hours} hr`;
+  if (hours < 24) {
+    return rest
+      ? i18n.t('duration.hoursMinutes', { hours, minutes: rest })
+      : i18n.t('duration.hours', { count: hours });
+  }
 
   const days = Math.floor(hours / 24);
   const restHours = hours % 24;
-  return restHours ? `${days}d ${restHours}h` : `${days} day${days > 1 ? 's' : ''}`;
+  return restHours
+    ? i18n.t('duration.daysHours', { days, hours: restHours })
+    : i18n.t('duration.days', { count: days });
 }
 
 /** What one extension of this type costs and buys, with the fallbacks applied. */

@@ -1036,17 +1036,17 @@ const PassTypesPane: React.FC<{
             <View className="flex-row flex-wrap gap-2 mb-2">
               {VALIDITY_PRESETS.map((preset) => (
                 <TouchableOpacity
-                  key={preset.label}
+                  key={String(preset)}
                   onPress={() => {
-                    setValidMinutes(preset.minutes);
-                    if (preset.minutes === null) {
+                    setValidMinutes(preset);
+                    if (preset === null) {
                       setExtAmount('');
                       setExtMinutes(null);
                     }
                   }}
                   activeOpacity={0.7}
                   className={`px-3 py-1.5 rounded-xl border ${
-                    validMinutes === preset.minutes
+                    validMinutes === preset
                       ? 'bg-brand-accent border-brand-accent'
                       : 'bg-brand-bg border-brand-border'
                   }`}
@@ -1054,10 +1054,10 @@ const PassTypesPane: React.FC<{
                   <Text
                     font="body-bold"
                     className={`text-xs ${
-                      validMinutes === preset.minutes ? 'text-brand-on-accent' : 'text-brand-text-muted'
+                      validMinutes === preset ? 'text-brand-on-accent' : 'text-brand-text-muted'
                     }`}
                   >
-                    {preset.label}
+                    {formatDuration(preset)}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -1082,15 +1082,13 @@ const PassTypesPane: React.FC<{
                   />
                 </View>
                 <View className="flex-row flex-wrap gap-2 mb-2">
-                  {VALIDITY_PRESETS.filter((preset) => preset.minutes !== null).map((preset) => (
+                  {VALIDITY_PRESETS.filter((preset) => preset !== null).map((preset) => (
                     <TouchableOpacity
-                      key={preset.label}
-                      onPress={() =>
-                        setExtMinutes(extMinutes === preset.minutes ? null : preset.minutes)
-                      }
+                      key={String(preset)}
+                      onPress={() => setExtMinutes(extMinutes === preset ? null : preset)}
                       activeOpacity={0.7}
                       className={`px-3 py-1.5 rounded-xl border ${
-                        extMinutes === preset.minutes
+                        extMinutes === preset
                           ? 'bg-brand-accent border-brand-accent'
                           : 'bg-brand-bg border-brand-border'
                       }`}
@@ -1098,10 +1096,10 @@ const PassTypesPane: React.FC<{
                       <Text
                         font="body-bold"
                         className={`text-xs ${
-                          extMinutes === preset.minutes ? 'text-brand-on-accent' : 'text-brand-text-muted'
+                          extMinutes === preset ? 'text-brand-on-accent' : 'text-brand-text-muted'
                         }`}
                       >
-                        {preset.label}
+                        {formatDuration(preset)}
                       </Text>
                     </TouchableOpacity>
                   ))}

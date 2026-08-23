@@ -410,5 +410,16 @@
   "roleGate": {
     "title": "Not available on your account",
     "askOwner": "Ask the business owner to switch on “{{permission}}” for you in Settings → Staff."
+  },
+  "duration": {
+    "noExpiry": "No expiry",
+    "minutes_one": "{{count}} min",
+    "minutes_other": "{{count}} min",
+    "hours_one": "{{count}} hr",
+    "hours_other": "{{count}} hr",
+    "hoursMinutes": "{{hours}} hr {{minutes}} min",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days",
+    "daysHours": "{{days}}d {{hours}}h"
   }
 }
