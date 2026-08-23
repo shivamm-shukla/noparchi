@@ -33,7 +33,9 @@ function clean(value: string | undefined): string | null {
 
 const supabaseUrl = clean(process.env.EXPO_PUBLIC_SUPABASE_URL);
 const supabaseAnonKey = clean(process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY);
-const apkDownloadUrl = clean(process.env.EXPO_PUBLIC_APK_DOWNLOAD_URL) || '/noparchi.apk';
+const apkDownloadUrl =
+  clean(process.env.EXPO_PUBLIC_APK_DOWNLOAD_URL) ||
+  'https://expo.dev/artifacts/eas/aXZjnKtGjZXI9t_SGlLQpl1m5DvFAM8FNUPhWDDVZE4.apk';
 const indusStoreUrl = clean(process.env.EXPO_PUBLIC_INDUS_STORE_URL) || 'https://www.indusappstore.com';
 
 /**

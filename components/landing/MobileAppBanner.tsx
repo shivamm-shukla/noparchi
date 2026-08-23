@@ -79,7 +79,18 @@ export const MobileAppBanner: React.FC = () => {
   const handleDirectDownload = () => {
     const url = env.apkDownloadUrl;
     if (Platform.OS === 'web') {
-      window.open(url, '_blank');
+      try {
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', 'NoParchi.apk');
+        link.setAttribute('target', '_blank');
+        link.setAttribute('rel', 'noopener noreferrer');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch {
+        window.location.href = url;
+      }
     } else {
       Linking.openURL(url).catch(() => {});
     }
