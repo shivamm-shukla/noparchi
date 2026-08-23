@@ -151,19 +151,22 @@ class AuthService {
   async loadContext(): Promise<SignedInContext | null> {
     const client = requireSupabase();
 
-    const { data: userRows, error: userError } = await client
-      .from('merchant_users')
-      .select('*')
-      .limit(1);
-    if (userError) throw userError;
-    if (!userRows || userRows.length === 0) return null;
-
-    // RLS restricts this select to the caller's own tenant, but the tenant can
-    // hold several staff rows, so pick this session's own row explicitly.
+    // RLS restricts this select to the caller's own tenant, but a tenant holds
+    // a row per staff member, so the caller's own row has to be selected by
+    // auth_user_id in the query itself. Fetching one arbitrary row and picking
+    // through it afterwards returned whichever row Postgres happened to hand
+    // back - usually the owner's - so every gatekeeper resolved to no row at
+    // all and was routed to "finish setting up your business".
     const { data: auth } = await client.auth.getUser();
     const authId = auth.user?.id ?? null;
-    const mine =
-      (userRows as MerchantUserRow[]).find((r) => r.auth_user_id === authId) ?? null;
+    if (!authId) return null;
+
+    const { data: mine, error: userError } = await client
+      .from('merchant_users')
+      .select('*')
+      .eq('auth_user_id', authId)
+      .maybeSingle();
+    if (userError) throw userError;
     if (!mine) return null;
 
     const { data: merchantRow, error: merchantError } = await client
@@ -174,7 +177,7 @@ class AuthService {
     if (merchantError) throw merchantError;
 
     return {
-      user: toStaffMember(mine),
+      user: toStaffMember(mine as MerchantUserRow),
       merchant: toMerchant(merchantRow as MerchantRow),
     };
   }
