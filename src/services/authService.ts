@@ -15,6 +15,7 @@
 import { requireSupabase, supabase } from '../lib/supabase';
 import { toStaffMember, toMerchant } from './mappers';
 import { DEFAULT_TICKET_TYPES } from '../config/pricing';
+import { env } from '../config/env';
 import type { MerchantRow, MerchantUserRow } from '../types/db';
 import type { Merchant, StaffMember } from '../types';
 
@@ -45,9 +46,25 @@ class AuthService {
   }): Promise<void> {
     const client = requireSupabase();
 
+    const redirectUrl = env.publicWebUrl
+      ? `${env.publicWebUrl}/app`
+      : typeof window !== 'undefined'
+        ? `${window.location.origin}/app`
+        : undefined;
+
     const { data, error } = await client.auth.signUp({
       email: params.email.trim().toLowerCase(),
       password: params.password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: {
+          business_name: params.businessName.trim(),
+          owner_name: params.ownerName.trim(),
+          phone: params.phone.trim(),
+          location: params.location?.trim() ?? '',
+          upi_id: params.upiId?.trim() ?? '',
+        },
+      },
     });
     if (error) throw error;
 

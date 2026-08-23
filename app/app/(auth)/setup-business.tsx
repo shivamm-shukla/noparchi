@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, ScrollView } from 'react-native';
 import { Building2, AlertCircle } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
@@ -8,6 +8,7 @@ import { Card } from '../../../components/ui/Card';
 import { Field } from '../../../components/ui/Field';
 import { authService } from '../../../src/services/authService';
 import { useAuth } from '../../../src/context/AuthContext';
+import { supabase } from '../../../src/lib/supabase';
 
 /**
  * Recovery for a half-finished signup.
@@ -28,6 +29,22 @@ export default function SetupBusinessScreen() {
   const [upiId, setUpiId] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadMeta() {
+      if (!supabase) return;
+      const { data } = await supabase.auth.getUser();
+      const meta = data.user?.user_metadata;
+      if (meta) {
+        if (meta.business_name) setBusinessName(meta.business_name);
+        if (meta.owner_name) setOwnerName(meta.owner_name);
+        if (meta.phone) setPhone(meta.phone);
+        if (meta.location) setLocation(meta.location);
+        if (meta.upi_id) setUpiId(meta.upi_id);
+      }
+    }
+    loadMeta();
+  }, []);
 
   const submit = async () => {
     if (!businessName.trim() || !ownerName.trim()) {
