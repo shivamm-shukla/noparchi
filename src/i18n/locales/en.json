@@ -222,5 +222,53 @@
       "dismiss": "Dismiss",
       "autoClosing": "Closing in {{seconds}}s"
     }
+  },
+  "ledger": {
+    "title": "Ledger",
+    "subtitle": "Every pass, every rupee",
+    "blockedTitle": "Ledger is off for your account",
+    "search": "Search code, vehicle or payment reference",
+    "range": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "week": "This week",
+      "month": "This month",
+      "all": "All time"
+    },
+    "totals": {
+      "collected": "Collected",
+      "passes": "Passes",
+      "awaiting": "Awaiting payment"
+    },
+    "group": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "dayTotal": "{{count}} passes · {{amount}}"
+    },
+    "emptyTitle": "Nothing in this period",
+    "emptyBody": "Try a wider date range.",
+    "noMatchTitle": "No pass matches that",
+    "noMatchBody": "Check the code, or clear the search.",
+    "status": {
+      "unpaid": "Unpaid",
+      "exited": "Exited",
+      "timeOver": "Time over",
+      "inside": "Inside"
+    },
+    "row": {
+      "exitedAt": "exited {{time}}",
+      "until": "until {{time}}",
+      "expiredAt": "expired {{time}}",
+      "overstayCollected": "Overstay collected: {{amount}}",
+      "extensions": "+{{count}} extended",
+      "sendPass": "Send pass on WhatsApp"
+    },
+    "actions": {
+      "confirmPayment": "Payment received — make pass valid",
+      "extensionRequested": "Extension requested · {{amount}} for {{duration}}",
+      "confirmExtension": "Extension paid — extend to {{time}}",
+      "confirmFailed": "Could not confirm the payment.",
+      "extensionFailed": "Could not confirm the extension."
+    }
   }
 }

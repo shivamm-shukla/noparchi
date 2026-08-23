@@ -222,5 +222,53 @@
       "dismiss": "बंद करें",
       "autoClosing": "{{seconds}} सेकंड में बंद"
     }
+  },
+  "ledger": {
+    "title": "लेजर",
+    "subtitle": "हर पास, हर रुपया",
+    "blockedTitle": "आपके खाते पर लेजर बंद है",
+    "search": "कोड, गाड़ी या पेमेंट रेफरेंस खोजें",
+    "range": {
+      "today": "आज",
+      "yesterday": "कल",
+      "week": "इस हफ्ते",
+      "month": "इस महीने",
+      "all": "सभी"
+    },
+    "totals": {
+      "collected": "जमा हुआ",
+      "passes": "पास",
+      "awaiting": "पेमेंट बाकी"
+    },
+    "group": {
+      "today": "आज",
+      "yesterday": "कल",
+      "dayTotal": "{{count}} पास · {{amount}}"
+    },
+    "emptyTitle": "इस अवधि में कुछ नहीं",
+    "emptyBody": "बड़ी अवधि चुनकर देखें।",
+    "noMatchTitle": "इससे मिलता कोई पास नहीं",
+    "noMatchBody": "कोड जांचें, या खोज हटा दें।",
+    "status": {
+      "unpaid": "पेमेंट बाकी",
+      "exited": "बाहर गए",
+      "timeOver": "समय खत्म",
+      "inside": "अंदर"
+    },
+    "row": {
+      "exitedAt": "{{time}} बाहर गए",
+      "until": "{{time}} तक",
+      "expiredAt": "{{time}} खत्म हुआ",
+      "overstayCollected": "ओवरस्टे लिया गया: {{amount}}",
+      "extensions": "+{{count}} बढ़ाया",
+      "sendPass": "WhatsApp पर पास भेजें"
+    },
+    "actions": {
+      "confirmPayment": "पेमेंट मिल गया — पास चालू करें",
+      "extensionRequested": "समय बढ़ाने की मांग · {{duration}} के लिए {{amount}}",
+      "confirmExtension": "पेमेंट मिला — {{time}} तक बढ़ाएं",
+      "confirmFailed": "पेमेंट कन्फर्म नहीं हो सका।",
+      "extensionFailed": "एक्सटेंशन कन्फर्म नहीं हो सका।"
+    }
   }
 }

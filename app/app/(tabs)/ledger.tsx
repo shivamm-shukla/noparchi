@@ -1,6 +1,18 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, RefreshControl } from 'react-native';
-import { Search, BookOpen, ShieldCheck, Car, MessageSquare, CheckCircle2, AlertTriangle, TimerReset, Clock } from 'lucide-react-native';
+import { View, ScrollView, TextInput, Pressable, RefreshControl } from 'react-native';
+import {
+  Search,
+  BookOpen,
+  ShieldCheck,
+  Car,
+  MessageSquare,
+  CheckCircle2,
+  AlertTriangle,
+  TimerReset,
+  Clock,
+  X,
+} from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { useThemeColors } from '../../../src/context/ThemeContext';
 import { useAuth } from '../../../src/context/AuthContext';
 import { useApp } from '../../../src/context/AppContext';
@@ -8,16 +20,35 @@ import { TopBar } from '../../../components/nav/TopBar';
 import { Card } from '../../../components/ui/Card';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
+import { Text } from '../../../components/ui/Text';
+import { Row } from '../../../components/ui/Row';
+import { StatCard } from '../../../components/ui/StatCard';
 import { DateFilter } from '../../../components/ui/DateFilter';
 import { RoleGate } from '../../../components/ui/RoleGate';
 import { PassDeliveryModal } from '../../../components/ui/PassDeliveryModal';
 import { transactionService } from '../../../src/services/transactionService';
-import { formatCurrency, formatDateTime } from '../../../src/utils/formatters';
+import {
+  formatCurrency,
+  formatDate,
+  formatDateTime,
+  formatTime,
+  dayKey,
+  daysAgo,
+} from '../../../src/utils/formatters';
 import { formatDuration } from '../../../src/config/pricing';
 import type { Transaction } from '../../../src/types';
 
+interface DayGroup {
+  key: string;
+  /** Already translated: "Today", "Yesterday", or a formatted date. */
+  label: string;
+  rows: Transaction[];
+  collected: number;
+}
+
 export default function LedgerScreen() {
   const colors = useThemeColors();
+  const { t } = useTranslation();
   const { merchant, can } = useAuth();
   const { transactions, range, setRange, isRefreshing, refresh, applyOptimistic } = useApp();
 
@@ -38,6 +69,44 @@ export default function LedgerScreen() {
         tx.ticketTypeLabel.toLowerCase().includes(q)
     );
   }, [transactions, query]);
+
+  /**
+   * Rows grouped by the day they were issued, newest first.
+   *
+   * A flat list of forty rows makes an owner count backwards to work out where
+   * yesterday ended. The header carries that day's own total, which is the
+   * number they were scrolling to find.
+   */
+  const groups = useMemo<DayGroup[]>(() => {
+    const byDay = new Map<string, DayGroup>();
+
+    for (const tx of filtered) {
+      const key = dayKey(tx.createdAt);
+      let group = byDay.get(key);
+      if (!group) {
+        const age = daysAgo(tx.createdAt);
+        group = {
+          key,
+          label:
+            age === 0
+              ? t('ledger.group.today')
+              : age === 1
+                ? t('ledger.group.yesterday')
+                : formatDate(tx.createdAt),
+          rows: [],
+          collected: 0,
+        };
+        byDay.set(key, group);
+      }
+      group.rows.push(tx);
+      if (tx.status === 'paid') group.collected += tx.amount;
+    }
+
+    return [...byDay.values()].sort(
+      (a, b) =>
+        new Date(b.rows[0].createdAt).getTime() - new Date(a.rows[0].createdAt).getTime()
+    );
+  }, [filtered, t]);
 
   const totals = useMemo(() => {
     const paid = filtered.filter((tx) => tx.status === 'paid');
@@ -69,7 +138,7 @@ export default function LedgerScreen() {
       await transactionService.confirmPayment(tx.ticketCode);
       await refresh({ silent: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not confirm the payment.');
+      setError(err instanceof Error ? err.message : t('ledger.actions.confirmFailed'));
       await refresh({ silent: true });
     } finally {
       setConfirmingCode(null);
@@ -88,22 +157,23 @@ export default function LedgerScreen() {
       await transactionService.confirmExtension(tx.ticketCode);
       await refresh({ silent: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not confirm the extension.');
+      setError(err instanceof Error ? err.message : t('ledger.actions.extensionFailed'));
     } finally {
       setExtendingCode(null);
     }
   };
 
   if (!merchant) return null;
+  const searching = query.trim().length > 0;
 
   return (
     <View className="flex-1 bg-brand-bg">
-      <TopBar title="Ledger" subtitle="Every pass, every rupee" />
+      <TopBar title={t('ledger.title')} subtitle={t('ledger.subtitle')} />
 
-      <RoleGate permission="can_view_ledger" title="Ledger is off for your account">
+      <RoleGate permission="can_view_ledger" title={t('ledger.blockedTitle')}>
         <ScrollView
           className="flex-1"
-          contentContainerStyle={{ paddingBottom: 40 }}
+          contentContainerStyle={{ paddingBottom: 32 }}
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
@@ -113,58 +183,99 @@ export default function LedgerScreen() {
             />
           }
         >
-          <View className="max-w-5xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-5">
+          <View className="mx-auto w-full max-w-4xl gap-4 px-4 py-5 sm:px-6 lg:px-8">
             <DateFilter selected={range} onSelect={setRange} />
 
-            <View className="flex-row items-center gap-2 bg-brand-surface border border-brand-border rounded-2xl px-4 py-2.5 my-4">
+            <View className="flex-row items-center gap-2 rounded-control border border-brand-border bg-brand-surface px-3.5 py-2.5">
               <Search size={16} color={colors['text-muted']} />
               <TextInput
                 value={query}
                 onChangeText={setQuery}
-                placeholder="Search code, vehicle or payment reference"
+                placeholder={t('ledger.search')}
                 placeholderTextColor={colors['text-faint']}
-                className="flex-1 text-brand-text text-sm"
+                accessibilityLabel={t('ledger.search')}
+                className="flex-1 text-sm text-brand-text"
               />
+              {searching ? (
+                <Pressable
+                  onPress={() => setQuery('')}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('common.close')}
+                  className="p-1 active:opacity-60"
+                >
+                  <X size={14} color={colors['text-muted']} />
+                </Pressable>
+              ) : null}
             </View>
 
-            <View className="flex-row flex-wrap gap-3 mb-5">
-              <SummaryTile label="Collected" value={formatCurrency(totals.collected, merchant.currency)} accent />
-              <SummaryTile label="Passes" value={String(totals.count)} />
-              <SummaryTile label="Awaiting payment" value={String(totals.awaiting)} warn={totals.awaiting > 0} />
+            <View className="flex-row flex-wrap gap-3">
+              <StatCard
+                label={t('ledger.totals.collected')}
+                value={formatCurrency(totals.collected, merchant.currency)}
+              />
+              <StatCard label={t('ledger.totals.passes')} value={String(totals.count)} />
+              <StatCard label={t('ledger.totals.awaiting')} value={String(totals.awaiting)} />
             </View>
 
             {error && (
-              <Card className="mb-4 border-brand-danger/40 bg-brand-danger/5">
-                <Text className="text-xs text-brand-danger leading-4">{error}</Text>
+              <Card className="border-brand-danger/40">
+                <Text font="body" className="text-xs leading-5 text-brand-danger">
+                  {error}
+                </Text>
               </Card>
             )}
 
-            {filtered.length === 0 ? (
-              <Card className="items-center py-12">
-                <BookOpen size={34} color={colors['text-faint']} />
-                <Text className="text-sm font-semibold text-brand-text-muted mt-3">
-                  Nothing in this period
+            {groups.length === 0 ? (
+              <Card className="items-center gap-1.5 py-12">
+                <BookOpen size={30} color={colors['text-faint']} />
+                <Text font="body-semibold" className="mt-1 text-sm text-brand-text-subtle">
+                  {t(searching ? 'ledger.noMatchTitle' : 'ledger.emptyTitle')}
                 </Text>
-                <Text className="text-xs text-brand-text-faint mt-1 text-center">
-                  Try a wider date range.
+                <Text font="body" className="text-center text-xs text-brand-text-muted">
+                  {t(searching ? 'ledger.noMatchBody' : 'ledger.emptyBody')}
                 </Text>
               </Card>
             ) : (
-              <View className="gap-3">
-                {filtered.map((tx) => (
-                  <LedgerRow
-                    key={tx.id}
-                    transaction={tx}
-                    currency={merchant.currency}
-                    canConfirm={can('can_issue_passes')}
-                    confirming={confirmingCode === tx.ticketCode}
-                    extending={extendingCode === tx.ticketCode}
-                    onConfirm={() => confirmPayment(tx)}
-                    onConfirmExtension={() => confirmExtension(tx)}
-                    onDeliver={() => setDeliverFor(tx)}
-                  />
-                ))}
-              </View>
+              groups.map((group) => (
+                <View key={group.key} className="gap-2">
+                  {/*
+                    A sticky-feeling date header, the way Mail and Messages
+                    break a long list. The day's own total sits opposite it -
+                    that is the figure someone scrolling to yesterday came for.
+                  */}
+                  <View className="flex-row items-baseline justify-between gap-3 px-1">
+                    <Text
+                      font="display-bold"
+                      className="text-[13px] uppercase tracking-wider text-brand-text-subtle"
+                    >
+                      {group.label}
+                    </Text>
+                    <Text font="body-medium" className="text-[11px] text-brand-text-muted">
+                      {t('ledger.group.dayTotal', {
+                        count: group.rows.length,
+                        amount: formatCurrency(group.collected, merchant.currency),
+                      })}
+                    </Text>
+                  </View>
+
+                  <Card className="py-0">
+                    {group.rows.map((tx, index) => (
+                      <LedgerRow
+                        key={tx.id}
+                        transaction={tx}
+                        currency={merchant.currency}
+                        divider={index < group.rows.length - 1}
+                        canConfirm={can('can_issue_passes')}
+                        confirming={confirmingCode === tx.ticketCode}
+                        extending={extendingCode === tx.ticketCode}
+                        onConfirm={() => confirmPayment(tx)}
+                        onConfirmExtension={() => confirmExtension(tx)}
+                        onDeliver={() => setDeliverFor(tx)}
+                      />
+                    ))}
+                  </Card>
+                </View>
+              ))
             )}
           </View>
         </ScrollView>
@@ -180,37 +291,10 @@ export default function LedgerScreen() {
   );
 }
 
-const SummaryTile: React.FC<{ label: string; value: string; accent?: boolean; warn?: boolean }> = ({
-  label,
-  value,
-  accent,
-  warn,
-}) => (
-  <View
-    className={`flex-1 min-w-[130px] rounded-2xl border p-3.5 ${
-      accent
-        ? 'bg-brand-accent/10 border-brand-accent/30'
-        : warn
-          ? 'bg-brand-warning/10 border-brand-warning/30'
-          : 'bg-brand-surface border-brand-border'
-    }`}
-  >
-    <Text className="text-[11px] text-brand-text-muted uppercase font-semibold tracking-wider">
-      {label}
-    </Text>
-    <Text
-      className={`text-xl font-extrabold mt-1 ${
-        accent ? 'text-brand-accent' : warn ? 'text-brand-warning' : 'text-brand-text'
-      }`}
-    >
-      {value}
-    </Text>
-  </View>
-);
-
 const LedgerRow: React.FC<{
   transaction: Transaction;
   currency: string;
+  divider: boolean;
   canConfirm: boolean;
   confirming: boolean;
   extending: boolean;
@@ -220,6 +304,7 @@ const LedgerRow: React.FC<{
 }> = ({
   transaction,
   currency,
+  divider,
   canConfirm,
   confirming,
   extending,
@@ -228,6 +313,8 @@ const LedgerRow: React.FC<{
   onDeliver,
 }) => {
   const colors = useThemeColors();
+  const { t } = useTranslation();
+
   const exited = Boolean(transaction.validation);
   const pending = transaction.status === 'pending';
   const expired =
@@ -236,80 +323,106 @@ const LedgerRow: React.FC<{
     Boolean(transaction.expiresAt) &&
     new Date(transaction.expiresAt!).getTime() < Date.now();
   const extension = transaction.pendingExtension;
+  const hasAction = (pending || Boolean(extension)) && canConfirm;
+
+  const timing = transaction.validation
+    ? t('ledger.row.exitedAt', { time: formatTime(transaction.validation.scannedAt) })
+    : transaction.expiresAt
+      ? t(expired ? 'ledger.row.expiredAt' : 'ledger.row.until', {
+          time: formatTime(transaction.expiresAt),
+        })
+      : null;
 
   return (
-    <Card className="p-3.5">
-      <View className="flex-row items-start justify-between gap-3">
-        <View className="flex-row items-start gap-3 flex-1 min-w-0">
-          <View
-            className={`w-9 h-9 rounded-xl items-center justify-center shrink-0 border ${
-              pending
-                ? 'bg-brand-warning/10 border-brand-warning/30'
-                : exited
-                  ? 'bg-brand-accent/10 border-brand-accent/30'
-                  : 'bg-brand-info/10 border-brand-info/30'
-            }`}
-          >
-            {pending ? (
-              <AlertTriangle size={17} color={colors['warning']} />
-            ) : exited ? (
-              <ShieldCheck size={17} color={colors['accent']} />
-            ) : (
-              <Car size={17} color={colors['info']} />
-            )}
-          </View>
+    <View>
+      <Row divider={divider && !hasAction}>
+        <View
+          className={`h-9 w-9 shrink-0 items-center justify-center rounded-control border ${
+            pending
+              ? 'border-brand-warning/30 bg-brand-warning/10'
+              : exited
+                ? 'border-brand-accent/30 bg-brand-accent/10'
+                : 'border-brand-border bg-brand-surface-alt'
+          }`}
+        >
+          {pending ? (
+            <AlertTriangle size={16} color={colors['warning']} />
+          ) : exited ? (
+            <ShieldCheck size={16} color={colors['accent']} />
+          ) : (
+            <Car size={16} color={colors['text-muted']} />
+          )}
+        </View>
 
-          <View className="flex-1 min-w-0">
-            <View className="flex-row items-center flex-wrap gap-2">
-              <Text className="text-sm font-bold text-brand-text uppercase">
-                {transaction.vehicleNumber || transaction.ticketTypeLabel}
-              </Text>
+        <View className="min-w-0 flex-1 gap-0.5">
+          <View className="flex-row flex-wrap items-center gap-2">
+            <Text
+              font="body-semibold"
+              numberOfLines={1}
+              className="text-[13px] uppercase tracking-wide text-brand-text"
+            >
+              {transaction.vehicleNumber || transaction.ticketTypeLabel}
+            </Text>
+            <Badge
+              label={t(
+                pending
+                  ? 'ledger.status.unpaid'
+                  : exited
+                    ? 'ledger.status.exited'
+                    : expired
+                      ? 'ledger.status.timeOver'
+                      : 'ledger.status.inside'
+              )}
+              variant={pending ? 'warning' : exited ? 'success' : expired ? 'danger' : 'info'}
+              size="sm"
+            />
+            {transaction.extensionCount > 0 && (
               <Badge
-                label={pending ? 'Unpaid' : exited ? 'Exited' : expired ? 'Time over' : 'Inside'}
-                variant={pending ? 'warning' : exited ? 'success' : expired ? 'danger' : 'info'}
+                label={t('ledger.row.extensions', { count: transaction.extensionCount })}
+                variant="neutral"
                 size="sm"
               />
-              {transaction.extensionCount > 0 && (
-                <Badge label={`+${transaction.extensionCount}`} variant="neutral" size="sm" />
-              )}
-            </View>
-            <Text className="text-[11px] font-mono text-brand-text-muted mt-0.5">
-              {transaction.ticketCode}
-            </Text>
-            <Text className="text-[11px] text-brand-text-faint mt-0.5">
-              {formatDateTime(transaction.createdAt)}
-              {transaction.validation
-                ? ` · exited ${formatDateTime(transaction.validation.scannedAt)}`
-                : transaction.expiresAt
-                  ? ` · ${expired ? 'expired' : 'until'} ${formatDateTime(transaction.expiresAt)}`
-                  : ''}
-            </Text>
-            {transaction.overstayAmount > 0 && (
-              <Text className="text-[11px] text-brand-warning mt-0.5">
-                Overstay collected: {formatCurrency(transaction.overstayAmount, currency)}
-              </Text>
             )}
           </View>
+
+          <Text font="body" numberOfLines={1} className="text-[11px] text-brand-text-muted">
+            {transaction.ticketCode} · {formatDateTime(transaction.createdAt)}
+            {timing ? ` · ${timing}` : ''}
+          </Text>
+
+          {transaction.overstayAmount > 0 && (
+            <Text font="body-medium" className="text-[11px] text-brand-warning">
+              {t('ledger.row.overstayCollected', {
+                amount: formatCurrency(transaction.overstayAmount, currency),
+              })}
+            </Text>
+          )}
         </View>
 
-        <View className="items-end shrink-0 gap-2">
-          <Text className="text-base font-extrabold text-brand-accent">
+        {/*
+          The amount is the most prominent thing in the row, in the display
+          face - but in the text colour. Every row carrying an accent-green
+          figure is how the accent stopped meaning anything.
+        */}
+        <View className="shrink-0 items-end gap-1.5">
+          <Text font="display-bold" className="text-[15px] text-brand-text">
             {formatCurrency(transaction.amount, currency)}
           </Text>
-          <TouchableOpacity
+          <Pressable
             onPress={onDeliver}
-            accessibilityLabel="Send pass on WhatsApp"
-            className="p-1.5 rounded-lg bg-brand-surface-raised active:bg-brand-surface-raised"
+            accessibilityRole="button"
+            accessibilityLabel={t('ledger.row.sendPass')}
+            className="rounded-control border border-brand-border bg-brand-surface-alt p-1.5 active:opacity-60"
           >
-            <MessageSquare size={14} color={colors['accent-soft']} />
-          </TouchableOpacity>
+            <MessageSquare size={13} color={colors['text-subtle']} />
+          </Pressable>
         </View>
-      </View>
+      </Row>
 
       {pending && canConfirm && (
-        <View className="mt-3 pt-3 border-t border-brand-border">
+        <View className={`pb-3 ${divider ? 'border-b border-brand-border' : ''}`}>
           <Button
-            title="Payment received — make pass valid"
+            title={t('ledger.actions.confirmPayment')}
             variant="secondary"
             size="sm"
             fullWidth
@@ -323,16 +436,20 @@ const LedgerRow: React.FC<{
       {/* The customer asked for more time and paid; a person still has to say
           the money arrived before the clock moves. */}
       {extension && canConfirm && (
-        <View className="mt-3 pt-3 border-t border-brand-border">
-          <View className="flex-row items-center gap-1.5 mb-2">
+        <View className={`gap-2 pb-3 ${divider ? 'border-b border-brand-border' : ''}`}>
+          <View className="flex-row items-center gap-1.5">
             <Clock size={12} color={colors['warning']} />
-            <Text className="text-[11px] text-brand-warning font-semibold">
-              Extension requested · {formatCurrency(extension.amount, currency)} for{' '}
-              {formatDuration(extension.minutes)}
+            <Text font="body-semibold" className="text-[11px] text-brand-warning">
+              {t('ledger.actions.extensionRequested', {
+                amount: formatCurrency(extension.amount, currency),
+                duration: formatDuration(extension.minutes),
+              })}
             </Text>
           </View>
           <Button
-            title={`Extension paid — extend to ${formatDateTime(extension.extendsTo)}`}
+            title={t('ledger.actions.confirmExtension', {
+              time: formatDateTime(extension.extendsTo),
+            })}
             variant="secondary"
             size="sm"
             fullWidth
@@ -342,6 +459,6 @@ const LedgerRow: React.FC<{
           />
         </View>
       )}
-    </Card>
+    </View>
   );
 };

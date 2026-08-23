@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Pressable, ScrollView } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { Text } from './Text';
 import type { DateRangeKey } from '../../src/types';
 
@@ -8,47 +9,45 @@ interface DateFilterProps {
   onSelect: (range: DateRangeKey) => void;
 }
 
-const FILTER_OPTIONS: { id: DateRangeKey; label: string }[] = [
-  { id: 'today', label: 'Today' },
-  { id: 'yesterday', label: 'Yesterday' },
-  { id: 'week', label: 'This Week' },
-  { id: 'month', label: 'This Month' },
-  { id: 'all', label: 'All Time' },
-];
+/** Keys only. The labels are translated at render, not baked in here. */
+const RANGES: DateRangeKey[] = ['today', 'yesterday', 'week', 'month', 'all'];
 
 export const DateFilter: React.FC<DateFilterProps> = ({ selected, onSelect }) => {
+  const { t } = useTranslation();
+
   return (
-    <View className="my-2">
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ gap: 8, paddingHorizontal: 2 }}
-      >
-        {FILTER_OPTIONS.map((item) => {
-          const isActive = selected === item.id;
-          return (
-            <TouchableOpacity
-              key={item.id}
-              onPress={() => onSelect(item.id)}
-              activeOpacity={0.7}
-              className={`px-3.5 py-1.5 rounded-full border ${
-                isActive
-                  ? 'bg-brand-accent border-brand-accent'
-                  : 'bg-brand-surface border-brand-border active:bg-brand-surface-raised'
-              }`}
-            >
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ gap: 8, paddingHorizontal: 2 }}
+      accessibilityRole="radiogroup"
+    >
+      {RANGES.map((range) => {
+        const active = selected === range;
+        return (
+          <Pressable
+            key={range}
+            onPress={() => onSelect(range)}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: active }}
+            accessibilityLabel={t(`ledger.range.${range}`)}
+            className={`rounded-full border px-3.5 py-1.5 ${
+              active
+                ? 'border-brand-accent bg-brand-accent'
+                : 'border-brand-border bg-brand-surface active:bg-brand-surface-alt'
+            }`}
+          >
+            <View>
               <Text
-                font={isActive ? 'body-bold' : 'body-medium'}
-                className={`text-xs ${
-                  isActive ? 'text-brand-on-accent' : 'text-brand-text-muted'
-                }`}
+                font={active ? 'body-bold' : 'body-medium'}
+                className={`text-xs ${active ? 'text-brand-on-accent' : 'text-brand-text-muted'}`}
               >
-                {item.label}
+                {t(`ledger.range.${range}`)}
               </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
-    </View>
+            </View>
+          </Pressable>
+        );
+      })}
+    </ScrollView>
   );
 };
