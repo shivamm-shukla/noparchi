@@ -25,12 +25,15 @@
     },
     "android": {
       "package": "com.noparchi.app",
+      "versionCode": 1,
+      "allowBackup": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/noparchi-app-icon.png",
         "backgroundColor": "#F8FAFC"
       },
       "permissions": [
-        "CAMERA"
+        "CAMERA",
+        "android.permission.CAMERA"
       ]
     },
     "web": {
@@ -52,6 +55,14 @@
     "experiments": {
       "typedRoutes": true,
       "tsconfigPaths": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "e8ce14b7-1279-4464-9e69-883f7d4d84e9"
+      }
     }
   }
 }

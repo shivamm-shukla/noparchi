@@ -8,12 +8,23 @@
     },
     "preview": {
       "distribution": "internal",
-      "android": { "buildType": "apk" },
+      "android": {
+        "buildType": "apk"
+      },
       "ios": { "simulator": true }
+    },
+    "indus-store": {
+      "autoIncrement": true,
+      "distribution": "internal",
+      "android": {
+        "buildType": "app-bundle"
+      }
     },
     "production": {
       "autoIncrement": true,
-      "android": { "buildType": "app-bundle" }
+      "android": {
+        "buildType": "app-bundle"
+      }
     }
   },
   "submit": { "production": {} }

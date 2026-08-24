@@ -8,22 +8,11 @@ import { Button } from '../../../components/ui/Button';
 import { Card } from '../../../components/ui/Card';
 import { Logo } from '../../../components/ui/Logo';
 import { Field } from '../../../components/ui/Field';
+import { GoogleIcon } from '../../../components/ui/GoogleIcon';
 import { authService, type StaffAccountChoice } from '../../../src/services/authService';
 
 type Mode = 'owner' | 'staff';
 
-/**
- * Two ways in, because the two users are genuinely different.
- *
- * An owner signs in with an email and password on their own phone. A gatekeeper
- * signs in with a phone number and a short PIN, often on a device shared across
- * a shift, standing at a gate. Forcing either into the other's flow makes the
- * product unusable for them.
- *
- * Both end in a real Supabase session. That is the point: every permission
- * check in the database resolves from the JWT, so an identity that exists only
- * in app state - as the previous build's did - protects nothing.
- */
 export default function SignInScreen() {
   const colors = useThemeColors();
   const { t } = useTranslation();
@@ -44,6 +33,18 @@ export default function SignInScreen() {
     try {
       await authService.signInOwner(email, password);
       // The auth state listener in AuthContext routes onward.
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('auth.signInFailed'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitGoogle = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await authService.signInWithGoogle();
     } catch (err) {
       setError(err instanceof Error ? err.message : t('auth.signInFailed'));
     } finally {
@@ -128,6 +129,22 @@ export default function SignInScreen() {
                   fullWidth
                   loading={busy}
                   onPress={submitOwner}
+                />
+
+                <View className="flex-row items-center my-3.5">
+                  <View className="flex-1 h-px bg-brand-border" />
+                  <Text className="px-3 text-[10px] font-bold uppercase tracking-wider text-brand-text-muted">{t('auth.orDivider')}</Text>
+                  <View className="flex-1 h-px bg-brand-border" />
+                </View>
+
+                <Button
+                  title={t('auth.googleSignIn')}
+                  variant="secondary"
+                  size="lg"
+                  fullWidth
+                  disabled={busy}
+                  icon={<GoogleIcon size={18} />}
+                  onPress={submitGoogle}
                 />
 
                 <View className="flex-row items-center justify-center gap-1.5 mt-4">

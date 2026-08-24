@@ -7,6 +7,7 @@ import { useThemeColors } from '../../../src/context/ThemeContext';
 import { Button } from '../../../components/ui/Button';
 import { Card } from '../../../components/ui/Card';
 import { Field } from '../../../components/ui/Field';
+import { GoogleIcon } from '../../../components/ui/GoogleIcon';
 import { authService } from '../../../src/services/authService';
 
 /**
@@ -29,6 +30,18 @@ export default function SignUpScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmEmailNotice, setConfirmEmailNotice] = useState(false);
+
+  const submitGoogle = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await authService.signInWithGoogle();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('auth.signUpFailed'));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const submit = async () => {
     if (!businessName.trim() || !ownerName.trim() || !email.trim() || !password) {
@@ -204,6 +217,33 @@ export default function SignUpScreen() {
               loading={busy}
               onPress={submit}
             />
+
+            <View className="flex-row items-center my-3.5">
+              <View className="flex-1 h-px bg-brand-border" />
+              <Text className="px-3 text-[10px] font-bold uppercase tracking-wider text-brand-text-muted">{t('auth.orDivider')}</Text>
+              <View className="flex-1 h-px bg-brand-border" />
+            </View>
+
+            <Button
+              title={t('auth.googleSignIn')}
+              variant="secondary"
+              size="lg"
+              fullWidth
+              disabled={busy}
+              icon={<GoogleIcon size={18} />}
+              onPress={submitGoogle}
+            />
+
+            <View className="flex-row items-center justify-center gap-1.5 mt-4">
+              <Text className="text-xs text-brand-text-muted">{t('auth.alreadyHaveAccount')}</Text>
+              <Link href="/app/sign-in" asChild>
+                <TouchableOpacity>
+                  <Text className="text-xs font-bold text-brand-accent">
+                    {t('auth.signIn')}
+                  </Text>
+                </TouchableOpacity>
+              </Link>
+            </View>
           </Card>
         </View>
       </ScrollView>

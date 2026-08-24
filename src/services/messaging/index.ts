@@ -7,11 +7,13 @@
 import { DEFAULT_MESSAGING_PROVIDER, type MessagingProviderId } from '../../config/providers';
 import { waDeepLinkProvider } from './waDeepLinkProvider';
 import { metaCloudProvider } from './metaCloudProvider';
+import { evolutionApiProvider } from './evolutionApiProvider';
 import type { MessagingProvider } from './types';
 
 const registry: Record<MessagingProviderId, MessagingProvider> = {
   wa_deeplink: waDeepLinkProvider,
   meta_cloud: metaCloudProvider,
+  evolution_api: evolutionApiProvider,
 };
 
 export function messagingProvider(id?: string | null): MessagingProvider {

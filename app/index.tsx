@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, ScrollView } from 'react-native';
+import { View, ScrollView, Platform } from 'react-native';
+import { Redirect } from 'expo-router';
 import { LandingNav } from '../components/landing/LandingNav';
 import { MobileAppBanner } from '../components/landing/MobileAppBanner';
 import { Hero } from '../components/landing/Hero';
@@ -8,18 +9,17 @@ import { Features, HowItWorks, UseCases } from '../components/landing/Sections';
 import { CtaBand, SiteFooter } from '../components/landing/Closing';
 
 /**
- * The marketing site, at the root.
+ * The marketing site, at the root on web.
  *
- * A stranger who hears about NoParchi lands here; the merchant app lives under
- * /app and the two customer pages - /pay/<merchantId> and /ticket/<code> - are
- * unchanged, because those are printed on QR codes and cannot move.
- *
- * Built out of the same components and tokens as the app rather than kept as a
- * separate HTML file, so the two cannot drift: change the accent in
- * src/config/theme.js and the marketing site changes with the product. It also
- * means the page inherits the theme and language controls for free.
+ * On native mobile (Android APK / iOS), users opening the app should directly
+ * enter the merchant / gatekeeper app flow (/app) rather than seeing the
+ * marketing website.
  */
 export default function LandingScreen() {
+  if (Platform.OS !== 'web') {
+    return <Redirect href="/app" />;
+  }
+
   return (
     <View className="flex-1 bg-brand-bg">
       <LandingNav />

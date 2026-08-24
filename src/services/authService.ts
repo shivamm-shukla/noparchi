@@ -86,6 +86,23 @@ class AuthService {
     if (error) throw error;
   }
 
+  async signInWithGoogle(): Promise<void> {
+    const client = requireSupabase();
+    const redirectUrl = env.publicWebUrl
+      ? `${env.publicWebUrl}/app`
+      : typeof window !== 'undefined'
+        ? `${window.location.origin}/app`
+        : undefined;
+
+    const { error } = await client.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: redirectUrl,
+      },
+    });
+    if (error) throw error;
+  }
+
   /**
    * Create the tenant for the currently signed-in auth user.
    *

@@ -24,7 +24,10 @@ export type MessagingProviderId =
   | 'wa_deeplink'
   /** Meta WhatsApp Cloud API. Free service-conversation tier, cheap utility
    *  templates, but requires an approved template and a dedicated number. */
-  | 'meta_cloud';
+  | 'meta_cloud'
+  /** Evolution API. Open-source self-hosted WhatsApp Web API. Free automated
+   *  ticket & QR message delivery via connected WhatsApp instance. */
+  | 'evolution_api';
 
 export const PAYMENT_PROVIDERS: Record<PaymentProviderId, { label: string; note: string }> = {
   upi_intent: {
@@ -42,9 +45,13 @@ export const MESSAGING_PROVIDERS: Record<MessagingProviderId, { label: string; n
     label: 'WhatsApp Share Link',
     note: 'Free. Opens the customer WhatsApp with their pass prefilled. No automated delivery.',
   },
+  evolution_api: {
+    label: 'Evolution API (Free Auto-Send)',
+    note: '100% Free self-hosted WhatsApp gateway. Scan QR with your WhatsApp to automatically deliver passes without Meta conversation fees.',
+  },
   meta_cloud: {
     label: 'WhatsApp Cloud API',
-    note: 'Automated delivery. Needs a Meta Business account and an approved message template.',
+    note: 'Automated delivery via Meta. Needs a Meta Business account and an approved message template.',
   },
 };
 
