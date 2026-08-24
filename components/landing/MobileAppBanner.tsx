@@ -166,7 +166,7 @@ export const MobileAppBanner: React.FC = () => {
             </View>
             <View className="rounded-md bg-brand-on-accent/20 px-2 py-0.5">
               <Text font="display-bold" className="text-[11px] text-brand-on-accent">
-                .APK
+                .APK (~12 MB)
               </Text>
             </View>
           </Pressable>
