@@ -35,7 +35,7 @@ const supabaseUrl = clean(process.env.EXPO_PUBLIC_SUPABASE_URL);
 const supabaseAnonKey = clean(process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY);
 const apkDownloadUrl =
   clean(process.env.EXPO_PUBLIC_APK_DOWNLOAD_URL) ||
-  'https://expo.dev/artifacts/eas/aXZjnKtGjZXI9t_SGlLQpl1m5DvFAM8FNUPhWDDVZE4.apk';
+  'https://expo.dev/artifacts/eas/TZ8mr_zQ_5Mgz5-isFD8Ygm3VxCMxcE3E1-j-fCZbzw.apk';
 const indusStoreUrl = clean(process.env.EXPO_PUBLIC_INDUS_STORE_URL) || 'https://www.indusappstore.com';
 
 /**
