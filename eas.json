@@ -11,6 +11,9 @@
       "android": {
         "buildType": "apk"
       },
+      "env": {
+        "REACT_NATIVE_ARCHITECTURES": "arm64-v8a"
+      },
       "ios": { "simulator": true }
     },
     "indus-store": {
