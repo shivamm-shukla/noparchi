@@ -22,7 +22,6 @@ import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { Text } from '../../../components/ui/Text';
 import { Row } from '../../../components/ui/Row';
-import { StatCard } from '../../../components/ui/StatCard';
 import { DateFilter } from '../../../components/ui/DateFilter';
 import { RoleGate } from '../../../components/ui/RoleGate';
 import { PassDeliveryModal } from '../../../components/ui/PassDeliveryModal';
@@ -208,14 +207,11 @@ export default function LedgerScreen() {
               ) : null}
             </View>
 
-            <View className="flex-row flex-wrap gap-3">
-              <StatCard
-                label={t('ledger.totals.collected')}
-                value={formatCurrency(totals.collected, merchant.currency)}
-              />
-              <StatCard label={t('ledger.totals.passes')} value={String(totals.count)} />
-              <StatCard label={t('ledger.totals.awaiting')} value={String(totals.awaiting)} />
-            </View>
+            <RangeTotals
+              collected={formatCurrency(totals.collected, merchant.currency)}
+              passes={String(totals.count)}
+              awaiting={totals.awaiting}
+            />
 
             {error && (
               <Card className="border-brand-danger/40">
@@ -460,5 +456,68 @@ const LedgerRow: React.FC<{
         </View>
       )}
     </View>
+  );
+};
+
+/**
+ * The three figures for whatever range is selected, as one card.
+ *
+ * They were three separate StatCards in a wrapping row, and on a phone that is
+ * 150pt minimum apiece against 358pt of usable width: two sat side by side and
+ * the third dropped onto a full-width line of its own, which read as a fourth
+ * section rather than the last third of a summary. One card with three columns
+ * sizes itself to the phone instead of fighting it, and says plainly that these
+ * are three views of the same set of rows.
+ *
+ * Amounts owed are the only figure here that is ever a problem, so it is the
+ * only one that takes a colour - and only while it is non-zero.
+ */
+const RangeTotals: React.FC<{ collected: string; passes: string; awaiting: number }> = ({
+  collected,
+  passes,
+  awaiting,
+}) => {
+  const { t } = useTranslation();
+
+  const columns = [
+    { key: 'collected', label: t('ledger.totals.collected'), value: collected, warn: false },
+    { key: 'passes', label: t('ledger.totals.passes'), value: passes, warn: false },
+    {
+      key: 'awaiting',
+      label: t('ledger.totals.awaiting'),
+      value: String(awaiting),
+      warn: awaiting > 0,
+    },
+  ];
+
+  return (
+    <Card className="flex-row p-0">
+      {columns.map((column, index) => (
+        <View
+          key={column.key}
+          className={`min-w-0 flex-1 gap-1 px-3 py-3.5 sm:px-4 ${
+            index > 0 ? 'border-l border-brand-border' : ''
+          }`}
+        >
+          <Text
+            font="body-medium"
+            numberOfLines={1}
+            className="text-[10px] uppercase tracking-wider text-brand-text-muted sm:text-[11px]"
+          >
+            {column.label}
+          </Text>
+          <Text
+            font="display-extrabold"
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            className={`text-xl sm:text-2xl ${
+              column.warn ? 'text-brand-warning' : 'text-brand-text'
+            }`}
+          >
+            {column.value}
+          </Text>
+        </View>
+      ))}
+    </Card>
   );
 };

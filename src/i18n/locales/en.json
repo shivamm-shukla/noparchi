@@ -23,11 +23,11 @@
     "title": "Appearance",
     "subtitle": "How NoParchi looks on this device",
     "theme": "Theme",
-    "themeSystem": "Automatic",
+    "themeSystem": "Auto",
     "themeLight": "Light",
     "themeDark": "Dark",
     "language": "Language",
-    "languageSystem": "Automatic",
+    "languageSystem": "Auto",
     "languageEn": "English",
     "languageHi": "हिन्दी"
   },
@@ -91,10 +91,12 @@
       "title": "Download NoParchi for Android",
       "sub": "High-speed scanner and offline gate verification for your staff and counters.",
       "directApk": "Direct APK Download",
-      "directApkHint": "Fast download · Small size (~12 MB)",
+      "directApkHint": "Installs straight from here · works without signal",
+      "apkTag": ".APK",
+      "apkTagSized": ".APK · {{size}} MB",
       "indusStore": "Get on Indus Appstore",
-      "indusStoreHint": "India's App Store · Free & Verified (~10 MB)",
-      "size": "Fast & Lightweight (~12 MB)",
+      "indusStoreHint": "India's app store · free and verified",
+      "storeTag": "Store",
       "dismiss": "Dismiss"
     },
     "nav": {
@@ -249,7 +251,7 @@
     "totals": {
       "collected": "Collected",
       "passes": "Passes",
-      "awaiting": "Awaiting payment"
+      "awaiting": "Unpaid"
     },
     "group": {
       "today": "Today",
@@ -558,7 +560,8 @@
     "upiHint": "Where customer payments land.",
     "upiPlaceholder": "yourbusiness@icici",
     "locationHintSignUp": "Shown to customers on the checkout page.",
-    "upiHintSignUp": "Where customer payments land. You can add this later."
+    "upiHintSignUp": "Where customer payments land. You can add this later.",
+    "emailDeliveryFailed": "We could not send the confirmation email, so the account was not created. This is a setting on the NoParchi server, not something you did — please tell whoever set it up."
   },
   "issue": {
     "title": "Issue a pass",

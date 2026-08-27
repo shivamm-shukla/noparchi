@@ -51,6 +51,7 @@ export const MobileAppBanner: React.FC = () => {
   const { t } = useTranslation();
   const { colors, resolved } = useTheme();
   const { width } = useWindowDimensions();
+  const { apkSizeMb } = env;
   const [dismissed, setDismissed] = useState(false);
   const [isMobileDevice, setIsMobileDevice] = useState(false);
 
@@ -149,24 +150,41 @@ export const MobileAppBanner: React.FC = () => {
             onPress={handleDirectDownload}
             accessibilityRole="link"
             accessibilityLabel={t('landing.appDownload.directApk')}
-            className="flex-row items-center justify-between rounded-xl border border-brand-accent bg-brand-accent px-4 py-3 active:opacity-90"
+            className="flex-row items-center justify-between gap-3 rounded-xl border border-brand-accent bg-brand-accent px-4 py-3 active:opacity-90"
           >
-            <View className="flex-row items-center gap-3">
-              <View className="h-9 w-9 items-center justify-center rounded-lg bg-brand-on-accent/20">
+            {/*
+              min-w-0 on both the row and the text column is what stops the size
+              tag climbing on top of the hint. Without it the flex children
+              refuse to shrink below their content width, the row overflows, and
+              the tag - which has nothing telling it to hold its ground - is the
+              thing that lands on the text.
+            */}
+            <View className="min-w-0 flex-1 flex-row items-center gap-3">
+              <View className="h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-on-accent/20">
                 <Download size={19} color={colors['on-accent']} />
               </View>
-              <View>
-                <Text font="display-semibold" className="text-[14px] text-brand-on-accent">
+              <View className="min-w-0 flex-1">
+                <Text
+                  font="display-semibold"
+                  numberOfLines={1}
+                  className="text-[14px] text-brand-on-accent"
+                >
                   {t('landing.appDownload.directApk')}
                 </Text>
-                <Text font="body" className="text-[11px] text-brand-on-accent/80">
+                <Text
+                  font="body"
+                  numberOfLines={2}
+                  className="text-[11px] leading-4 text-brand-on-accent/80"
+                >
                   {t('landing.appDownload.directApkHint')}
                 </Text>
               </View>
             </View>
-            <View className="rounded-md bg-brand-on-accent/20 px-2 py-0.5">
+            <View className="shrink-0 rounded-md bg-brand-on-accent/20 px-2 py-0.5">
               <Text font="display-bold" className="text-[11px] text-brand-on-accent">
-                .APK (~12 MB)
+                {apkSizeMb
+                  ? t('landing.appDownload.apkTagSized', { size: apkSizeMb })
+                  : t('landing.appDownload.apkTag')}
               </Text>
             </View>
           </Pressable>
@@ -176,23 +194,33 @@ export const MobileAppBanner: React.FC = () => {
             onPress={handleIndusDownload}
             accessibilityRole="link"
             accessibilityLabel={t('landing.appDownload.indusStore')}
-            className="flex-row items-center justify-between rounded-xl border border-brand-border bg-brand-surface-alt px-4 py-3 active:opacity-80"
+            className="flex-row items-center justify-between gap-3 rounded-xl border border-brand-border bg-brand-surface-alt px-4 py-3 active:opacity-80"
           >
-            <View className="flex-row items-center gap-3">
-              <IndusAppStoreIcon size={34} />
-              <View>
-                <Text font="display-semibold" className="text-[14px] text-brand-text">
+            <View className="min-w-0 flex-1 flex-row items-center gap-3">
+              <View className="shrink-0">
+                <IndusAppStoreIcon size={34} />
+              </View>
+              <View className="min-w-0 flex-1">
+                <Text
+                  font="display-semibold"
+                  numberOfLines={1}
+                  className="text-[14px] text-brand-text"
+                >
                   {t('landing.appDownload.indusStore')}
                 </Text>
-                <Text font="body" className="text-[11px] text-brand-text-muted">
+                <Text
+                  font="body"
+                  numberOfLines={2}
+                  className="text-[11px] leading-4 text-brand-text-muted"
+                >
                   {t('landing.appDownload.indusStoreHint')}
                 </Text>
               </View>
             </View>
-            <View className="flex-row items-center gap-1 rounded-md border border-brand-border bg-brand-surface px-2 py-1">
+            <View className="shrink-0 flex-row items-center gap-1 rounded-md border border-brand-border bg-brand-surface px-2 py-1">
               <Smartphone size={12} color={colors['text-subtle']} />
               <Text font="body-medium" className="text-[11px] text-brand-text-subtle">
-                Store
+                {t('landing.appDownload.storeTag')}
               </Text>
             </View>
           </Pressable>

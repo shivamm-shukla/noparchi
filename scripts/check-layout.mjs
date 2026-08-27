@@ -99,27 +99,47 @@ function inspect() {
   };
 }
 
+/*
+  Theme and language are set through the preferences the app boots from, not by
+  clicking chrome.
+
+  This used to hunt for the compact toggles in the top bar, which made the check
+  break the moment those toggles moved - and they did move: on a phone they now
+  live only in Settings -> Appearance, because repeating them in the bar cost the
+  business name half its width. A check that fails when a control is relocated is
+  testing the control, and what this file is for is testing the layout.
+
+  Both contexts persist to AsyncStorage, which on web is plain localStorage under
+  the same key, so seeding it before the bundle evaluates is the same thing the
+  user's second visit does.
+*/
+const THEME_KEY = '@noparchi/theme/v1';
+const LANGUAGE_KEY = '@noparchi/language/v1';
+
 const browser = await chromium.launch();
 const page = await browser.newPage({ ...devices[DEVICE], isMobile: false, hasTouch: false });
-await page.goto(URL, { waitUntil: 'networkidle', timeout: 60000 });
-await page.waitForTimeout(3500);
 
-const setTheme = async (dark) => {
-  if (dark === (await page.evaluate(() => document.documentElement.classList.contains('dark')))) return;
-  await page.getByRole('button', { name: /^(Dark|Light|डार्क|लाइट)$/ }).first().click();
-  await page.waitForTimeout(800);
-};
-const setLang = async (hindi) => {
-  if (hindi === (await page.evaluate(() => /[ऀ-ॿ]/.test(document.body.innerText)))) return;
-  await page.getByRole('button', { name: /Language|भाषा/ }).first().click();
-  await page.waitForTimeout(1000);
+const load = async (theme, lang) => {
+  await page.addInitScript(
+    ([themeKey, themeValue, langKey, langValue]) => {
+      try {
+        window.localStorage.setItem(themeKey, themeValue);
+        window.localStorage.setItem(langKey, langValue);
+      } catch {
+        // A browser with storage disabled still renders; the assertions below
+        // will report the theme as not switched rather than crashing here.
+      }
+    },
+    [THEME_KEY, theme, LANGUAGE_KEY, lang]
+  );
+  await page.goto(URL, { waitUntil: 'networkidle', timeout: 60000 });
+  await page.waitForTimeout(3500);
 };
 
 let failed = 0;
 console.log(`\n  ${DEVICE} · ${URL}\n`);
 for (const [theme, lang] of [['light', 'en'], ['dark', 'en'], ['dark', 'hi'], ['light', 'hi']]) {
-  await setTheme(theme === 'dark');
-  await setLang(lang === 'hi');
+  await load(theme, lang);
   const r = await page.evaluate(inspect);
 
   const problems = [];

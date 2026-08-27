@@ -39,6 +39,26 @@ const apkDownloadUrl =
 const indusStoreUrl = clean(process.env.EXPO_PUBLIC_INDUS_STORE_URL) || 'https://www.indusappstore.com';
 
 /**
+ * The download size shown on the Android banner, in MB.
+ *
+ * Read from configuration rather than written into the copy, because the copy
+ * is where it went wrong: the banner and both locale files hard-coded
+ * "~12 MB" next to a build that was actually 106 MB. A visitor on a metered
+ * connection in a mela was being told the download was an eighth of its real
+ * size, in two languages.
+ *
+ * Unset means unknown, and unknown renders no figure at all - a plain ".APK"
+ * tag instead of a wrong number. Set it from the size EAS reports after a
+ * build, and update it whenever a new APK is published.
+ */
+function apkSize(): number | null {
+  const raw = clean(process.env.EXPO_PUBLIC_APK_SIZE_MB);
+  if (!raw) return null;
+  const mb = Number(raw);
+  return Number.isFinite(mb) && mb > 0 ? Math.round(mb) : null;
+}
+
+/**
  * Renders every screen from sample data, with no backend at all.
  *
  * Opt-in only, via EXPO_PUBLIC_PREVIEW=1 - never a fallback from a failed
@@ -58,6 +78,8 @@ export const env = {
   apkDownloadUrl,
   /** Link to Indus Appstore listing. */
   indusStoreUrl,
+  /** Size of that APK in MB, or null when nobody has recorded it. */
+  apkSizeMb: apkSize(),
 } as const;
 
 /** True only when a real Supabase project is reachable-by-configuration. */

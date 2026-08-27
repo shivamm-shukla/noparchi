@@ -47,7 +47,7 @@ function Segmented<T extends string>({
             accessibilityState={{ selected }}
             accessibilityLabel={option.label}
             onPress={() => onChange(option.value)}
-            className={`flex-1 items-center justify-center rounded-[7px] px-2.5 py-1.5 ${
+            className={`flex-1 items-center justify-center rounded-[7px] px-1.5 py-1.5 ${
               selected ? 'bg-brand-surface-raised' : ''
             }`}
           >

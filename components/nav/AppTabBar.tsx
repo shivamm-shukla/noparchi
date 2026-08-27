@@ -8,6 +8,7 @@ import { useIsExpanded } from '../../src/hooks/useLayoutMode';
 import { elevation } from '../../src/config/elevation';
 import { Text } from '../ui/Text';
 import { Logo } from '../ui/Logo';
+import { ThemeControl, LanguageControl } from './Controls';
 
 const SIDEBAR_WIDTH = 244;
 
@@ -177,6 +178,17 @@ function Sidebar(props: BottomTabBarProps) {
         })}
       </View>
 
+      {/*
+        The appearance controls the doc comment above has always promised, and
+        which were never actually rendered - so a wide layout had no theme or
+        language control anywhere in its chrome, only inside Settings. The
+        sidebar has the room the top bar does not, which is the whole reason
+        they belong at this end.
+      */}
+      <View className="gap-3 border-t border-brand-border px-2 pt-4">
+        <LanguageControl variant="row" />
+        <ThemeControl variant="row" />
+      </View>
     </View>
   );
 }

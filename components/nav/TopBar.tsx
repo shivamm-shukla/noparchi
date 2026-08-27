@@ -8,7 +8,6 @@ import { useAuth } from '../../src/context/AuthContext';
 import { useIsExpanded } from '../../src/hooks/useLayoutMode';
 import { Text } from '../ui/Text';
 import { Logo } from '../ui/Logo';
-import { ThemeControl, LanguageControl } from './Controls';
 
 interface TopBarProps {
   title?: string;
@@ -24,13 +23,23 @@ interface TopBarProps {
  * controls are left to the sidebar - repeating them here would be two controls
  * for one setting on one screen.
  *
- * On a phone it is deliberately two rows. Everything this bar carries is
- * fixed-width: the mark, the two appearance controls, the account chip and
- * whatever action the screen adds come to about 410pt before the business name
- * gets a single pixel. On a 390pt iPhone that overflowed and the action landed
- * on top of the mark. Splitting by meaning - who and what you are looking at
- * above, controls and actions below - leaves the name around 184pt instead of
- * a negative number.
+ * On a phone it carries less, and gets a second row only when a screen asks
+ * for one. Everything this bar holds is fixed-width, so the arithmetic on a
+ * 390pt handset decides the design: the mark, the account chip and 32pt of
+ * padding leave the business name about 184pt. Add the two appearance controls
+ * and that falls to 92pt, which truncates "Metro Hub Parking" to "Metro Hub
+ * Pa...". Add the screen's action on the same line and the whole row overflows
+ * - React Native Web clips rather than scrolls, so the action simply lands on
+ * top of the mark.
+ *
+ * The appearance controls are therefore not here on a phone. They are two taps
+ * away in Settings -> Appearance, which already owns them, and both are a
+ * set-once device preference rather than something anyone toggles mid-shift.
+ * Repeating them in the bar cost the business name half its width on every
+ * screen, and cost Ledger, Scanner and Settings - none of which has an action -
+ * a full 48pt row that held nothing else.
+ *
+ * A wide layout has room for all of it, and puts appearance in the sidebar.
  */
 export const TopBar: React.FC<TopBarProps> = ({ title, subtitle, rightAction }) => {
   const insets = useSafeAreaInsets();
@@ -68,15 +77,14 @@ export const TopBar: React.FC<TopBarProps> = ({ title, subtitle, rightAction }) 
           )}
         </View>
 
-        {isExpanded ? null : (
-          <View className="flex-row items-center justify-between gap-2">
-            <View className="flex-row items-center gap-2">
-              <LanguageControl />
-              <ThemeControl />
-            </View>
-            {rightAction}
-          </View>
-        )}
+        {/*
+          A second row only when the screen actually asks for one. Rendering an
+          empty flex row still costs its gap, so this is a null and not an
+          invisible container.
+        */}
+        {!isExpanded && rightAction ? (
+          <View className="flex-row items-center justify-end">{rightAction}</View>
+        ) : null}
       </View>
     </View>
   );
