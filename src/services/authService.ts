@@ -19,6 +19,35 @@ import { env } from '../config/env';
 import type { MerchantRow, MerchantUserRow } from '../types/db';
 import type { Merchant, StaffMember } from '../types';
 
+/**
+ * Supabase could not send the confirmation email.
+ *
+ * It reports this as a bare HTTP 500 whose message - "Error sending
+ * confirmation email" - is accurate and useless to the person reading it. A
+ * merchant sees a server error, assumes the app is broken and tries again, and
+ * every retry fails the same way, because nothing on their side is wrong: the
+ * project either has no working SMTP configured or is still on Supabase's
+ * built-in sender, which is rate limited to a couple of messages an hour and
+ * only delivers to addresses belonging to the project's own organisation.
+ *
+ * Raised as its own type so the screen can explain that without matching on
+ * wording Supabase is free to change.
+ */
+export class EmailDeliveryError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'EmailDeliveryError';
+  }
+}
+
+/** Recognises the SMTP failure above among ordinary sign-up rejections. */
+function asSignUpError(error: { message: string; status?: number }): Error {
+  if (/sending (the )?(confirmation|signup) email/i.test(error.message)) {
+    return new EmailDeliveryError(error.message);
+  }
+  return new Error(error.message);
+}
+
 export interface SignedInContext {
   user: StaffMember;
   merchant: Merchant;
@@ -66,7 +95,7 @@ class AuthService {
         },
       },
     });
-    if (error) throw error;
+    if (error) throw asSignUpError(error);
 
     // When email confirmation is switched on in the Supabase dashboard, signUp
     // returns no session and provisioning has to wait until the owner confirms

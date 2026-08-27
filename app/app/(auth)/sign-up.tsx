@@ -8,7 +8,7 @@ import { Button } from '../../../components/ui/Button';
 import { Card } from '../../../components/ui/Card';
 import { Field } from '../../../components/ui/Field';
 import { GoogleIcon } from '../../../components/ui/GoogleIcon';
-import { authService } from '../../../src/services/authService';
+import { authService, EmailDeliveryError } from '../../../src/services/authService';
 
 /**
  * Owner signup: creates the login and the business in one pass.
@@ -70,7 +70,16 @@ export default function SignUpScreen() {
       // idempotent and runs on the first real sign-in instead.
       if (!(await authService.hasSession())) setConfirmEmailNotice(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('auth.signUpFailed'));
+      // A failed confirmation email is a server misconfiguration, and Supabase's
+      // own wording for it reads as though the person signing up did something
+      // wrong. Say plainly whose problem it is.
+      setError(
+        err instanceof EmailDeliveryError
+          ? t('auth.emailDeliveryFailed')
+          : err instanceof Error
+            ? err.message
+            : t('auth.signUpFailed')
+      );
     } finally {
       setBusy(false);
     }
