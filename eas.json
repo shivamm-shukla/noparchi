@@ -4,7 +4,10 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "android": { "buildType": "apk" }
+      "android": { "buildType": "apk" },
+      "env": {
+        "NOPARCHI_ANDROID_ABIS": "arm64-v8a,x86_64"
+      }
     },
     "preview": {
       "distribution": "internal",
@@ -12,7 +15,7 @@
         "buildType": "apk"
       },
       "env": {
-        "REACT_NATIVE_ARCHITECTURES": "arm64-v8a"
+        "NOPARCHI_ANDROID_ABIS": "arm64-v8a"
       },
       "ios": { "simulator": true }
     },
@@ -21,12 +24,18 @@
       "distribution": "internal",
       "android": {
         "buildType": "app-bundle"
+      },
+      "env": {
+        "NOPARCHI_ANDROID_ABIS": "armeabi-v7a,arm64-v8a,x86_64"
       }
     },
     "production": {
       "autoIncrement": true,
       "android": {
         "buildType": "app-bundle"
+      },
+      "env": {
+        "NOPARCHI_ANDROID_ABIS": "armeabi-v7a,arm64-v8a,x86_64"
       }
     }
   },

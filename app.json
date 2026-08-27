@@ -50,7 +50,18 @@
         }
       ],
       "expo-asset",
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "extraProguardRules": "# NoParchi R8 keeps.\n# Broad on purpose: React Native, Expo modules and the codegen'd Turbo\n# Modules are all resolved reflectively by name at runtime, so R8 cannot see\n# the reference and will happily strip a class the bridge is about to ask for.\n# The saving that matters here comes from dropping whole unused libraries and\n# resources, not from shaving these packages.\n-keep class com.noparchi.app.** { *; }\n-keep class com.facebook.react.** { *; }\n-keep class com.facebook.jni.** { *; }\n-keep class com.facebook.hermes.** { *; }\n-keep class expo.modules.** { *; }\n-keep class com.swmansion.reanimated.** { *; }\n-keep class com.swmansion.rnscreens.** { *; }\n-keep class com.horcrux.svg.** { *; }\n# ML Kit loads its barcode models through a registrar it looks up by name.\n-keep class com.google.mlkit.** { *; }\n-keep class com.google.android.gms.internal.mlkit_vision_barcode.** { *; }\n-keepclassmembers class * { @com.facebook.proguard.annotations.DoNotStrip *; }\n-keepclassmembers class * { @com.facebook.common.internal.DoNotStrip *; }\n-keepclassmembers class * { native <methods>; }\n-dontwarn com.facebook.react.**\n-dontwarn expo.modules.**\n-dontwarn okhttp3.**\n-dontwarn okio.**"
+          }
+        }
+      ],
+      "./plugins/withAndroidAbis"
     ],
     "experiments": {
       "typedRoutes": true,
