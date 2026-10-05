@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, ScrollView, TextInput, Pressable, RefreshControl } from 'react-native';
+import { View, ScrollView, TextInput, Pressable, RefreshControl, Platform, Share } from 'react-native';
 import {
   Search,
   BookOpen,
@@ -11,6 +11,8 @@ import {
   TimerReset,
   Clock,
   X,
+  Download,
+  GraduationCap,
 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useThemeColors } from '../../../src/context/ThemeContext';
@@ -162,12 +164,111 @@ export default function LedgerScreen() {
     }
   };
 
+  const isScholarship = merchant?.operatingMode === 'SCHOLARSHIP_TEST';
+
+  const exportCsv = async () => {
+    if (!merchant || filtered.length === 0) return;
+
+    let csvContent = '';
+    if (isScholarship) {
+      const headers = [
+        'Roll Number',
+        'Ticket Code',
+        'Student Name',
+        'Student Phone',
+        'Parent Phone',
+        'Class / Stream',
+        'Exam Slot',
+        'Registration Date',
+        'Attendance Status',
+        'Attended At',
+        'Verified Gate',
+      ];
+      const rows = filtered.map((tx) => {
+        const meta = (tx.metadata ?? {}) as Record<string, string>;
+        const attended = Boolean(tx.validation || tx.attendedAt);
+        return [
+          meta.roll_number || '',
+          tx.ticketCode,
+          `"${(tx.primaryName || meta.student_name || '').replace(/"/g, '""')}"`,
+          tx.primaryPhone || meta.student_phone || '',
+          meta.parent_phone || '',
+          `"${(meta.class_grade || '').replace(/"/g, '""')}"`,
+          `"${(meta.exam_slot || '').replace(/"/g, '""')}"`,
+          formatDateTime(tx.createdAt),
+          attended ? 'PRESENT' : 'ABSENT',
+          tx.validation?.scannedAt
+            ? formatDateTime(tx.validation.scannedAt)
+            : tx.attendedAt
+              ? formatDateTime(tx.attendedAt)
+              : '',
+          tx.validation?.exitGate || '',
+        ].join(',');
+      });
+      csvContent = [headers.join(','), ...rows].join('\n');
+    } else {
+      const headers = [
+        'Ticket Code',
+        'Vehicle Number',
+        'Type',
+        'Amount',
+        'Status',
+        'Created At',
+        'Valid Until',
+        'Exited At',
+        'Overstay Collected',
+      ];
+      const rows = filtered.map((tx) => [
+        tx.ticketCode,
+        tx.vehicleNumber || '',
+        `"${tx.ticketTypeLabel.replace(/"/g, '""')}"`,
+        tx.amount,
+        tx.status,
+        formatDateTime(tx.createdAt),
+        tx.expiresAt ? formatDateTime(tx.expiresAt) : '',
+        tx.validation?.scannedAt ? formatDateTime(tx.validation.scannedAt) : '',
+        tx.overstayAmount || 0,
+      ].join(','));
+      csvContent = [headers.join(','), ...rows].join('\n');
+    }
+
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      const filename = `${merchant.businessName.replace(/\s+/g, '_')}_${isScholarship ? 'candidate_leads' : 'ledger'}_${range}.csv`;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } else {
+      await Share.share({
+        title: `${merchant.businessName} - Export`,
+        message: csvContent,
+      });
+    }
+  };
+
   if (!merchant) return null;
   const searching = query.trim().length > 0;
 
   return (
     <View className="flex-1 bg-brand-bg">
-      <TopBar title={t('ledger.title')} subtitle={t('ledger.subtitle')} />
+      <TopBar
+        title={isScholarship ? 'Candidate Roster' : t('ledger.title')}
+        subtitle={isScholarship ? 'Student registrations & hall attendance' : t('ledger.subtitle')}
+        rightAction={
+          <Button
+            title={isScholarship ? 'Export Leads (CSV)' : 'Export CSV'}
+            size="sm"
+            variant="secondary"
+            icon={<Download size={14} color={colors['accent']} />}
+            onPress={exportCsv}
+          />
+        }
+      />
 
       <RoleGate permission="can_view_ledger" title={t('ledger.blockedTitle')}>
         <ScrollView
@@ -264,6 +365,7 @@ export default function LedgerScreen() {
                         canConfirm={can('can_issue_passes')}
                         confirming={confirmingCode === tx.ticketCode}
                         extending={extendingCode === tx.ticketCode}
+                        isScholarship={isScholarship}
                         onConfirm={() => confirmPayment(tx)}
                         onConfirmExtension={() => confirmExtension(tx)}
                         onDeliver={() => setDeliverFor(tx)}
@@ -294,6 +396,7 @@ const LedgerRow: React.FC<{
   canConfirm: boolean;
   confirming: boolean;
   extending: boolean;
+  isScholarship?: boolean;
   onConfirm: () => void;
   onConfirmExtension: () => void;
   onDeliver: () => void;
@@ -304,12 +407,74 @@ const LedgerRow: React.FC<{
   canConfirm,
   confirming,
   extending,
+  isScholarship,
   onConfirm,
   onConfirmExtension,
   onDeliver,
 }) => {
   const colors = useThemeColors();
   const { t } = useTranslation();
+
+  if (isScholarship) {
+    const meta = (transaction.metadata ?? {}) as Record<string, string>;
+    const studentName = transaction.primaryName || meta.student_name || 'Candidate';
+    const rollNo = meta.roll_number || transaction.ticketCode;
+    const classGrade = meta.class_grade || 'Class 10';
+    const parentPhone = meta.parent_phone || transaction.primaryPhone || '';
+    const attended = Boolean(transaction.validation || transaction.attendedAt);
+
+    return (
+      <View>
+        <Row divider={divider}>
+          <View
+            className={`h-9 w-9 shrink-0 items-center justify-center rounded-control border ${
+              attended
+                ? 'border-brand-accent/30 bg-brand-accent/10'
+                : 'border-brand-border bg-brand-surface-alt'
+            }`}
+          >
+            {attended ? (
+              <ShieldCheck size={16} color={colors['accent']} />
+            ) : (
+              <GraduationCap size={16} color={colors['text-muted']} />
+            )}
+          </View>
+
+          <View className="min-w-0 flex-1 gap-0.5">
+            <View className="flex-row flex-wrap items-center gap-2">
+              <Text
+                font="body-semibold"
+                numberOfLines={1}
+                className="text-[13px] font-bold text-brand-text"
+              >
+                {studentName}
+              </Text>
+              <Badge
+                label={attended ? 'PRESENT' : 'ABSENT'}
+                variant={attended ? 'success' : 'neutral'}
+                size="sm"
+              />
+            </View>
+
+            <Text font="body" numberOfLines={1} className="text-[11px] text-brand-text-muted">
+              {rollNo} · {classGrade} {parentPhone ? `· Parent: ${parentPhone}` : ''} · {formatDateTime(transaction.createdAt)}
+            </Text>
+          </View>
+
+          <View className="shrink-0 flex-row items-center gap-2">
+            <Pressable
+              onPress={onDeliver}
+              accessibilityRole="button"
+              accessibilityLabel="Share Admit Card"
+              className="rounded-control border border-brand-border bg-brand-surface-alt p-1.5 active:opacity-60"
+            >
+              <MessageSquare size={13} color={colors['text-subtle']} />
+            </Pressable>
+          </View>
+        </Row>
+      </View>
+    );
+  }
 
   const exited = Boolean(transaction.validation);
   const pending = transaction.status === 'pending';

@@ -56,7 +56,7 @@ import {
 } from '../../../src/config/pricing';
 import { ticketTypeIcon } from '../../../src/config/icons';
 import { formatCurrency } from '../../../src/utils/formatters';
-import type { Merchant, StaffMember, TicketType } from '../../../src/types';
+import type { Merchant, StaffMember, TicketType, OperatingMode } from '../../../src/types';
 
 export type SettingsPaneId =
   | 'business'
@@ -415,12 +415,13 @@ const BusinessPane: React.FC<{
   const [businessName, setBusinessName] = useState(merchant.businessName);
   const [location, setLocation] = useState(merchant.location);
   const [upiId, setUpiId] = useState(merchant.upiId);
+  const [operatingMode, setOperatingMode] = useState<OperatingMode>(merchant.operatingMode || 'PARKING');
   const [busy, setBusy] = useState(false);
 
   const save = async () => {
     setBusy(true);
     try {
-      await merchantService.updateMerchant(merchant.id, { businessName, location, upiId });
+      await merchantService.updateMerchant(merchant.id, { businessName, location, upiId, operatingMode });
       onSaved();
     } catch (err) {
       onError(err instanceof Error ? err.message : t('settings.business.failed'));
@@ -437,6 +438,28 @@ const BusinessPane: React.FC<{
         subtitle={t('settings.panes.businessSub')}
         className="mb-5 pb-3.5 border-b border-brand-border"
       />
+
+      <View className="mb-5">
+        <Text font="body-semibold" className="text-xs uppercase tracking-wider text-brand-text-subtle mb-2.5">
+          Operating Workflow Mode
+        </Text>
+        <View className="gap-2.5">
+          <ChoiceRow
+            selected={operatingMode === 'PARKING'}
+            disabled={!canEdit}
+            label="🚗 Parking & Valet Operations"
+            note="Vehicle plates, duration billing, live countdown timer, overstay cash collection & exit clearance."
+            onPress={() => setOperatingMode('PARKING')}
+          />
+          <ChoiceRow
+            selected={operatingMode === 'SCHOLARSHIP_TEST'}
+            disabled={!canEdit}
+            label="🎓 Coaching Scholarship Test"
+            note="City flex banner QR, student candidate registration, printable admit cards & exam attendance check-in."
+            onPress={() => setOperatingMode('SCHOLARSHIP_TEST')}
+          />
+        </View>
+      </View>
 
       <Field label={t('settings.business.name')}>
         <TextInput

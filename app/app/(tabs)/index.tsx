@@ -13,6 +13,8 @@ import {
   Timer,
   MessageCircle,
   Car,
+  GraduationCap,
+  Users,
 } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useThemeColors } from '../../../src/context/ThemeContext';
@@ -28,6 +30,7 @@ import { Text } from '../../../components/ui/Text';
 import { Row } from '../../../components/ui/Row';
 import { SectionHeader } from '../../../components/ui/SectionHeader';
 import { CustomBrandedQR } from '../../../components/ui/CustomBrandedQR';
+import { BannerQRGenerator } from '../../../components/scholarship/BannerQRGenerator';
 import { NewTicketModal } from '../../../components/ui/NewTicketModal';
 import { PassDeliveryModal } from '../../../components/ui/PassDeliveryModal';
 import { messagingProvider } from '../../../src/services/messaging';
@@ -62,11 +65,14 @@ export default function DashboardScreen() {
 
   if (!merchant || !user) return null;
 
+  const isScholarship = merchant.operatingMode === 'SCHOLARSHIP_TEST';
   const canSeeLedger = can('can_view_ledger');
   const canIssue = can('can_issue_passes');
   const recent = transactions.slice(0, 8);
 
-  const gateQr = (
+  const gateQr = isScholarship ? (
+    <BannerQRGenerator merchant={merchant} />
+  ) : (
     <CustomBrandedQR merchant={merchant} ticketTypes={ticketTypes} size={188} />
   );
 
@@ -74,17 +80,15 @@ export default function DashboardScreen() {
     <>
       {/*
         Expiring passes come before the feed because they are the only thing
-        here that is time-sensitive. When automated WhatsApp is off this list is
-        also the fallback: staff can nudge each customer themselves rather than
-        only discovering the overstay at the gate.
+        here that is time-sensitive. In scholarship mode this is hidden.
       */}
-      {canSeeLedger && expiringPasses.length > 0 && (
+      {!isScholarship && canSeeLedger && expiringPasses.length > 0 && (
         <ExpiringSoonCard passes={expiringPasses} merchant={merchant} />
       )}
 
       <Card>
         <SectionHeader
-          title={t('dashboard.activity.title')}
+          title={isScholarship ? 'Candidate Registrations' : t('dashboard.activity.title')}
           className="mb-1 border-b border-brand-border pb-3"
           action={
             canSeeLedger ? (
@@ -122,6 +126,7 @@ export default function DashboardScreen() {
                 transaction={tx}
                 currency={merchant.currency}
                 divider={index < recent.length - 1}
+                isScholarship={isScholarship}
                 onDeliver={() => setDeliverFor(tx)}
               />
             ))}
@@ -211,42 +216,81 @@ export default function DashboardScreen() {
             database, so hiding the tile is presentation, not protection.
           */}
           <View className="flex-row flex-wrap gap-3">
-            {stats?.canViewRevenue && (
-              <StatCard
-                label={t('dashboard.stats.revenue')}
-                value={formatCurrency(stats.revenue ?? 0, merchant.currency)}
-                deltaPercent={stats.growthPercent}
-                deltaLabel={t('dashboard.stats.vsYesterday')}
-              />
-            )}
-            <StatCard
-              label={t('dashboard.stats.verified')}
-              value={stats?.scans ?? 0}
-              detail={
-                user.isOwner
-                  ? t('dashboard.stats.verifiedAllGates')
-                  : t('dashboard.stats.verifiedByYou', { count: stats?.myScans ?? 0 })
-              }
-            />
-            <StatCard
-              label={t('dashboard.stats.inside')}
-              value={stats?.openPasses ?? 0}
-              detail={
-                stats?.expiringSoon
-                  ? t('dashboard.stats.insideExpiring', { count: stats.expiringSoon })
-                  : t('dashboard.stats.insidePaid')
-              }
-            />
-            {stats?.canViewRevenue && (
-              <StatCard
-                label={t('dashboard.stats.sold')}
-                value={stats.passesIssued ?? 0}
-                detail={
-                  stats.pendingPayments
-                    ? t('dashboard.stats.soldPending', { count: stats.pendingPayments })
-                    : t('dashboard.stats.soldToday')
-                }
-              />
+            {isScholarship ? (
+              <>
+                <StatCard
+                  label="Registered Candidates"
+                  value={stats?.passesIssued ?? transactions.length}
+                  detail="Total student enrollments"
+                />
+                <StatCard
+                  label="Present Today"
+                  value={stats?.scans ?? transactions.filter((t) => t.validation || t.attendedAt).length}
+                  detail="Admit cards verified at hall"
+                />
+                <StatCard
+                  label="Absent Candidates"
+                  value={Math.max(
+                    0,
+                    (stats?.passesIssued ?? transactions.length) -
+                      (stats?.scans ?? transactions.filter((t) => t.validation || t.attendedAt).length)
+                  )}
+                  detail="Yet to report to center"
+                />
+                <StatCard
+                  label="Turnout Rate"
+                  value={`${
+                    (stats?.passesIssued ?? transactions.length) > 0
+                      ? Math.round(
+                          ((stats?.scans ?? transactions.filter((t) => t.validation || t.attendedAt).length) /
+                            (stats?.passesIssued ?? transactions.length)) *
+                            100
+                        )
+                      : 0
+                  }%`}
+                  detail="Attendance percentage"
+                />
+              </>
+            ) : (
+              <>
+                {stats?.canViewRevenue && (
+                  <StatCard
+                    label={t('dashboard.stats.revenue')}
+                    value={formatCurrency(stats.revenue ?? 0, merchant.currency)}
+                    deltaPercent={stats.growthPercent}
+                    deltaLabel={t('dashboard.stats.vsYesterday')}
+                  />
+                )}
+                <StatCard
+                  label={t('dashboard.stats.verified')}
+                  value={stats?.scans ?? 0}
+                  detail={
+                    user.isOwner
+                      ? t('dashboard.stats.verifiedAllGates')
+                      : t('dashboard.stats.verifiedByYou', { count: stats?.myScans ?? 0 })
+                  }
+                />
+                <StatCard
+                  label={t('dashboard.stats.inside')}
+                  value={stats?.openPasses ?? 0}
+                  detail={
+                    stats?.expiringSoon
+                      ? t('dashboard.stats.insideExpiring', { count: stats.expiringSoon })
+                      : t('dashboard.stats.insidePaid')
+                  }
+                />
+                {stats?.canViewRevenue && (
+                  <StatCard
+                    label={t('dashboard.stats.sold')}
+                    value={stats.passesIssued ?? 0}
+                    detail={
+                      stats.pendingPayments
+                        ? t('dashboard.stats.soldPending', { count: stats.pendingPayments })
+                        : t('dashboard.stats.soldToday')
+                    }
+                  />
+                )}
+              </>
             )}
           </View>
 
@@ -393,10 +437,67 @@ const ActivityRow: React.FC<{
   transaction: Transaction;
   currency: string;
   divider: boolean;
+  isScholarship?: boolean;
   onDeliver: () => void;
-}> = ({ transaction, currency, divider, onDeliver }) => {
+}> = ({ transaction, currency, divider, isScholarship, onDeliver }) => {
   const colors = useThemeColors();
   const { t } = useTranslation();
+
+  if (isScholarship) {
+    const meta = (transaction.metadata ?? {}) as Record<string, string>;
+    const studentName = transaction.primaryName || meta.student_name || 'Candidate';
+    const rollNo = meta.roll_number || transaction.ticketCode;
+    const classGrade = meta.class_grade || 'Class 10';
+    const attended = Boolean(transaction.validation || transaction.attendedAt);
+
+    return (
+      <Row divider={divider}>
+        <View
+          className={`h-9 w-9 shrink-0 items-center justify-center rounded-control border ${
+            attended
+              ? 'border-brand-accent/30 bg-brand-accent/10'
+              : 'border-brand-border bg-brand-surface-alt'
+          }`}
+        >
+          {attended ? (
+            <ShieldCheck size={16} color={colors['accent']} />
+          ) : (
+            <GraduationCap size={16} color={colors['text-muted']} />
+          )}
+        </View>
+
+        <View className="min-w-0 flex-1">
+          <Text
+            font="body-semibold"
+            numberOfLines={1}
+            className="text-xs font-bold text-brand-text"
+          >
+            {studentName}
+          </Text>
+          <Text font="body" numberOfLines={1} className="text-[11px] text-brand-text-muted">
+            {rollNo} · {classGrade} · {formatTimeAgo(transaction.createdAt)}
+          </Text>
+        </View>
+
+        <View className="shrink-0 flex-row items-center gap-2.5">
+          <Badge
+            label={attended ? 'ATTENDED' : 'REGISTERED'}
+            variant={attended ? 'success' : 'info'}
+            size="sm"
+          />
+          <Pressable
+            onPress={onDeliver}
+            accessibilityRole="button"
+            accessibilityLabel={t('dashboard.activity.sendPass')}
+            className="rounded-control border border-brand-border bg-brand-surface-alt p-1.5 active:opacity-60"
+          >
+            <MessageSquare size={13} color={colors['text-subtle']} />
+          </Pressable>
+        </View>
+      </Row>
+    );
+  }
+
   const exited = Boolean(transaction.validation);
   const unpaid = transaction.status === 'pending';
 
