@@ -204,14 +204,20 @@ export const ValidationModal: React.FC<ValidationModalProps> = ({
 
             <Text
               font="display-extrabold"
-              className={`text-center text-[32px] leading-tight ${p.text}`}
+              className={`text-center text-[30px] leading-tight ${p.text}`}
             >
-              {t(p.headlineKey)}
+              {result.mode === 'SCHOLARSHIP_TEST'
+                ? result.status === 'VERIFIED'
+                  ? t('admitCard.statusAttended')
+                  : result.status === 'ALREADY_USED'
+                    ? 'ALREADY ATTENDED'
+                    : t(p.headlineKey)
+                : t(p.headlineKey)}
             </Text>
 
             <Text
               font="body"
-              className="mt-3 text-center text-sm leading-6 text-brand-text-subtle"
+              className="mt-2 text-center text-sm leading-6 text-brand-text-subtle"
             >
               {result.message}
             </Text>
@@ -279,7 +285,29 @@ export const ValidationModal: React.FC<ValidationModalProps> = ({
               </View>
             )}
 
-            {ticket && (
+            {result.mode === 'SCHOLARSHIP_TEST' ? (
+              <View className="gap-2.5 rounded-card border border-brand-accent/30 bg-brand-accent/5 p-4">
+                <Text font="body-semibold" className="text-[11px] uppercase tracking-wider text-brand-accent">
+                  Candidate Info
+                </Text>
+                <Text font="display-extrabold" className="text-xl text-brand-text">
+                  {result.studentName || ticket?.primaryName || 'Candidate'}
+                </Text>
+                <View className="flex-row items-center justify-between pt-2 border-t border-brand-border/60">
+                  <Text font="body-medium" className="text-xs text-brand-text-muted">
+                    Roll No: <Text font="body-bold" className="text-brand-text">{result.rollNumber || (ticket?.metadata as Record<string, string>)?.roll_number || ticket?.ticketCode || '—'}</Text>
+                  </Text>
+                  <Text font="body-medium" className="text-xs text-brand-text-muted">
+                    Class: <Text font="body-bold" className="text-brand-text">{result.classGrade || (ticket?.metadata as Record<string, string>)?.class_grade || '—'}</Text>
+                  </Text>
+                </View>
+                {ticket?.ticketCode && (
+                  <Text font="body" className="text-[11px] text-brand-text-faint font-mono">
+                    ID: {ticket.ticketCode}
+                  </Text>
+                )}
+              </View>
+            ) : ticket ? (
               <View className="gap-2.5 rounded-card border border-brand-border bg-brand-surface-alt p-4">
                 <Row label={t('scanner.result.passCode')} value={ticket.ticketCode} />
                 <Row label={t('scanner.result.type')} value={ticket.ticketTypeLabel} />
@@ -289,7 +317,7 @@ export const ValidationModal: React.FC<ValidationModalProps> = ({
                 <Row label={t('scanner.result.amount')} value={formatCurrency(ticket.amount)} />
                 <Row label={t('scanner.result.issued')} value={formatDateTime(ticket.createdAt)} />
               </View>
-            )}
+            ) : null}
           </ScrollView>
 
           <View className="gap-2 border-t border-brand-border p-5">

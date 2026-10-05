@@ -117,7 +117,10 @@ export default function ScannerScreen() {
 
   return (
     <View className="flex-1 bg-brand-bg">
-      <TopBar title={t('scanner.title')} subtitle={t('scanner.gateLabel', { gate: exitGate })} />
+      <TopBar
+        title={merchant?.operatingMode === 'SCHOLARSHIP_TEST' ? 'Exam Gate Scanner' : t('scanner.title')}
+        subtitle={merchant?.operatingMode === 'SCHOLARSHIP_TEST' ? `Gate / Desk: ${exitGate}` : t('scanner.gateLabel', { gate: exitGate })}
+      />
 
       <RoleGate permission="can_verify_tickets" title={t('scanner.blockedTitle')}>
         <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 32 }}>
