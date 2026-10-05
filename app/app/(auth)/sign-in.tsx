@@ -1,24 +1,28 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
-import { Link } from 'expo-router';
-import { AlertCircle, Mail, KeyRound, Smartphone } from 'lucide-react-native';
+import { useRouter, Link } from 'expo-router';
+import { AlertCircle, Mail, KeyRound, Smartphone, AlertTriangle } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useThemeColors } from '../../../src/context/ThemeContext';
+import { useAuth } from '../../../src/context/AuthContext';
 import { Button } from '../../../components/ui/Button';
 import { Card } from '../../../components/ui/Card';
 import { Logo } from '../../../components/ui/Logo';
 import { Field } from '../../../components/ui/Field';
 import { GoogleIcon } from '../../../components/ui/GoogleIcon';
-import { authService, type StaffAccountChoice } from '../../../src/services/authService';
+import { authService, type StaffAccountChoice, SupabaseUnreachableError, isNetworkError } from '../../../src/services/authService';
 
 type Mode = 'owner' | 'staff';
 
 export default function SignInScreen() {
   const colors = useThemeColors();
   const { t } = useTranslation();
+  const router = useRouter();
+  const { signInDemo } = useAuth();
   const [mode, setMode] = useState<Mode>('owner');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isUnreachable, setIsUnreachable] = useState(false);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -27,14 +31,32 @@ export default function SignInScreen() {
   const [pin, setPin] = useState('');
   const [choices, setChoices] = useState<StaffAccountChoice[] | null>(null);
 
+  const handleDemoSignIn = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await signInDemo();
+      router.replace('/app');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Demo sign in failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const submitOwner = async () => {
     setBusy(true);
     setError(null);
+    setIsUnreachable(false);
     try {
       await authService.signInOwner(email, password);
       // The auth state listener in AuthContext routes onward.
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('auth.signInFailed'));
+      if (err instanceof SupabaseUnreachableError || isNetworkError(err)) {
+        setIsUnreachable(true);
+      } else {
+        setError(err instanceof Error ? err.message : t('auth.signInFailed'));
+      }
     } finally {
       setBusy(false);
     }
@@ -43,10 +65,15 @@ export default function SignInScreen() {
   const submitGoogle = async () => {
     setBusy(true);
     setError(null);
+    setIsUnreachable(false);
     try {
       await authService.signInWithGoogle();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('auth.signInFailed'));
+      if (err instanceof SupabaseUnreachableError || isNetworkError(err)) {
+        setIsUnreachable(true);
+      } else {
+        setError(err instanceof Error ? err.message : t('auth.signInFailed'));
+      }
     } finally {
       setBusy(false);
     }
@@ -55,12 +82,17 @@ export default function SignInScreen() {
   const submitStaff = async (userId?: string) => {
     setBusy(true);
     setError(null);
+    setIsUnreachable(false);
     try {
       const result = await authService.signInStaff({ phone, pin, userId });
       // The same number can work at more than one business; ask rather than guess.
       if (result.needsChoice) setChoices(result.needsChoice);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('auth.signInFailed'));
+      if (err instanceof SupabaseUnreachableError || isNetworkError(err)) {
+        setIsUnreachable(true);
+      } else {
+        setError(err instanceof Error ? err.message : t('auth.signInFailed'));
+      }
     } finally {
       setBusy(false);
     }
@@ -147,6 +179,15 @@ export default function SignInScreen() {
                   onPress={submitGoogle}
                 />
 
+                <Button
+                  title="🚀 Demo Account Login (No Setup Needed)"
+                  variant="ghost"
+                  size="md"
+                  fullWidth
+                  className="mt-2"
+                  onPress={handleDemoSignIn}
+                />
+
                 <View className="flex-row items-center justify-center gap-1.5 mt-4">
                   <Text className="text-xs text-brand-text-muted">{t('auth.newHere')}</Text>
                   <Link href="/app/sign-up" asChild>
@@ -217,10 +258,41 @@ export default function SignInScreen() {
                   onPress={() => submitStaff()}
                 />
 
+                <Button
+                  title="🚀 Demo Gatekeeper Mode"
+                  variant="ghost"
+                  size="md"
+                  fullWidth
+                  className="mt-2"
+                  onPress={handleDemoSignIn}
+                />
+
                 <Text className="text-[11px] text-brand-text-faint text-center mt-4 leading-4">
                   {t('auth.pinNote')}
                 </Text>
               </>
+            )}
+
+            {isUnreachable && (
+              <View className="mt-4 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30">
+                <View className="flex-row items-center gap-2 mb-1.5">
+                  <AlertTriangle size={16} color={colors['warning']} />
+                  <Text className="text-sm font-bold text-brand-text">
+                    Supabase Server Unreachable (Failed to fetch)
+                  </Text>
+                </View>
+                <Text className="text-xs text-brand-text-muted leading-5 mb-3">
+                  Supabase cloud backend connect nahi ho pa raha. Aap Demo Account se 1-click login karke NoParchi ke saare features test kar sakte hain!
+                </Text>
+                <Button
+                  title="🚀 1-Click Demo Login"
+                  variant="primary"
+                  size="md"
+                  fullWidth
+                  loading={busy}
+                  onPress={handleDemoSignIn}
+                />
+              </View>
             )}
 
             {error && (

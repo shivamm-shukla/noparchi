@@ -43,6 +43,15 @@ interface AuthContextValue {
   can: (key: PermissionKey) => boolean;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
+  createDemoBusiness: (params: {
+    businessName: string;
+    ownerName: string;
+    phone?: string;
+    location?: string;
+    upiId?: string;
+    operatingMode?: import('../types').OperatingMode;
+  }) => Promise<void>;
+  signInDemo: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -58,12 +67,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    // Preview signs in as the sample owner and never talks to a server.
-    if (isPreview) return;
+    // 1. Check for stored demo session first (works in both preview and offline/unreachable mode)
+    const demo = await authService.getStoredDemoSession();
+    if (demo) {
+      setUser(demo.user);
+      setMerchant(demo.merchant);
+      setStatus('signed-in');
+      return;
+    }
+
+    // 2. Preview signs in as the sample owner and never talks to a server.
+    if (isPreview) {
+      setUser(previewOwner);
+      setMerchant(previewMerchant);
+      setStatus('signed-in');
+      return;
+    }
+
     if (!isSupabaseConfigured) {
       setStatus('unconfigured');
       return;
     }
+
     try {
       setError(null);
       if (!(await authService.hasSession())) {
@@ -108,26 +133,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => data.subscription.unsubscribe();
   }, [load]);
 
-  const signOut = useCallback(async () => {
-    if (isPreview) return;
+  const createDemoBusiness = useCallback(
+    async (params: {
+      businessName: string;
+      ownerName: string;
+      phone?: string;
+      location?: string;
+      upiId?: string;
+      operatingMode?: import('../types').OperatingMode;
+    }) => {
+      const demo = await authService.createDemoBusiness(params);
+      setUser(demo.user);
+      setMerchant(demo.merchant);
+      setStatus('signed-in');
+    },
+    []
+  );
 
+  const signInDemo = useCallback(async () => {
+    const demo = await authService.signInDemo();
+    setUser(demo.user);
+    setMerchant(demo.merchant);
+    setStatus('signed-in');
+  }, []);
+
+  const signOut = useCallback(async () => {
     // Flush anything scanned offline while the session still exists.
-    // validate_ticket resolves the gatekeeper from the JWT, so a queued scan
-    // replayed after sign-out has no identity to record against.
     if (merchant) {
       await scanService.syncQueued(merchant.id).catch(() => {});
     }
 
     await authService.signOut();
-
-    // Only the cached pass list goes. It is the one piece of state that would
-    // let the next account to sign in validate against this one's passes.
-    //
-    // The queue stays. It is keyed by merchant, so nobody else can read it, and
-    // whatever is left in it is a person who was let out of the venue on a scan
-    // the server has never seen. The previous code wiped all three keys here,
-    // which meant signing out on a device that had been offline destroyed the
-    // only record those exits had.
     await offlineScanStore.clearCachedPasses();
 
     setUser(null);
@@ -150,8 +186,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       can,
       refresh: load,
       signOut,
+      createDemoBusiness,
+      signInDemo,
     }),
-    [status, user, merchant, error, can, load, signOut]
+    [status, user, merchant, error, can, load, signOut, createDemoBusiness, signInDemo]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

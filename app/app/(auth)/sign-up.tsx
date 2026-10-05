@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, ScrollView, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
-import { Link } from 'expo-router';
-import { Sparkles, AlertCircle, ArrowLeft } from 'lucide-react-native';
+import { useRouter, Link } from 'expo-router';
+import { Sparkles, AlertCircle, ArrowLeft, AlertTriangle } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useThemeColors } from '../../../src/context/ThemeContext';
+import { useAuth } from '../../../src/context/AuthContext';
 import { Button } from '../../../components/ui/Button';
 import { Card } from '../../../components/ui/Card';
 import { Field } from '../../../components/ui/Field';
 import { GoogleIcon } from '../../../components/ui/GoogleIcon';
-import { authService, EmailDeliveryError } from '../../../src/services/authService';
+import { authService, EmailDeliveryError, SupabaseUnreachableError, isNetworkError } from '../../../src/services/authService';
 
 /**
  * Owner signup: creates the login and the business in one pass.
@@ -20,6 +21,8 @@ import { authService, EmailDeliveryError } from '../../../src/services/authServi
 export default function SignUpScreen() {
   const colors = useThemeColors();
   const { t } = useTranslation();
+  const router = useRouter();
+  const { createDemoBusiness } = useAuth();
   const [businessName, setBusinessName] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [phone, setPhone] = useState('');
@@ -29,15 +32,44 @@ export default function SignUpScreen() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isUnreachable, setIsUnreachable] = useState(false);
   const [confirmEmailNotice, setConfirmEmailNotice] = useState(false);
+
+  const handleDemoCreate = async () => {
+    if (!businessName.trim() || !ownerName.trim()) {
+      setError(t('auth.signUpMissing'));
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await createDemoBusiness({
+        businessName,
+        ownerName,
+        phone,
+        location,
+        upiId,
+      });
+      router.replace('/app');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Demo setup failed');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const submitGoogle = async () => {
     setBusy(true);
     setError(null);
+    setIsUnreachable(false);
     try {
       await authService.signInWithGoogle();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('auth.signUpFailed'));
+      if (err instanceof SupabaseUnreachableError || isNetworkError(err)) {
+        setIsUnreachable(true);
+      } else {
+        setError(err instanceof Error ? err.message : t('auth.signUpFailed'));
+      }
     } finally {
       setBusy(false);
     }
@@ -55,6 +87,7 @@ export default function SignUpScreen() {
 
     setBusy(true);
     setError(null);
+    setIsUnreachable(false);
     try {
       await authService.signUpOwner({
         email,
@@ -69,17 +102,15 @@ export default function SignUpScreen() {
       // session, so there is nothing to route to yet. Provisioning is
       // idempotent and runs on the first real sign-in instead.
       if (!(await authService.hasSession())) setConfirmEmailNotice(true);
+      else router.replace('/app');
     } catch (err) {
-      // A failed confirmation email is a server misconfiguration, and Supabase's
-      // own wording for it reads as though the person signing up did something
-      // wrong. Say plainly whose problem it is.
-      setError(
-        err instanceof EmailDeliveryError
-          ? t('auth.emailDeliveryFailed')
-          : err instanceof Error
-            ? err.message
-            : t('auth.signUpFailed')
-      );
+      if (err instanceof SupabaseUnreachableError || isNetworkError(err)) {
+        setIsUnreachable(true);
+      } else if (err instanceof EmailDeliveryError) {
+        setError(t('auth.emailDeliveryFailed'));
+      } else {
+        setError(err instanceof Error ? err.message : t('auth.signUpFailed'));
+      }
     } finally {
       setBusy(false);
     }
@@ -211,12 +242,32 @@ export default function SignUpScreen() {
               />
             </Field>
 
-            {error && (
+            {isUnreachable ? (
+              <View className="mb-4 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30">
+                <View className="flex-row items-center gap-2 mb-1.5">
+                  <AlertTriangle size={16} color={colors['warning']} />
+                  <Text className="text-sm font-bold text-brand-text">
+                    Supabase Server Unreachable (Failed to fetch)
+                  </Text>
+                </View>
+                <Text className="text-xs text-brand-text-muted leading-5 mb-3">
+                  Supabase backend connect nahi ho pa raha hai (project URL inactive ya paused ho sakta hai). Aap bina kisi database ke is form ke data ke sath Demo Business turant shuru kar sakte hain!
+                </Text>
+                <Button
+                  title="🚀 Is Data ke sath Business Start Karein"
+                  variant="primary"
+                  size="md"
+                  fullWidth
+                  loading={busy}
+                  onPress={handleDemoCreate}
+                />
+              </View>
+            ) : error ? (
               <View className="flex-row items-start gap-2 mb-4 p-3 rounded-xl bg-brand-danger/10 border border-brand-danger/30">
                 <AlertCircle size={14} color={colors['danger']} />
                 <Text className="text-xs text-brand-danger flex-1 leading-4">{error}</Text>
               </View>
-            )}
+            ) : null}
 
             <Button
               title={t('auth.createBusinessCta')}
@@ -226,6 +277,16 @@ export default function SignUpScreen() {
               loading={busy}
               onPress={submit}
             />
+
+            <TouchableOpacity
+              onPress={handleDemoCreate}
+              activeOpacity={0.7}
+              className="mt-2.5 py-2.5 px-3 rounded-xl border border-brand-border bg-brand-bg items-center"
+            >
+              <Text className="text-xs font-semibold text-brand-text-subtle">
+                🛠️ Demo / Offline Mode me Banayein (No Cloud Setup)
+              </Text>
+            </TouchableOpacity>
 
             <View className="flex-row items-center my-3.5">
               <View className="flex-1 h-px bg-brand-border" />

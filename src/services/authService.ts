@@ -12,32 +12,51 @@
  * that anyone can bypass - which is precisely what the previous build did, right
  * down to a "Switch to Owner (Root Admin)" button on the access-denied screen.
  */
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { requireSupabase, supabase } from '../lib/supabase';
 import { toStaffMember, toMerchant } from './mappers';
 import { DEFAULT_TICKET_TYPES } from '../config/pricing';
-import { env } from '../config/env';
+import { env, isPreview } from '../config/env';
+import { ownerPermissions } from '../config/permissions';
+import { previewMerchant, previewOwner } from './previewData';
 import type { MerchantRow, MerchantUserRow } from '../types/db';
-import type { Merchant, StaffMember } from '../types';
+import type { Merchant, StaffMember, OperatingMode } from '../types';
 
 /**
  * Supabase could not send the confirmation email.
- *
- * It reports this as a bare HTTP 500 whose message - "Error sending
- * confirmation email" - is accurate and useless to the person reading it. A
- * merchant sees a server error, assumes the app is broken and tries again, and
- * every retry fails the same way, because nothing on their side is wrong: the
- * project either has no working SMTP configured or is still on Supabase's
- * built-in sender, which is rate limited to a couple of messages an hour and
- * only delivers to addresses belonging to the project's own organisation.
- *
- * Raised as its own type so the screen can explain that without matching on
- * wording Supabase is free to change.
  */
 export class EmailDeliveryError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'EmailDeliveryError';
   }
+}
+
+/**
+ * Supabase backend server is unreachable or failed to fetch (DNS / network failure).
+ */
+export class SupabaseUnreachableError extends Error {
+  constructor(message: string) {
+    super(
+      `Supabase cloud server connect nahi ho pa raha (${message}). Supabase project URL inactive ya paused ho sakta hai.`
+    );
+    this.name = 'SupabaseUnreachableError';
+  }
+}
+
+/** Recognises network connectivity / DNS resolution failures. */
+export function isNetworkError(err: unknown): boolean {
+  if (!err) return false;
+  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  return (
+    msg.includes('failed to fetch') ||
+    msg.includes('network request failed') ||
+    msg.includes('network error') ||
+    msg.includes('load failed') ||
+    msg.includes('err_name_not_resolved') ||
+    msg.includes('enotfound') ||
+    msg.includes('connect failed')
+  );
 }
 
 /** Recognises the SMTP failure above among ordinary sign-up rejections. */
@@ -59,7 +78,78 @@ export interface StaffAccountChoice {
   businessName: string;
 }
 
+const DEMO_STORAGE_KEY = 'noparchi_demo_session';
+
 class AuthService {
+  // ---------------------------------------------------------------------------
+  // Demo / Offline Mode Handlers
+  // ---------------------------------------------------------------------------
+
+  async createDemoBusiness(params: {
+    businessName: string;
+    ownerName: string;
+    phone?: string;
+    location?: string;
+    upiId?: string;
+    operatingMode?: OperatingMode;
+  }): Promise<{ user: StaffMember; merchant: Merchant }> {
+    const merchantId = 'demo-m-' + Date.now();
+    const demoMerchant: Merchant = {
+      id: merchantId,
+      businessName: params.businessName.trim() || 'My Business',
+      location: params.location?.trim() || 'Main Campus',
+      operatingMode: params.operatingMode || 'PARKING',
+      upiId: params.upiId?.trim() || 'merchant@upi',
+      currency: 'INR',
+      paymentProvider: 'upi_intent',
+      messagingProvider: 'wa_deeplink',
+      branding: {},
+      exitGates: ['Main Gate', 'Gate 2'],
+      createdAt: new Date().toISOString(),
+    };
+
+    const demoOwner: StaffMember = {
+      id: 'demo-owner-' + Date.now(),
+      merchantId,
+      authUserId: 'demo-auth-' + Date.now(),
+      isOwner: true,
+      name: params.ownerName.trim() || 'Owner',
+      phone: params.phone?.trim() || '9876543210',
+      permissions: ownerPermissions(),
+      isActive: true,
+      lastSeenAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    };
+
+    Object.assign(previewMerchant, demoMerchant);
+    Object.assign(previewOwner, demoOwner);
+
+    await AsyncStorage.setItem(
+      DEMO_STORAGE_KEY,
+      JSON.stringify({ user: demoOwner, merchant: demoMerchant })
+    );
+
+    return { user: demoOwner, merchant: demoMerchant };
+  }
+
+  async signInDemo(): Promise<{ user: StaffMember; merchant: Merchant }> {
+    await AsyncStorage.setItem(
+      DEMO_STORAGE_KEY,
+      JSON.stringify({ user: previewOwner, merchant: previewMerchant })
+    );
+    return { user: previewOwner, merchant: previewMerchant };
+  }
+
+  async getStoredDemoSession(): Promise<{ user: StaffMember; merchant: Merchant } | null> {
+    try {
+      const raw = await AsyncStorage.getItem(DEMO_STORAGE_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Owner
   // ---------------------------------------------------------------------------
@@ -73,70 +163,105 @@ class AuthService {
     location?: string;
     upiId?: string;
   }): Promise<void> {
-    const client = requireSupabase();
+    if (isPreview) {
+      await this.createDemoBusiness(params);
+      return;
+    }
 
-    const redirectUrl = env.publicWebUrl
-      ? `${env.publicWebUrl}/app`
-      : typeof window !== 'undefined'
-        ? `${window.location.origin}/app`
-        : undefined;
+    try {
+      const client = requireSupabase();
 
-    const { data, error } = await client.auth.signUp({
-      email: params.email.trim().toLowerCase(),
-      password: params.password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          business_name: params.businessName.trim(),
-          owner_name: params.ownerName.trim(),
-          phone: params.phone.trim(),
-          location: params.location?.trim() ?? '',
-          upi_id: params.upiId?.trim() ?? '',
+      const redirectUrl = env.publicWebUrl
+        ? `${env.publicWebUrl}/app`
+        : typeof window !== 'undefined'
+          ? `${window.location.origin}/app`
+          : undefined;
+
+      const { data, error } = await client.auth.signUp({
+        email: params.email.trim().toLowerCase(),
+        password: params.password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            business_name: params.businessName.trim(),
+            owner_name: params.ownerName.trim(),
+            phone: params.phone.trim(),
+            location: params.location?.trim() ?? '',
+            upi_id: params.upiId?.trim() ?? '',
+          },
         },
-      },
-    });
-    if (error) throw asSignUpError(error);
+      });
+      if (error) throw asSignUpError(error);
 
-    // When email confirmation is switched on in the Supabase dashboard, signUp
-    // returns no session and provisioning has to wait until the owner confirms
-    // and signs in. provision_merchant is idempotent, so ensureProvisioned()
-    // picks it up on that first real sign-in instead.
-    if (!data.session) return;
+      if (!data.session) return;
 
-    await this.provisionMerchant(params);
+      await this.provisionMerchant(params);
+    } catch (err) {
+      if (isNetworkError(err)) {
+        throw new SupabaseUnreachableError(
+          err instanceof Error ? err.message : 'Network request failed'
+        );
+      }
+      throw err;
+    }
   }
 
   async signInOwner(email: string, password: string): Promise<void> {
-    const client = requireSupabase();
-    const { error } = await client.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
-      password,
-    });
-    if (error) throw error;
+    if (isPreview) {
+      await this.signInDemo();
+      return;
+    }
+
+    try {
+      const client = requireSupabase();
+      const { error } = await client.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+      if (error) throw error;
+    } catch (err) {
+      if (isNetworkError(err)) {
+        throw new SupabaseUnreachableError(
+          err instanceof Error ? err.message : 'Network request failed'
+        );
+      }
+      throw err;
+    }
   }
 
   async signInWithGoogle(): Promise<void> {
-    const client = requireSupabase();
-    const redirectUrl = env.publicWebUrl
-      ? `${env.publicWebUrl}/app`
-      : typeof window !== 'undefined'
-        ? `${window.location.origin}/app`
-        : undefined;
+    if (isPreview) {
+      await this.signInDemo();
+      return;
+    }
 
-    const { error } = await client.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: redirectUrl,
-      },
-    });
-    if (error) throw error;
+    try {
+      const client = requireSupabase();
+      const redirectUrl = env.publicWebUrl
+        ? `${env.publicWebUrl}/app`
+        : typeof window !== 'undefined'
+          ? `${window.location.origin}/app`
+          : undefined;
+
+      const { error } = await client.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+        },
+      });
+      if (error) throw error;
+    } catch (err) {
+      if (isNetworkError(err)) {
+        throw new SupabaseUnreachableError(
+          err instanceof Error ? err.message : 'Network request failed'
+        );
+      }
+      throw err;
+    }
   }
 
   /**
    * Create the tenant for the currently signed-in auth user.
-   *
-   * The starter ticket types are passed in from src/config/pricing.ts rather
-   * than hardcoded in SQL, so that list has exactly one definition.
    */
   async provisionMerchant(params: {
     businessName: string;
@@ -145,53 +270,73 @@ class AuthService {
     location?: string;
     upiId?: string;
   }): Promise<string> {
-    const client = requireSupabase();
-    const { data, error } = await client.rpc('provision_merchant', {
-      p_business_name: params.businessName.trim(),
-      p_owner_name: params.ownerName.trim(),
-      p_phone: params.phone.trim(),
-      p_location: params.location?.trim() ?? '',
-      p_upi_id: params.upiId?.trim() ?? '',
-      p_ticket_types: DEFAULT_TICKET_TYPES,
-    });
-    if (error) throw error;
-    if (!data?.success) throw new Error(data?.message ?? 'Could not create the business.');
-    return data.merchantId as string;
+    if (isPreview) {
+      const demo = await this.createDemoBusiness(params);
+      return demo.merchant.id;
+    }
+
+    try {
+      const client = requireSupabase();
+      const { data, error } = await client.rpc('provision_merchant', {
+        p_business_name: params.businessName.trim(),
+        p_owner_name: params.ownerName.trim(),
+        p_phone: params.phone.trim(),
+        p_location: params.location?.trim() ?? '',
+        p_upi_id: params.upiId?.trim() ?? '',
+        p_ticket_types: DEFAULT_TICKET_TYPES,
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.message ?? 'Could not create the business.');
+      return data.merchantId as string;
+    } catch (err) {
+      if (isNetworkError(err)) {
+        throw new SupabaseUnreachableError(
+          err instanceof Error ? err.message : 'Network request failed'
+        );
+      }
+      throw err;
+    }
   }
 
   // ---------------------------------------------------------------------------
   // Staff
   // ---------------------------------------------------------------------------
 
-  /**
-   * Exchange a phone number and PIN for a session.
-   *
-   * The PIN is never stored anywhere: the Edge Function derives the synthetic
-   * auth password from it with a server-side secret, so a database dump reveals
-   * no PINs. If the phone matches staff at more than one business, the function
-   * returns the choices instead of guessing.
-   */
   async signInStaff(params: {
     phone: string;
     pin: string;
     userId?: string;
   }): Promise<{ needsChoice?: StaffAccountChoice[] }> {
-    const client = requireSupabase();
+    if (isPreview) {
+      await this.signInDemo();
+      return {};
+    }
 
-    const { data, error } = await client.functions.invoke('staff-auth', {
-      body: { phone: params.phone.trim(), pin: params.pin.trim(), userId: params.userId },
-    });
-    if (error) throw new Error(await readFunctionError(error, 'Could not sign in.'));
+    try {
+      const client = requireSupabase();
 
-    if (data?.choices) return { needsChoice: data.choices as StaffAccountChoice[] };
-    if (!data?.session) throw new Error(data?.message ?? 'Incorrect phone number or PIN.');
+      const { data, error } = await client.functions.invoke('staff-auth', {
+        body: { phone: params.phone.trim(), pin: params.pin.trim(), userId: params.userId },
+      });
+      if (error) throw new Error(await readFunctionError(error, 'Could not sign in.'));
 
-    const { error: setErr } = await client.auth.setSession({
-      access_token: data.session.access_token,
-      refresh_token: data.session.refresh_token,
-    });
-    if (setErr) throw setErr;
-    return {};
+      if (data?.choices) return { needsChoice: data.choices as StaffAccountChoice[] };
+      if (!data?.session) throw new Error(data?.message ?? 'Incorrect phone number or PIN.');
+
+      const { error: setErr } = await client.auth.setSession({
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+      });
+      if (setErr) throw setErr;
+      return {};
+    } catch (err) {
+      if (isNetworkError(err)) {
+        throw new SupabaseUnreachableError(
+          err instanceof Error ? err.message : 'Network request failed'
+        );
+      }
+      throw err;
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -199,56 +344,73 @@ class AuthService {
   // ---------------------------------------------------------------------------
 
   async signOut(): Promise<void> {
+    await AsyncStorage.removeItem(DEMO_STORAGE_KEY).catch(() => {});
     if (!supabase) return;
-    await supabase.auth.signOut();
+    await supabase.auth.signOut().catch(() => {});
   }
 
-  /**
-   * Load the signed-in staff row and their merchant.
-   *
-   * Returns null when there is a valid auth session but no merchant_users row
-   * yet - the window between signUp and provisioning - so callers can route to
-   * the "finish setting up your business" step rather than treating it as an
-   * error.
-   */
   async loadContext(): Promise<SignedInContext | null> {
-    const client = requireSupabase();
+    const demo = await this.getStoredDemoSession();
+    if (demo) {
+      Object.assign(previewMerchant, demo.merchant);
+      Object.assign(previewOwner, demo.user);
+      return demo;
+    }
 
-    // RLS restricts this select to the caller's own tenant, but a tenant holds
-    // a row per staff member, so the caller's own row has to be selected by
-    // auth_user_id in the query itself. Fetching one arbitrary row and picking
-    // through it afterwards returned whichever row Postgres happened to hand
-    // back - usually the owner's - so every gatekeeper resolved to no row at
-    // all and was routed to "finish setting up your business".
-    const { data: auth } = await client.auth.getUser();
-    const authId = auth.user?.id ?? null;
-    if (!authId) return null;
+    if (isPreview) {
+      return {
+        user: previewOwner,
+        merchant: previewMerchant,
+      };
+    }
 
-    const { data: mine, error: userError } = await client
-      .from('merchant_users')
-      .select('*')
-      .eq('auth_user_id', authId)
-      .maybeSingle();
-    if (userError) throw userError;
-    if (!mine) return null;
+    if (!supabase) return null;
 
-    const { data: merchantRow, error: merchantError } = await client
-      .from('merchants')
-      .select('*')
-      .eq('id', mine.merchant_id)
-      .single();
-    if (merchantError) throw merchantError;
+    try {
+      const client = requireSupabase();
 
-    return {
-      user: toStaffMember(mine as MerchantUserRow),
-      merchant: toMerchant(merchantRow as MerchantRow),
-    };
+      const { data: auth } = await client.auth.getUser();
+      const authId = auth.user?.id ?? null;
+      if (!authId) return null;
+
+      const { data: mine, error: userError } = await client
+        .from('merchant_users')
+        .select('*')
+        .eq('auth_user_id', authId)
+        .maybeSingle();
+      if (userError) throw userError;
+      if (!mine) return null;
+
+      const { data: merchantRow, error: merchantError } = await client
+        .from('merchants')
+        .select('*')
+        .eq('id', mine.merchant_id)
+        .single();
+      if (merchantError) throw merchantError;
+
+      return {
+        user: toStaffMember(mine as MerchantUserRow),
+        merchant: toMerchant(merchantRow as MerchantRow),
+      };
+    } catch (err) {
+      if (isNetworkError(err)) {
+        return null;
+      }
+      throw err;
+    }
   }
 
   async hasSession(): Promise<boolean> {
+    const demo = await this.getStoredDemoSession();
+    if (demo) return true;
+    if (isPreview) return true;
     if (!supabase) return false;
-    const { data } = await supabase.auth.getSession();
-    return Boolean(data.session);
+    try {
+      const { data } = await supabase.auth.getSession();
+      return Boolean(data.session);
+    } catch {
+      return false;
+    }
   }
 }
 
