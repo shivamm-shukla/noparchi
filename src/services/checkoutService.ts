@@ -7,7 +7,7 @@
  */
 import { requireSupabase } from '../lib/supabase';
 import { isPreview } from '../config/env';
-import { previewCheckout, previewTicket } from './previewData';
+import { previewCheckout, previewMerchant, previewTicket } from './previewData';
 import type { CheckoutMerchant, CheckoutTicketType, PublicTicket } from '../types';
 
 export interface CheckoutInfo {
@@ -25,7 +25,25 @@ class CheckoutService {
    * gate QR led to the same shop at the same prices, paying the same UPI ID.
    */
   async loadCheckout(merchantId: string): Promise<CheckoutInfo> {
-    if (isPreview) return previewCheckout;
+    if (isPreview) {
+      if (previewMerchant.operatingMode === 'SCHOLARSHIP_TEST') {
+        return {
+          merchant: {
+            id: previewMerchant.id,
+            businessName: previewMerchant.businessName,
+            location: previewMerchant.location,
+            operatingMode: 'SCHOLARSHIP_TEST',
+            upiId: previewMerchant.upiId,
+            currency: 'INR',
+            paymentProvider: previewMerchant.paymentProvider,
+            messagingProvider: previewMerchant.messagingProvider,
+            branding: previewMerchant.branding,
+          },
+          ticketTypes: [],
+        };
+      }
+      return previewCheckout;
+    }
     const client = requireSupabase();
     const { data, error } = await client.rpc('public_checkout_info', {
       p_merchant_id: merchantId,

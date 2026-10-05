@@ -45,8 +45,10 @@ class MerchantService {
   ): Promise<Merchant> {
     // Preview writes go nowhere by design - the point is to look at the screens,
     // and a change that appeared to save but did not would be worse than one
-    // that plainly does nothing.
-    if (isPreview) return { ...previewMerchant, ...patch } as Merchant;
+    if (isPreview) {
+      Object.assign(previewMerchant, patch);
+      return { ...previewMerchant, ...patch } as Merchant;
+    }
     const client = requireSupabase();
 
     const update: Record<string, unknown> = {};
