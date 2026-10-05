@@ -10,6 +10,7 @@ import { MerchantLogo } from '../../components/ui/MerchantLogo';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { checkoutService, type CheckoutInfo } from '../../src/services/checkoutService';
+import { ScholarshipRegistrationForm } from '../../components/scholarship/ScholarshipRegistrationForm';
 import { paymentProvider } from '../../src/services/payment';
 import { ticketTypeIcon } from '../../src/config/icons';
 import { formatCurrency } from '../../src/utils/formatters';
@@ -140,6 +141,44 @@ export default function CheckoutScreen() {
   }
 
   const { merchant, ticketTypes } = info;
+
+  if (merchant.operatingMode === 'SCHOLARSHIP_TEST') {
+    return (
+      <View className="flex-1 bg-brand-bg">
+        <View className="bg-brand-surface border-b border-brand-border px-4 py-4">
+          <View className="max-w-lg mx-auto w-full flex-row items-center justify-between">
+            <View className="flex-row items-center gap-2.5 flex-1 min-w-0">
+              <MerchantLogo
+                name={merchant.businessName}
+                logoUrl={merchant.branding?.logoUrl}
+                size={36}
+              />
+              <View className="flex-1 min-w-0">
+                <Text numberOfLines={1} className="text-base font-extrabold text-brand-text">
+                  {merchant.businessName}
+                </Text>
+                <Text numberOfLines={1} className="text-xs text-brand-text-muted">
+                  {merchant.location}
+                </Text>
+              </View>
+            </View>
+            <Badge label={t('scholarship.badge')} variant="success" size="sm" />
+          </View>
+        </View>
+
+        <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 48 }}>
+          <View className="max-w-lg mx-auto w-full px-4 py-6">
+            <ScholarshipRegistrationForm
+              merchant={merchant}
+              onSuccess={(result) => {
+                router.push(`/ticket/${result.ticketCode}`);
+              }}
+            />
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
 
   return (
     <View className="flex-1 bg-brand-bg">

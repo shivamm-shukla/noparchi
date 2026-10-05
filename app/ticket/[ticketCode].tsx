@@ -20,6 +20,7 @@ import { Card } from '../../components/ui/Card';
 import { MerchantLogo } from '../../components/ui/MerchantLogo';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
+import { AdmitCardView } from '../../components/scholarship/AdmitCardView';
 import { checkoutService } from '../../src/services/checkoutService';
 import { paymentProvider } from '../../src/services/payment';
 import { passUrl } from '../../src/utils/links';
@@ -155,6 +156,29 @@ export default function TicketScreen() {
             {t('pass.notFoundHelp')}
           </Text>
         </Card>
+      </View>
+    );
+  }
+
+  if (ticket.merchant.operatingMode === 'SCHOLARSHIP_TEST') {
+    return (
+      <View className="flex-1 bg-brand-bg">
+        <View className="bg-brand-surface border-b border-brand-border px-4 py-4 print:hidden">
+          <View className="max-w-xl mx-auto w-full flex-row items-center justify-between">
+            <Text className="text-sm font-bold text-brand-text">{ticket.merchant.businessName}</Text>
+            <Badge
+              label={ticket.isUsed || ticket.attendedAt ? t('admitCard.statusAttended') : t('admitCard.statusValid')}
+              variant={ticket.isUsed || ticket.attendedAt ? 'neutral' : 'success'}
+              size="sm"
+            />
+          </View>
+        </View>
+
+        <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 40, paddingTop: 16 }}>
+          <View className="max-w-xl mx-auto w-full px-4">
+            <AdmitCardView ticket={ticket} />
+          </View>
+        </ScrollView>
       </View>
     );
   }
