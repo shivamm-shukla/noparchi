@@ -12,8 +12,7 @@ RUN npm ci
 # Copy all source files
 COPY . .
 
-# Generate Prisma Client & Build static web export
-RUN npx prisma generate
+# Build static web export
 RUN npx expo export --platform web --output-dir dist
 
 # Stage 2: Production Web Server with Nginx
