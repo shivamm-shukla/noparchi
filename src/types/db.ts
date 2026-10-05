@@ -12,10 +12,13 @@
 
 export type TransactionStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'expired';
 
+export type OperatingMode = 'PARKING' | 'SCHOLARSHIP_TEST' | 'GENERAL_EVENT';
+
 export interface MerchantRow {
   id: string;
   business_name: string;
   location: string;
+  operating_mode?: OperatingMode;
   upi_id: string;
   currency: string;
   payment_provider: string;
@@ -68,12 +71,17 @@ export interface TransactionRow {
   amount: number;
   vehicle_number: string | null;
   customer_phone: string | null;
+  primary_name?: string | null;
+  primary_phone?: string | null;
+  metadata?: Record<string, unknown>;
   status: TransactionStatus;
   payment_provider: string;
   payment_ref: string | null;
   payment_verified_at: string | null;
   payment_verified_by: string | null;
   issued_by_user_id: string | null;
+  attended_at?: string | null;
+  attended_by?: string | null;
   ticket_code: string;
 
   /** When the pass became usable. The expiry clock starts here, not at creation. */

@@ -111,11 +111,15 @@ class CheckoutService {
       amount: Number(t.amount),
       typeLabel: String(t.typeLabel),
       vehicleNumber: (t.vehicleNumber as string | null) ?? null,
+      primaryName: (t.primaryName as string | null) ?? null,
+      primaryPhone: (t.primaryPhone as string | null) ?? null,
+      metadata: (t.metadata as Record<string, unknown>) ?? {},
       issuedAt: String(t.issuedAt),
       activatedAt: (t.activatedAt as string | null) ?? null,
       expiresAt: (t.expiresAt as string | null) ?? null,
       isUsed: Boolean(t.isUsed),
       usedAt: (t.usedAt as string | null) ?? null,
+      attendedAt: (t.attendedAt as string | null) ?? null,
       extensionCount: Number(t.extensionCount ?? 0),
       overstayDue: Number(t.overstayDue ?? 0),
       canExtend: Boolean(t.canExtend),
@@ -134,6 +138,60 @@ class CheckoutService {
           }
         : null,
       merchant: data.merchant as PublicTicket['merchant'],
+    };
+  }
+
+  /**
+   * Register a student for a coaching scholarship test via banner QR code.
+   */
+  async registerScholarship(params: {
+    merchantId: string;
+    studentName: string;
+    studentPhone: string;
+    parentPhone: string;
+    classGrade: string;
+    targetStream?: string;
+    examSlot: string;
+    campaignSource?: string;
+  }): Promise<{
+    ticketCode: string;
+    rollNumber: string;
+    studentName: string;
+    examSlot: string;
+    merchantName: string;
+    location: string;
+  }> {
+    if (isPreview) {
+      return {
+        ticketCode: 'FP-SCHL-1042',
+        rollNumber: 'SCH-26-1042',
+        studentName: params.studentName,
+        examSlot: params.examSlot,
+        merchantName: 'Kota Super 30 Institute',
+        location: 'Indra Vihar, Kota, Rajasthan',
+      };
+    }
+    const client = requireSupabase();
+    const { data, error } = await client.rpc('public_register_scholarship_student', {
+      p_merchant_id: params.merchantId,
+      p_student_name: params.studentName,
+      p_student_phone: params.studentPhone,
+      p_parent_phone: params.parentPhone,
+      p_class_grade: params.classGrade,
+      p_target_stream: params.targetStream ?? 'General',
+      p_exam_slot: params.examSlot,
+      p_campaign_source: params.campaignSource ?? 'banner',
+    });
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.message ?? 'Registration failed.');
+
+    return {
+      ticketCode: data.ticketCode as string,
+      rollNumber: data.rollNumber as string,
+      studentName: data.studentName as string,
+      examSlot: data.examSlot as string,
+      merchantName: data.merchantName as string,
+      location: data.location as string,
     };
   }
 

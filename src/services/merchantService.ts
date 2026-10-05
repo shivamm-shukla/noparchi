@@ -34,10 +34,12 @@ class MerchantService {
     patch: {
       businessName?: string;
       location?: string;
+      operatingMode?: import('../types').OperatingMode;
       upiId?: string;
       paymentProvider?: string;
       messagingProvider?: string;
       branding?: MerchantBranding;
+      printSettings?: Record<string, unknown>;
       exitGates?: string[];
     }
   ): Promise<Merchant> {
@@ -50,23 +52,14 @@ class MerchantService {
     const update: Record<string, unknown> = {};
     if (patch.businessName !== undefined) update.business_name = patch.businessName.trim();
     if (patch.location !== undefined) update.location = patch.location.trim();
+    if (patch.operatingMode !== undefined) update.operating_mode = patch.operatingMode;
     if (patch.upiId !== undefined) update.upi_id = patch.upiId.trim();
     if (patch.paymentProvider !== undefined) update.payment_provider = patch.paymentProvider;
     if (patch.messagingProvider !== undefined) update.messaging_provider = patch.messagingProvider;
 
-    /*
-      settings is one JSONB column shared by everything that does not deserve
-      its own. Writing `{ branding }` straight into it replaced the whole
-      object, so saving a logo silently deleted the gate list and saving gates
-      deleted the logo. Read what is there, merge, write it back.
-
-      Not race-free: two owners saving different settings in the same second
-      would have one overwrite the other. That is worth a `settings || patch`
-      RPC when settings become something more than one person occasionally
-      edits; it is not worth pretending the clobber was fine.
-    */
     const settingsPatch: Record<string, unknown> = {};
     if (patch.branding !== undefined) settingsPatch.branding = patch.branding;
+    if (patch.printSettings !== undefined) settingsPatch.printSettings = patch.printSettings;
     if (patch.exitGates !== undefined) {
       settingsPatch.gates = patch.exitGates.map((gate) => gate.trim()).filter(Boolean);
     }

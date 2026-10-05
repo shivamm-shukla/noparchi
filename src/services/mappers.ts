@@ -39,6 +39,7 @@ export const DEFAULT_EXIT_GATES = ['Main Exit'];
 
 export function toMerchant(row: MerchantRow): Merchant {
   const branding = (row.settings?.branding ?? {}) as MerchantBranding;
+  const printSettings = (row.settings?.printSettings ?? {}) as Record<string, unknown>;
   const rawGates = row.settings?.gates;
   const exitGates =
     Array.isArray(rawGates) && rawGates.length > 0
@@ -48,11 +49,13 @@ export function toMerchant(row: MerchantRow): Merchant {
     id: row.id,
     businessName: row.business_name,
     location: row.location,
+    operatingMode: row.operating_mode ?? 'PARKING',
     upiId: row.upi_id,
     currency: row.currency,
     paymentProvider: row.payment_provider,
     messagingProvider: row.messaging_provider,
     branding,
+    printSettings,
     exitGates,
     createdAt: row.created_at,
   };
@@ -122,6 +125,11 @@ export function toTransaction(row: TransactionRowWithEmbed): Transaction {
     amount: Number(row.amount),
     vehicleNumber: row.vehicle_number,
     customerPhone: row.customer_phone,
+    primaryName: row.primary_name ?? (row.metadata?.student_name as string) ?? null,
+    primaryPhone: row.primary_phone ?? row.customer_phone ?? null,
+    metadata: (row.metadata ?? {}) as Record<string, unknown>,
+    attendedAt: row.attended_at ?? null,
+    attendedBy: row.attended_by ?? null,
     status: row.status,
     paymentProvider: row.payment_provider,
     paymentRef: row.payment_ref,

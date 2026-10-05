@@ -7,24 +7,24 @@
  */
 import type { PermissionSet } from '../config/permissions';
 import type { TicketType } from '../config/pricing';
-import type { TransactionStatus } from './db';
+import type { TransactionStatus, OperatingMode } from './db';
 
-export type { TransactionStatus, TicketType, PermissionSet };
+export type { TransactionStatus, TicketType, PermissionSet, OperatingMode };
 export type { PermissionKey } from '../config/permissions';
 
 export interface Merchant {
   id: string;
   businessName: string;
   location: string;
+  operatingMode: OperatingMode;
   upiId: string;
   currency: string;
   paymentProvider: string;
   messagingProvider: string;
   branding: MerchantBranding;
+  printSettings?: Record<string, unknown>;
   /**
-   * The exits a gatekeeper can be standing at. Stored per merchant because a
-   * mela has eleven and a stall has one; a hardcoded list meant every scan in
-   * the product was recorded against the same three invented gate names.
+   * The exits/checkpoints a gatekeeper can be standing at.
    */
   exitGates: string[];
   createdAt: string;
@@ -58,11 +58,16 @@ export interface Transaction {
   amount: number;
   vehicleNumber: string | null;
   customerPhone: string | null;
+  primaryName?: string | null;
+  primaryPhone?: string | null;
+  metadata?: Record<string, unknown>;
   status: TransactionStatus;
   paymentProvider: string;
   paymentRef: string | null;
   paymentVerifiedAt: string | null;
   issuedByUserId: string | null;
+  attendedAt?: string | null;
+  attendedBy?: string | null;
   ticketCode: string;
   activatedAt: string | null;
   expiresAt: string | null;
@@ -114,6 +119,10 @@ export interface ScanResult {
   success: boolean;
   status: ScanStatus;
   message: string;
+  mode?: OperatingMode;
+  studentName?: string | null;
+  rollNumber?: string | null;
+  classGrade?: string | null;
   ticket?: Transaction | null;
   validation?: TicketValidation | null;
   scannedAt?: string | null;
@@ -161,11 +170,13 @@ export interface CheckoutMerchant {
   id: string;
   businessName: string;
   location: string;
+  operatingMode?: OperatingMode;
   upiId: string;
   currency: string;
   paymentProvider: string;
   messagingProvider: string;
   branding: MerchantBranding;
+  printSettings?: Record<string, unknown>;
 }
 
 export interface CheckoutTicketType {
@@ -193,11 +204,15 @@ export interface PublicTicket {
   amount: number;
   typeLabel: string;
   vehicleNumber: string | null;
+  primaryName?: string | null;
+  primaryPhone?: string | null;
+  metadata?: Record<string, unknown>;
   issuedAt: string;
   activatedAt: string | null;
   expiresAt: string | null;
   isUsed: boolean;
   usedAt: string | null;
+  attendedAt?: string | null;
   extensionCount: number;
   /** Owed right now if the pass has already run out. Zero otherwise. */
   overstayDue: number;
@@ -209,9 +224,22 @@ export interface PublicTicket {
     id: string;
     businessName: string;
     location: string;
+    operatingMode?: OperatingMode;
     upiId: string;
     currency: string;
     paymentProvider: string;
     branding: MerchantBranding;
+    printSettings?: Record<string, unknown>;
   };
+}
+
+export interface ScholarshipRegistrationInput {
+  merchantId: string;
+  studentName: string;
+  studentPhone: string;
+  parentPhone: string;
+  classGrade: string;
+  targetStream?: string;
+  examSlot: string;
+  campaignSource?: string;
 }

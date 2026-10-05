@@ -123,6 +123,10 @@ class ScanService {
       success?: boolean;
       status?: ScanStatus;
       message?: string;
+      mode?: import('../types').OperatingMode;
+      studentName?: string;
+      rollNumber?: string;
+      classGrade?: string;
       ticket?: TransactionRow;
       validation?: TicketValidationRow;
       scannedAt?: string;
@@ -134,6 +138,10 @@ class ScanService {
       success: Boolean(payload.success),
       status: payload.status ?? 'INVALID',
       message: payload.message ?? 'Could not verify this pass.',
+      mode: payload.mode,
+      studentName: payload.studentName,
+      rollNumber: payload.rollNumber,
+      classGrade: payload.classGrade,
       ticket: payload.ticket ? toTransaction(payload.ticket) : null,
       validation: payload.validation ? toValidation(payload.validation) : null,
       scannedAt: payload.scannedAt ?? null,
